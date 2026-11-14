@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>World scenario</title>
+  </head>
+  <body>
+    <canvas id="world" style="width: 600px; height: 400px"></canvas>
+    <script type="module">
+      import { createWorld } from '/src/lib/game-client/world.ts';
+      const canvas = document.querySelector('#world');
+      const world = createWorld(canvas);
+      world.setViewer('viewer');
+      let revision = 0;
+      window.worldScenario = {
+        update(matchId, players) {
+          world.update({
+            matchId,
+            timestamp: Date.now(),
+            revision: ++revision,
+            state: {
+              id: matchId,
+              phase: 'running',
+              time: 0,
+              offer: null,
+              players: players.map(([id, x, z]) => ({
+                id,
+                connected: true,
+                life: { kind: 'alive', activity: 'playing' },
+                position: { x, y: 0.25, z },
+                radius: 0.5,
+                aim: 0,
+              })),
+            },
+            events: [],
+          });
+        },
+        reset() {
+          world.reset();
+        },
+        dispose() {
+          world.dispose();
+        },
+      };
+    </script>
+  </body>
+</html>

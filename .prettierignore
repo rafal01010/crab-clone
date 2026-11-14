@@ -1,0 +1,7 @@
+node_modules/
+build/
+.svelte-kit/
+IMPLEMENTATION_PLAN.md
+hovercraft_codex_reference_bundle/
+DESIGN.md
+build-host/

@@ -1,0 +1,84 @@
+{
+  "font": "Inter-Regular",
+  "method": "CoreText Inter Regular 16px word-wrap estimate from layout widths, not a browser capture",
+  "results": [
+    {
+      "columns": [
+        [
+          "When an enemy damages you or you",
+          "dodge, leave a decoy behind. It attracts",
+          "nearby enemies for a limited time and",
+          "has its own cooldown."
+        ],
+        [
+          "Discovering a point of interest increases",
+          "vegetation growth. After you discover",
+          "several points of interest, receive a",
+          "random bonus."
+        ],
+        [
+          "Impacts from jaws, beak, leech, spit, and",
+          "projectile tongue attacks apply poison.",
+          "The poison deals ability damage once",
+          "per second."
+        ]
+      ],
+      "columnTextWidth": 308.90666666666669,
+      "rows": [
+        [
+          "When an enemy damages you or you dodge, leave a decoy behind. It attracts",
+          "nearby enemies for a limited time and has its own cooldown."
+        ],
+        [
+          "Discovering a point of interest increases vegetation growth. After you discover",
+          "several points of interest, receive a random bonus."
+        ],
+        [
+          "Impacts from jaws, beak, leech, spit, and projectile tongue attacks apply poison.",
+          "The poison deals ability damage once per second."
+        ]
+      ],
+      "rowTextWidth": 616.72000000000003,
+      "viewportWidth": 1366
+    },
+    {
+      "columns": [
+        [
+          "When an enemy damages you or you",
+          "dodge, leave a decoy behind. It attracts",
+          "nearby enemies for a limited time and",
+          "has its own cooldown."
+        ],
+        [
+          "Discovering a point of interest increases",
+          "vegetation growth. After you discover",
+          "several points of interest, receive a",
+          "random bonus."
+        ],
+        [
+          "Impacts from jaws, beak, leech, spit, and",
+          "projectile tongue attacks apply poison.",
+          "The poison deals ability damage once",
+          "per second."
+        ]
+      ],
+      "columnTextWidth": 311.19999999999999,
+      "rows": [
+        [
+          "When an enemy damages you or you dodge, leave a decoy behind. It attracts",
+          "nearby enemies for a limited time and has its own cooldown."
+        ],
+        [
+          "Discovering a point of interest increases vegetation growth. After you discover",
+          "several points of interest, receive a random bonus."
+        ],
+        [
+          "Impacts from jaws, beak, leech, spit, and projectile tongue attacks apply poison.",
+          "The poison deals ability damage once per second."
+        ]
+      ],
+      "rowTextWidth": 623.59999999999991,
+      "viewportWidth": 1280
+    }
+  ]
+}

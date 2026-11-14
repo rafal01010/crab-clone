@@ -1,0 +1,49 @@
+# Project planning and reference material
+/IMPLEMENTATION_PLAN.md
+/hovercraft_codex_reference_bundle/
+
+# Dependencies and package manager caches
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# SvelteKit, Vite, and production output
+.svelte-kit/
+.vite/
+build/
+build-host/
+dist/
+.output/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Test and coverage output
+coverage/
+playwright-report/
+test-results/
+
+# Logs and local process files
+*.log
+*.pid
+*.tsbuildinfo
+
+# Python helper caches
+__pycache__/
+*.py[cod]
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json

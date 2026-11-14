@@ -1,0 +1,52 @@
+{
+  "setup": "One Node Socket.IO client and host over loopback, artificial message delay and drop, timer-driven presentation; no browser, TCP packet loss, or four-client load",
+  "seed": 314159,
+  "results": [
+    {
+      "profile": {
+        "name": "ordinary",
+        "delay": 10,
+        "jitter": 5,
+        "loss": 0
+      },
+      "delivered": 88,
+      "predictionResponseMs": 22.78216699999996,
+      "interpolationResponseMs": 141.96979199999998,
+      "maxCorrection": 0.7000054270405407,
+      "maxSnapshotAgeMs": 15.93279100000018,
+      "finalPredictionError": 1.93820264142643e-9,
+      "finalInterpolationError": 0
+    },
+    {
+      "profile": {
+        "name": "impaired",
+        "delay": 50,
+        "jitter": 20,
+        "loss": 0.01
+      },
+      "delivered": 88,
+      "predictionResponseMs": 41.93229100000008,
+      "interpolationResponseMs": 210.65629100000024,
+      "maxCorrection": 0.7656671705911872,
+      "maxSnapshotAgeMs": 70.74720799999886,
+      "finalPredictionError": 6.429687908923429e-9,
+      "finalInterpolationError": 0
+    },
+    {
+      "profile": {
+        "name": "recovery",
+        "delay": 150,
+        "jitter": 50,
+        "loss": 0.05,
+        "outage": true
+      },
+      "delivered": 79,
+      "predictionResponseMs": 34.94254100000035,
+      "interpolationResponseMs": 351.86362499999996,
+      "maxCorrection": 0.8861781382192657,
+      "maxSnapshotAgeMs": 196.371083,
+      "finalPredictionError": 0,
+      "finalInterpolationError": 0
+    }
+  ]
+}

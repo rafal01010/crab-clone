@@ -1,0 +1,3557 @@
+{
+  "model": "selection state and permission policy only; no damage or combat systems",
+  "results": [
+    {
+      "interval": 1000,
+      "trace": [
+        {
+          "time": 300,
+          "event": "rapid rewards queued and protected actions attempted",
+          "state": {
+            "kind": "protected",
+            "deadline": 10000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-a",
+              "revision": 0,
+              "options": [
+                {
+                  "id": "one",
+                  "label": "First"
+                },
+                {
+                  "id": "two",
+                  "label": "Second"
+                },
+                {
+                  "id": "three",
+                  "label": "Third"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 9000,
+          "event": "reroll during displayed window",
+          "state": {
+            "kind": "protected",
+            "deadline": 10000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-a",
+              "revision": 1,
+              "options": [
+                {
+                  "id": "four",
+                  "label": "Fourth"
+                },
+                {
+                  "id": "five",
+                  "label": "Fifth"
+                },
+                {
+                  "id": "six",
+                  "label": "Sixth"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 9500,
+          "event": "stale choice accepted: false",
+          "state": {
+            "kind": "protected",
+            "deadline": 10000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-a",
+              "revision": 1,
+              "options": [
+                {
+                  "id": "four",
+                  "label": "Fourth"
+                },
+                {
+                  "id": "five",
+                  "label": "Fifth"
+                },
+                {
+                  "id": "six",
+                  "label": "Sixth"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 9600,
+          "event": "disconnect",
+          "state": {
+            "kind": "protected",
+            "deadline": 10000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-a",
+              "revision": 1,
+              "options": [
+                {
+                  "id": "four",
+                  "label": "Fourth"
+                },
+                {
+                  "id": "five",
+                  "label": "Fifth"
+                },
+                {
+                  "id": "six",
+                  "label": "Sixth"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 10000,
+          "event": "deadline while disconnected and exposed actions attempted",
+          "state": {
+            "kind": "exposed",
+            "until": 11000,
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": [
+            {
+              "kind": "chosen",
+              "prompt": {
+                "kind": "upgrade",
+                "id": "upgrade-a",
+                "revision": 1,
+                "options": [
+                  {
+                    "id": "four",
+                    "label": "Fourth"
+                  },
+                  {
+                    "id": "five",
+                    "label": "Fifth"
+                  },
+                  {
+                    "id": "six",
+                    "label": "Sixth"
+                  }
+                ]
+              },
+              "optionId": "six",
+              "automatic": true
+            }
+          ]
+        },
+        {
+          "time": 10500,
+          "event": "passive reward during exposure",
+          "state": {
+            "kind": "exposed",
+            "until": 11000,
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 31000,
+          "event": "still disconnected after exposure",
+          "state": {
+            "kind": "exposed",
+            "until": 11000,
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 31000,
+          "event": "reconnected and first queued prompt displayed",
+          "state": {
+            "kind": "protected",
+            "deadline": 41000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-b",
+              "revision": 0,
+              "options": [
+                {
+                  "id": "one",
+                  "label": "First"
+                },
+                {
+                  "id": "two",
+                  "label": "Second"
+                },
+                {
+                  "id": "three",
+                  "label": "Third"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 31500,
+          "event": "follow-up displayed with remaining time",
+          "state": {
+            "kind": "protected",
+            "deadline": 41000,
+            "prompt": {
+              "kind": "specialization",
+              "id": "branch",
+              "revision": 0,
+              "options": [
+                {
+                  "id": "one",
+                  "label": "First"
+                },
+                {
+                  "id": "two",
+                  "label": "Second"
+                },
+                {
+                  "id": "three",
+                  "label": "Third"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": [
+            {
+              "kind": "chosen",
+              "prompt": {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              "optionId": "one",
+              "automatic": false
+            }
+          ]
+        },
+        {
+          "time": 41000,
+          "event": "specialization expiry",
+          "state": {
+            "kind": "exposed",
+            "until": 42000,
+            "pending": [
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": [
+            {
+              "kind": "skipped",
+              "prompt": {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              "automatic": true
+            }
+          ]
+        },
+        {
+          "time": 42000,
+          "event": "equipment displayed",
+          "state": {
+            "kind": "protected",
+            "deadline": 52000,
+            "prompt": {
+              "kind": "equipment",
+              "id": "equipment",
+              "revision": 0,
+              "options": [
+                {
+                  "id": "one",
+                  "label": "First"
+                },
+                {
+                  "id": "two",
+                  "label": "Second"
+                },
+                {
+                  "id": "three",
+                  "label": "Third"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 52000,
+          "event": "equipment expiry",
+          "state": {
+            "kind": "exposed",
+            "until": 53000,
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": [
+            {
+              "kind": "kept-equipment",
+              "prompt": {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              "automatic": true
+            }
+          ]
+        }
+      ],
+      "simulated": {
+        "playerHealth": 93,
+        "playerXp": 2,
+        "opponentTicks": 2,
+        "playerActions": 7,
+        "effects": [
+          {
+            "action": "movement",
+            "allowed": false
+          },
+          {
+            "action": "salvage",
+            "allowed": false
+          },
+          {
+            "action": "attacks",
+            "allowed": false
+          },
+          {
+            "action": "contactDisplacement",
+            "allowed": false
+          },
+          {
+            "action": "reactiveOffense",
+            "allowed": false
+          },
+          {
+            "action": "ownedOffense",
+            "allowed": false
+          },
+          {
+            "action": "ownedControl",
+            "allowed": false
+          },
+          {
+            "action": "movement",
+            "allowed": true
+          },
+          {
+            "action": "salvage",
+            "allowed": true
+          },
+          {
+            "action": "attacks",
+            "allowed": true
+          },
+          {
+            "action": "contactDisplacement",
+            "allowed": true
+          },
+          {
+            "action": "reactiveOffense",
+            "allowed": true
+          },
+          {
+            "action": "ownedOffense",
+            "allowed": true
+          },
+          {
+            "action": "ownedControl",
+            "allowed": true
+          }
+        ]
+      }
+    },
+    {
+      "interval": 2000,
+      "trace": [
+        {
+          "time": 300,
+          "event": "rapid rewards queued and protected actions attempted",
+          "state": {
+            "kind": "protected",
+            "deadline": 10000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-a",
+              "revision": 0,
+              "options": [
+                {
+                  "id": "one",
+                  "label": "First"
+                },
+                {
+                  "id": "two",
+                  "label": "Second"
+                },
+                {
+                  "id": "three",
+                  "label": "Third"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 9000,
+          "event": "reroll during displayed window",
+          "state": {
+            "kind": "protected",
+            "deadline": 10000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-a",
+              "revision": 1,
+              "options": [
+                {
+                  "id": "four",
+                  "label": "Fourth"
+                },
+                {
+                  "id": "five",
+                  "label": "Fifth"
+                },
+                {
+                  "id": "six",
+                  "label": "Sixth"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 9500,
+          "event": "stale choice accepted: false",
+          "state": {
+            "kind": "protected",
+            "deadline": 10000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-a",
+              "revision": 1,
+              "options": [
+                {
+                  "id": "four",
+                  "label": "Fourth"
+                },
+                {
+                  "id": "five",
+                  "label": "Fifth"
+                },
+                {
+                  "id": "six",
+                  "label": "Sixth"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 9600,
+          "event": "disconnect",
+          "state": {
+            "kind": "protected",
+            "deadline": 10000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-a",
+              "revision": 1,
+              "options": [
+                {
+                  "id": "four",
+                  "label": "Fourth"
+                },
+                {
+                  "id": "five",
+                  "label": "Fifth"
+                },
+                {
+                  "id": "six",
+                  "label": "Sixth"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 10000,
+          "event": "deadline while disconnected and exposed actions attempted",
+          "state": {
+            "kind": "exposed",
+            "until": 12000,
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": [
+            {
+              "kind": "chosen",
+              "prompt": {
+                "kind": "upgrade",
+                "id": "upgrade-a",
+                "revision": 1,
+                "options": [
+                  {
+                    "id": "four",
+                    "label": "Fourth"
+                  },
+                  {
+                    "id": "five",
+                    "label": "Fifth"
+                  },
+                  {
+                    "id": "six",
+                    "label": "Sixth"
+                  }
+                ]
+              },
+              "optionId": "six",
+              "automatic": true
+            }
+          ]
+        },
+        {
+          "time": 11000,
+          "event": "passive reward during exposure",
+          "state": {
+            "kind": "exposed",
+            "until": 12000,
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 32000,
+          "event": "still disconnected after exposure",
+          "state": {
+            "kind": "exposed",
+            "until": 12000,
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 32000,
+          "event": "reconnected and first queued prompt displayed",
+          "state": {
+            "kind": "protected",
+            "deadline": 42000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-b",
+              "revision": 0,
+              "options": [
+                {
+                  "id": "one",
+                  "label": "First"
+                },
+                {
+                  "id": "two",
+                  "label": "Second"
+                },
+                {
+                  "id": "three",
+                  "label": "Third"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 32500,
+          "event": "follow-up displayed with remaining time",
+          "state": {
+            "kind": "protected",
+            "deadline": 42000,
+            "prompt": {
+              "kind": "specialization",
+              "id": "branch",
+              "revision": 0,
+              "options": [
+                {
+                  "id": "one",
+                  "label": "First"
+                },
+                {
+                  "id": "two",
+                  "label": "Second"
+                },
+                {
+                  "id": "three",
+                  "label": "Third"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": [
+            {
+              "kind": "chosen",
+              "prompt": {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              "optionId": "one",
+              "automatic": false
+            }
+          ]
+        },
+        {
+          "time": 42000,
+          "event": "specialization expiry",
+          "state": {
+            "kind": "exposed",
+            "until": 44000,
+            "pending": [
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": [
+            {
+              "kind": "skipped",
+              "prompt": {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              "automatic": true
+            }
+          ]
+        },
+        {
+          "time": 44000,
+          "event": "equipment displayed",
+          "state": {
+            "kind": "protected",
+            "deadline": 54000,
+            "prompt": {
+              "kind": "equipment",
+              "id": "equipment",
+              "revision": 0,
+              "options": [
+                {
+                  "id": "one",
+                  "label": "First"
+                },
+                {
+                  "id": "two",
+                  "label": "Second"
+                },
+                {
+                  "id": "three",
+                  "label": "Third"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 54000,
+          "event": "equipment expiry",
+          "state": {
+            "kind": "exposed",
+            "until": 56000,
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": [
+            {
+              "kind": "kept-equipment",
+              "prompt": {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              "automatic": true
+            }
+          ]
+        }
+      ],
+      "simulated": {
+        "playerHealth": 93,
+        "playerXp": 2,
+        "opponentTicks": 2,
+        "playerActions": 7,
+        "effects": [
+          {
+            "action": "movement",
+            "allowed": false
+          },
+          {
+            "action": "salvage",
+            "allowed": false
+          },
+          {
+            "action": "attacks",
+            "allowed": false
+          },
+          {
+            "action": "contactDisplacement",
+            "allowed": false
+          },
+          {
+            "action": "reactiveOffense",
+            "allowed": false
+          },
+          {
+            "action": "ownedOffense",
+            "allowed": false
+          },
+          {
+            "action": "ownedControl",
+            "allowed": false
+          },
+          {
+            "action": "movement",
+            "allowed": true
+          },
+          {
+            "action": "salvage",
+            "allowed": true
+          },
+          {
+            "action": "attacks",
+            "allowed": true
+          },
+          {
+            "action": "contactDisplacement",
+            "allowed": true
+          },
+          {
+            "action": "reactiveOffense",
+            "allowed": true
+          },
+          {
+            "action": "ownedOffense",
+            "allowed": true
+          },
+          {
+            "action": "ownedControl",
+            "allowed": true
+          }
+        ]
+      }
+    },
+    {
+      "interval": 3000,
+      "trace": [
+        {
+          "time": 300,
+          "event": "rapid rewards queued and protected actions attempted",
+          "state": {
+            "kind": "protected",
+            "deadline": 10000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-a",
+              "revision": 0,
+              "options": [
+                {
+                  "id": "one",
+                  "label": "First"
+                },
+                {
+                  "id": "two",
+                  "label": "Second"
+                },
+                {
+                  "id": "three",
+                  "label": "Third"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 9000,
+          "event": "reroll during displayed window",
+          "state": {
+            "kind": "protected",
+            "deadline": 10000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-a",
+              "revision": 1,
+              "options": [
+                {
+                  "id": "four",
+                  "label": "Fourth"
+                },
+                {
+                  "id": "five",
+                  "label": "Fifth"
+                },
+                {
+                  "id": "six",
+                  "label": "Sixth"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 9500,
+          "event": "stale choice accepted: false",
+          "state": {
+            "kind": "protected",
+            "deadline": 10000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-a",
+              "revision": 1,
+              "options": [
+                {
+                  "id": "four",
+                  "label": "Fourth"
+                },
+                {
+                  "id": "five",
+                  "label": "Fifth"
+                },
+                {
+                  "id": "six",
+                  "label": "Sixth"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 9600,
+          "event": "disconnect",
+          "state": {
+            "kind": "protected",
+            "deadline": 10000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-a",
+              "revision": 1,
+              "options": [
+                {
+                  "id": "four",
+                  "label": "Fourth"
+                },
+                {
+                  "id": "five",
+                  "label": "Fifth"
+                },
+                {
+                  "id": "six",
+                  "label": "Sixth"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 10000,
+          "event": "deadline while disconnected and exposed actions attempted",
+          "state": {
+            "kind": "exposed",
+            "until": 13000,
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": [
+            {
+              "kind": "chosen",
+              "prompt": {
+                "kind": "upgrade",
+                "id": "upgrade-a",
+                "revision": 1,
+                "options": [
+                  {
+                    "id": "four",
+                    "label": "Fourth"
+                  },
+                  {
+                    "id": "five",
+                    "label": "Fifth"
+                  },
+                  {
+                    "id": "six",
+                    "label": "Sixth"
+                  }
+                ]
+              },
+              "optionId": "six",
+              "automatic": true
+            }
+          ]
+        },
+        {
+          "time": 11500,
+          "event": "passive reward during exposure",
+          "state": {
+            "kind": "exposed",
+            "until": 13000,
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 33000,
+          "event": "still disconnected after exposure",
+          "state": {
+            "kind": "exposed",
+            "until": 13000,
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 33000,
+          "event": "reconnected and first queued prompt displayed",
+          "state": {
+            "kind": "protected",
+            "deadline": 43000,
+            "prompt": {
+              "kind": "upgrade",
+              "id": "upgrade-b",
+              "revision": 0,
+              "options": [
+                {
+                  "id": "one",
+                  "label": "First"
+                },
+                {
+                  "id": "two",
+                  "label": "Second"
+                },
+                {
+                  "id": "three",
+                  "label": "Third"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 33500,
+          "event": "follow-up displayed with remaining time",
+          "state": {
+            "kind": "protected",
+            "deadline": 43000,
+            "prompt": {
+              "kind": "specialization",
+              "id": "branch",
+              "revision": 0,
+              "options": [
+                {
+                  "id": "one",
+                  "label": "First"
+                },
+                {
+                  "id": "two",
+                  "label": "Second"
+                },
+                {
+                  "id": "three",
+                  "label": "Third"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": [
+            {
+              "kind": "chosen",
+              "prompt": {
+                "kind": "upgrade",
+                "id": "upgrade-b",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              "optionId": "one",
+              "automatic": false
+            }
+          ]
+        },
+        {
+          "time": 43000,
+          "event": "specialization expiry",
+          "state": {
+            "kind": "exposed",
+            "until": 46000,
+            "pending": [
+              {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": [
+            {
+              "kind": "skipped",
+              "prompt": {
+                "kind": "specialization",
+                "id": "branch",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              "automatic": true
+            }
+          ]
+        },
+        {
+          "time": 46000,
+          "event": "equipment displayed",
+          "state": {
+            "kind": "protected",
+            "deadline": 56000,
+            "prompt": {
+              "kind": "equipment",
+              "id": "equipment",
+              "revision": 0,
+              "options": [
+                {
+                  "id": "one",
+                  "label": "First"
+                },
+                {
+                  "id": "two",
+                  "label": "Second"
+                },
+                {
+                  "id": "three",
+                  "label": "Third"
+                }
+              ]
+            },
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": false,
+            "salvage": false,
+            "attacks": false,
+            "contactDisplacement": false,
+            "reactiveOffense": false,
+            "ownedOffense": false,
+            "ownedControl": false,
+            "combatDamage": false,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": []
+        },
+        {
+          "time": 56000,
+          "event": "equipment expiry",
+          "state": {
+            "kind": "exposed",
+            "until": 59000,
+            "pending": [
+              {
+                "kind": "upgrade",
+                "id": "passive-xp",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              }
+            ]
+          },
+          "permissions": {
+            "movement": true,
+            "salvage": true,
+            "attacks": true,
+            "contactDisplacement": true,
+            "reactiveOffense": true,
+            "ownedOffense": true,
+            "ownedControl": true,
+            "combatDamage": true,
+            "boundaryDamage": true,
+            "passiveExperience": true
+          },
+          "outcomes": [
+            {
+              "kind": "kept-equipment",
+              "prompt": {
+                "kind": "equipment",
+                "id": "equipment",
+                "revision": 0,
+                "options": [
+                  {
+                    "id": "one",
+                    "label": "First"
+                  },
+                  {
+                    "id": "two",
+                    "label": "Second"
+                  },
+                  {
+                    "id": "three",
+                    "label": "Third"
+                  }
+                ]
+              },
+              "automatic": true
+            }
+          ]
+        }
+      ],
+      "simulated": {
+        "playerHealth": 93,
+        "playerXp": 2,
+        "opponentTicks": 2,
+        "playerActions": 7,
+        "effects": [
+          {
+            "action": "movement",
+            "allowed": false
+          },
+          {
+            "action": "salvage",
+            "allowed": false
+          },
+          {
+            "action": "attacks",
+            "allowed": false
+          },
+          {
+            "action": "contactDisplacement",
+            "allowed": false
+          },
+          {
+            "action": "reactiveOffense",
+            "allowed": false
+          },
+          {
+            "action": "ownedOffense",
+            "allowed": false
+          },
+          {
+            "action": "ownedControl",
+            "allowed": false
+          },
+          {
+            "action": "movement",
+            "allowed": true
+          },
+          {
+            "action": "salvage",
+            "allowed": true
+          },
+          {
+            "action": "attacks",
+            "allowed": true
+          },
+          {
+            "action": "contactDisplacement",
+            "allowed": true
+          },
+          {
+            "action": "reactiveOffense",
+            "allowed": true
+          },
+          {
+            "action": "ownedOffense",
+            "allowed": true
+          },
+          {
+            "action": "ownedControl",
+            "allowed": true
+          }
+        ]
+      }
+    }
+  ]
+}

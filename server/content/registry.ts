@@ -2,29 +2,34 @@ export type Requirement =
   | { kind: 'all' | 'any'; conditions: readonly Requirement[] }
   | { kind: 'rank'; id: string; minimum: number }
   | { kind: 'specialization'; id: string }
+  | { kind: 'world'; condition: string }
   | { kind: 'none' };
 function references(requirement: Requirement): string[] {
   if (requirement.kind === 'none') return [];
   if (requirement.kind === 'rank') return [requirement.id];
-  if (requirement.kind === 'specialization') return [];
+  if (requirement.kind === 'specialization' || requirement.kind === 'world')
+    return [];
   return requirement.conditions.flatMap(references);
 }
 function satisfied(
   requirement: Requirement,
   ranks: ReadonlyMap<string, number>,
   specializations: ReadonlySet<string>,
+  worldConditions: ReadonlySet<string>,
 ): boolean {
   if (requirement.kind === 'none') return true;
   if (requirement.kind === 'rank')
     return (ranks.get(requirement.id) ?? 0) >= requirement.minimum;
   if (requirement.kind === 'specialization')
     return specializations.has(requirement.id);
+  if (requirement.kind === 'world')
+    return worldConditions.has(requirement.condition);
   return requirement.kind === 'all'
     ? requirement.conditions.every((child) =>
-        satisfied(child, ranks, specializations),
+        satisfied(child, ranks, specializations, worldConditions),
       )
     : requirement.conditions.some((child) =>
-        satisfied(child, ranks, specializations),
+        satisfied(child, ranks, specializations, worldConditions),
       );
 }
 function validateRequirement(
@@ -44,6 +49,8 @@ function validateRequirement(
   } else if (requirement.kind === 'specialization') {
     if (!specializations.has(requirement.id))
       throw new Error(`Unknown required specialization ${requirement.id}`);
+  } else if (requirement.kind === 'world') {
+    if (!requirement.condition) throw new Error('Empty world condition');
   } else if (requirement.kind === 'all' || requirement.kind === 'any') {
     if (requirement.conditions.length === 0)
       throw new Error('Empty requirement group');
@@ -68,6 +75,12 @@ export interface ContentDefinition {
   affinities: readonly string[];
   effect: string;
   specializations: readonly string[];
+  specializationChoices?: readonly {
+    id: string;
+    name: string;
+    triggerRank: number;
+    carcinisationBonus: number;
+  }[];
 }
 
 export function createRegistry(
@@ -109,6 +122,32 @@ export function createRegistry(
     if (!Number.isSafeInteger(entry.maxRank) || entry.maxRank < 1)
       throw new Error(`${entry.id}: invalid rank`);
     validateRequirement(entry.requirement, byId, specializations);
+    const offeredSpecializations = new Set<string>();
+    for (const choice of entry.specializationChoices ?? []) {
+      if (
+        !entry.specializations.includes(choice.id) ||
+        choice.id === 'skip' ||
+        offeredSpecializations.has(choice.id) ||
+        !choice.name ||
+        !Number.isSafeInteger(choice.triggerRank) ||
+        choice.triggerRank < 1 ||
+        choice.triggerRank > entry.maxRank ||
+        !Number.isSafeInteger(choice.carcinisationBonus) ||
+        choice.carcinisationBonus < 1 ||
+        choice.carcinisationBonus > 10
+      )
+        throw new Error(
+          `${entry.id}: invalid specialization choice ${choice.id}`,
+        );
+      offeredSpecializations.add(choice.id);
+    }
+    if (
+      entry.selectable &&
+      offeredSpecializations.size !== entry.specializations.length
+    )
+      throw new Error(
+        `${entry.id}: specialization choices need implemented effects`,
+      );
     if (entry.selectable || entry.disposition === 'implemented') {
       if (
         entry.disposition !== 'implemented' ||
@@ -192,6 +231,7 @@ export function createRegistry(
       ranks: ReadonlyMap<string, number>,
       specializations: ReadonlySet<string>,
       pool: ContentDefinition['pool'],
+      worldConditions: ReadonlySet<string> = new Set(),
     ) =>
       (byPool.get(pool) ?? [])
         .filter(
@@ -201,7 +241,12 @@ export function createRegistry(
             ![...(excludedBy.get(entry.id) ?? [])].some(
               (id) => (ranks.get(id) ?? 0) > 0,
             ) &&
-            satisfied(entry.requirement, ranks, specializations),
+            satisfied(
+              entry.requirement,
+              ranks,
+              specializations,
+              worldConditions,
+            ),
         )
         .map((entry) => entry.id),
   };

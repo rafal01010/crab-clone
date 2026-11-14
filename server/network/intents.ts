@@ -28,8 +28,10 @@ export class IntentQueue {
     const fields: Record<string, readonly string[]> = {
       control: ['x', 'y', 'aim', 'buttons'],
       choice: ['offerId', 'revision', 'choiceId'],
+      reroll: ['offerId', 'revision'],
       equipment: ['slot', 'contentId'],
       interaction: ['targetId'],
+      spectate: ['targetId'],
       ready: ['ready'],
       resume: ['token'],
     };
@@ -94,6 +96,16 @@ export class IntentQueue {
           choiceId: item.choiceId,
         };
         break;
+      case 'reroll':
+        if (!text(item.offerId) || !integer(item.revision))
+          return reject('invalid reroll', sequence);
+        intent = {
+          ...base,
+          kind: 'reroll',
+          offerId: item.offerId,
+          revision: item.revision,
+        };
+        break;
       case 'equipment':
         if (!text(item.slot) || !text(item.contentId))
           return reject('invalid equipment', sequence);
@@ -105,9 +117,10 @@ export class IntentQueue {
         };
         break;
       case 'interaction':
+      case 'spectate':
         if (!text(item.targetId))
           return reject('invalid interaction', sequence);
-        intent = { ...base, kind: 'interaction', targetId: item.targetId };
+        intent = { ...base, kind: item.kind, targetId: item.targetId };
         break;
       case 'ready':
         if (typeof item.ready !== 'boolean')

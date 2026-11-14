@@ -18,6 +18,9 @@
     boundary,
     warning,
     onchoose,
+    kind = 'upgrade',
+    rerollCostAvailable = false,
+    onreroll,
   }: {
     offerId: string;
     revision: number;
@@ -27,9 +30,13 @@
     boundary: { x: number; y: number; radius: number } | null;
     warning: string | null;
     onchoose: (id: string) => Promise<boolean>;
+    kind?: 'upgrade' | 'specialization' | 'equipment';
+    rerollCostAvailable?: boolean;
+    onreroll?: () => Promise<boolean>;
   } = $props();
   let selected = $state<string | null>(null);
   let submitted = $state(false);
+  let transactionError = $state('');
   let dialog: HTMLDivElement;
   let previousIdentity = '';
   $effect(() => {
@@ -38,6 +45,7 @@
       previousIdentity = identity;
       selected = null;
       submitted = false;
+      transactionError = '';
     }
   });
   onMount(() => {
@@ -57,8 +65,26 @@
     submitted = true;
     try {
       const accepted = await onchoose(choice.id);
-      if (!accepted && identity === JSON.stringify([offerId, revision]))
+      if (!accepted && identity === JSON.stringify([offerId, revision])) {
         submitted = false;
+        transactionError = 'That choice was not applied. Try again.';
+      }
+    } catch {
+      if (identity === JSON.stringify([offerId, revision])) submitted = false;
+    }
+  }
+  async function reroll() {
+    if (!onreroll || submitted || remainingMs <= 0) return;
+    const identity = JSON.stringify([offerId, revision]);
+    submitted = true;
+    try {
+      if (
+        !(await onreroll()) &&
+        identity === JSON.stringify([offerId, revision])
+      ) {
+        submitted = false;
+        transactionError = 'The reroll was not applied. Try again.';
+      }
     } catch {
       if (identity === JSON.stringify([offerId, revision])) submitted = false;
     }
@@ -120,7 +146,13 @@
     <header class="choice-header">
       <div>
         <p class="eyebrow">Evolution available</p>
-        <h1>Choose your next upgrade.</h1>
+        <h1>
+          {kind === 'specialization'
+            ? 'Choose a specialization.'
+            : kind === 'equipment'
+              ? 'Choose equipment.'
+              : 'Choose your next upgrade.'}
+        </h1>
       </div>
       <div class="time">
         <span>Time remaining</span><strong
@@ -129,6 +161,9 @@
       </div>
     </header>
     {#if warning}<p class="warning" role="status">{warning}</p>{/if}
+    {#if transactionError}<p class="warning" role="status">
+        {transactionError}
+      </p>{/if}
     <div class="choice-body">
       <div class="offers">
         {#each offers as offer, index (offer.id)}
@@ -143,7 +178,8 @@
             <span class="offer-index">0{index + 1} <kbd>{index + 1}</kbd></span>
             <span class="offer-name">{offer.name}</span>
             <span class="offer-meta"
-              >{offer.rarity} · Rank {offer.rank}{#if offer.cost !== null}
+              >{offer.rarity}{#if offer.rank > 0}
+                · Rank {offer.rank}{/if}{#if offer.cost !== null}
                 · Cost {offer.cost}{/if}</span
             >
             <span class="offer-description">{offer.description}</span>
@@ -182,6 +218,13 @@
     </div>
     <footer>
       <p>Use 1, 2, or 3 to select. Press Enter to confirm.</p>
+      {#if kind === 'upgrade' && onreroll}
+        <button
+          type="button"
+          disabled={submitted || !rerollCostAvailable || remainingMs <= 0}
+          onclick={reroll}>Reroll (1 currency)</button
+        >
+      {/if}
       <button
         class="confirm"
         type="button"

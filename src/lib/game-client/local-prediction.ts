@@ -14,14 +14,20 @@ type Estimate = {
 export class LocalPrediction {
   #estimate: Estimate | null = null;
   #input: Movement = { x: 0, y: 0 };
+  #speedFactor = 1;
 
   input(input: Movement): void {
     this.#input = input;
   }
 
+  speedFactor(value: number): void {
+    this.#speedFactor = value;
+  }
+
   reset(): void {
     this.#estimate = null;
     this.#input = { x: 0, y: 0 };
+    this.#speedFactor = 1;
   }
 
   observe(position: Position, receivedAt: number): void {
@@ -51,7 +57,14 @@ export class LocalPrediction {
     if (!estimate) return null;
     const end = Math.min(now, estimate.snapshotAt + MAX_PREDICTION_MS);
     const dt = Math.max(0, Math.min(0.05, (end - estimate.lastStep) / 1000));
-    estimate.velocity = controlledVelocity(estimate.velocity, this.#input, dt);
+    estimate.velocity = controlledVelocity(
+      estimate.velocity,
+      {
+        x: this.#input.x * this.#speedFactor,
+        y: this.#input.y * this.#speedFactor,
+      },
+      dt,
+    );
     estimate.position.x += estimate.velocity.x * dt;
     estimate.position.z += estimate.velocity.z * dt;
     estimate.lastStep = Math.max(estimate.lastStep, end);

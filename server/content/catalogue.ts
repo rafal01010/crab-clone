@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { createRegistry, type ContentDefinition } from './registry.js';
-import { startingDefinitions, startingEffectIds } from './starting.js';
+import { createStarterRegistry } from './starter.js';
+import { startingDefinitions } from './starting.js';
 
 type Candidate = {
   id: string;
@@ -21,58 +21,6 @@ function candidate(value: unknown): value is Candidate {
     record.releaseState === 'research-only' &&
     'candidateFields' in record
   );
-}
-function platedDefinition(entry: Candidate): ContentDefinition {
-  const fields = entry.candidateFields;
-  if (!fields || typeof fields !== 'object' || !('numericalTables' in fields))
-    throw new Error('Plated source table is missing');
-  const table = fields.numericalTables;
-  if (
-    !table ||
-    typeof table !== 'object' ||
-    !('preferredSource' in table) ||
-    table.preferredSource !== 'wiki-plated' ||
-    !('values' in table) ||
-    !table.values ||
-    typeof table.values !== 'object' ||
-    !('wiki-plated' in table.values)
-  )
-    throw new Error('Plated selected source is missing');
-  const raw = table.values['wiki-plated'];
-  if (!raw || typeof raw !== 'object')
-    throw new Error('Invalid Plated source table');
-  const values: Record<string, number[]> = {};
-  for (const rarity of ['Common', 'Rare', 'Epic', 'Legendary']) {
-    if (!(rarity in raw)) throw new Error(`Missing Plated ${rarity} table`);
-    const row: unknown = Reflect.get(raw, rarity);
-    if (
-      !Array.isArray(row) ||
-      row.length !== 5 ||
-      !row.every(
-        (value: unknown) =>
-          typeof value === 'number' && Number.isFinite(value) && value >= 0,
-      )
-    )
-      throw new Error(`Invalid Plated ${rarity} table`);
-    values[rarity.toLowerCase()] = [...row];
-  }
-  return {
-    id: entry.id,
-    aliases: [],
-    disposition: 'blocked',
-    selectable: false,
-    name: 'Armor Plates',
-    description: 'Increases maximum plating.',
-    pool: 'ordinary',
-    maxRank: 5,
-    rarities: ['common', 'rare', 'epic', 'legendary'],
-    values,
-    requirement: { kind: 'none' },
-    exclusions: [],
-    affinities: ['imposing'],
-    effect: 'plating',
-    specializations: [],
-  };
 }
 export async function loadCatalogue() {
   const raw: unknown = JSON.parse(
@@ -103,11 +51,9 @@ export async function loadCatalogue() {
       selectable: false,
     };
   });
-  const plated = raw.records.find((entry) => entry.id === 'plated');
-  if (!plated) throw new Error('Plated source record is missing');
-  const registry = createRegistry(
-    [...startingDefinitions, platedDefinition(plated)],
-    startingEffectIds,
+  const registry = createStarterRegistry();
+  const implemented = new Map(
+    registry.coverage().map((entry) => [entry.id, entry]),
   );
   return {
     registry,
@@ -118,7 +64,7 @@ export async function loadCatalogue() {
         disposition,
         selectable,
       })),
-      ...coverage,
+      ...coverage.map((entry) => ({ ...entry, ...implemented.get(entry.id) })),
     ],
   };
 }

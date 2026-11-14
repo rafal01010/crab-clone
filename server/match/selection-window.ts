@@ -2,8 +2,20 @@ export type ChoiceOption = { id: string; label: string };
 type Options = readonly [ChoiceOption, ...ChoiceOption[]];
 export type SelectionPrompt =
   | { kind: 'upgrade'; id: string; revision: number; options: Options }
-  | { kind: 'specialization'; id: string; revision: number; options: Options }
-  | { kind: 'equipment'; id: string; revision: number; options: Options };
+  | {
+      kind: 'specialization';
+      id: string;
+      revision: number;
+      parentId: string;
+      options: Options;
+    }
+  | {
+      kind: 'equipment';
+      id: string;
+      revision: number;
+      abilityId: string;
+      options: Options;
+    };
 export type SelectionOutcome =
   | {
       kind: 'chosen';
@@ -27,6 +39,7 @@ export type SelectionState =
   | {
       kind: 'protected';
       deadline: number;
+      displayed: boolean;
       prompt: SelectionPrompt;
       pending: readonly SelectionPrompt[];
     }
@@ -51,6 +64,20 @@ export class SelectionWindow {
   }
   takeOutcomes(): SelectionOutcome[] {
     return this.#outcomes.splice(0);
+  }
+
+  cancel(): void {
+    this.#state = { kind: 'idle' };
+    this.#outcomes.length = 0;
+  }
+
+  markDisplayed(id: string, revision: number): void {
+    if (
+      this.#state.kind === 'protected' &&
+      this.#state.prompt.id === id &&
+      this.#state.prompt.revision === revision
+    )
+      this.#state = { ...this.#state, displayed: true };
   }
 
   setConnected(connected: boolean, now: number): void {
@@ -101,6 +128,7 @@ export class SelectionWindow {
       return false;
     this.#state = {
       ...state,
+      displayed: false,
       prompt: { ...state.prompt, revision: revision + 1, options },
     };
     return true;
@@ -111,6 +139,17 @@ export class SelectionWindow {
       const state = this.#state;
       if (state.kind === 'protected' && now >= state.deadline) {
         const prompt = state.prompt;
+        if (!state.displayed) {
+          this.#state = {
+            kind: 'exposed',
+            until: state.deadline + this.#exposedMs,
+            pending: [
+              { ...prompt, revision: prompt.revision + 1 },
+              ...state.pending,
+            ],
+          };
+          continue;
+        }
         if (prompt.kind === 'upgrade') {
           const option =
             prompt.options[Math.floor(this.#random() * prompt.options.length)];
@@ -158,6 +197,7 @@ export class SelectionWindow {
     this.#state = {
       kind: 'protected',
       deadline: now + SELECTION_WINDOW_MS,
+      displayed: false,
       prompt,
       pending,
     };
@@ -168,7 +208,7 @@ export class SelectionWindow {
   ): void {
     const [prompt, ...pending] = state.pending;
     this.#state = prompt
-      ? { ...state, prompt, pending }
+      ? { ...state, prompt, pending, displayed: false }
       : { kind: 'exposed', until: now + this.#exposedMs, pending: [] };
   }
 }

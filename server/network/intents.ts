@@ -29,8 +29,13 @@ export class IntentQueue {
       control: ['x', 'y', 'aim', 'buttons'],
       choice: ['offerId', 'revision', 'choiceId'],
       reroll: ['offerId', 'revision'],
-      equipment: ['slot', 'contentId'],
+      'upgrade-rarity': ['offerId', 'revision'],
+      equipment: ['offerId', 'revision', 'slot', 'contentId'],
       interaction: ['targetId'],
+      scan: ['targetId'],
+      'use-firmware': ['targetId'],
+      shelter: ['targetId'],
+      charm: ['targetId'],
       spectate: ['targetId'],
       ready: ['ready'],
       resume: ['token'],
@@ -97,26 +102,38 @@ export class IntentQueue {
         };
         break;
       case 'reroll':
+      case 'upgrade-rarity':
         if (!text(item.offerId) || !integer(item.revision))
           return reject('invalid reroll', sequence);
         intent = {
           ...base,
-          kind: 'reroll',
+          kind: item.kind,
           offerId: item.offerId,
           revision: item.revision,
         };
         break;
       case 'equipment':
-        if (!text(item.slot) || !text(item.contentId))
+        if (
+          !text(item.offerId) ||
+          !integer(item.revision) ||
+          !text(item.slot) ||
+          !text(item.contentId)
+        )
           return reject('invalid equipment', sequence);
         intent = {
           ...base,
           kind: 'equipment',
+          offerId: item.offerId,
+          revision: item.revision,
           slot: item.slot,
           contentId: item.contentId,
         };
         break;
       case 'interaction':
+      case 'scan':
+      case 'use-firmware':
+      case 'shelter':
+      case 'charm':
       case 'spectate':
         if (!text(item.targetId))
           return reject('invalid interaction', sequence);

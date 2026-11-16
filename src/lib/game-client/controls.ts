@@ -22,7 +22,11 @@ export function createControls(
   let pointer: { x: number; y: number } | null = null;
   let aim = 0;
   const modalCapture = () =>
-    Boolean(document.querySelector('[data-game-capture], [aria-modal="true"]'));
+    Boolean(
+      document.querySelector(
+        '[data-game-capture]:not(details), details[data-game-capture][open], [aria-modal="true"]',
+      ),
+    );
   const captured = () => {
     const active = document.activeElement;
     return (

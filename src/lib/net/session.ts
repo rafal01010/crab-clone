@@ -40,6 +40,7 @@ export function connectSession(
     pendingTransactions.get(result.sequence)?.(result.status === 'applied');
   });
   function join(roomId: string | null, name: string, token?: string) {
+    if (socket.connected) onStatus('Connected', session);
     socket.emit(
       'join-room',
       { roomId, name, ...(token ? { token } : {}) },
@@ -81,6 +82,9 @@ export function connectSession(
     },
   );
   socket.on('connect_error', () => onStatus('Connecting', session));
+  socket.on('room-error', (message: unknown) => {
+    if (typeof message === 'string') onStatus(message, session);
+  });
   socket.on('disconnect', () => {
     for (const finish of pendingTransactions.values()) finish(false);
     onStatus('Disconnected', session);
@@ -148,6 +152,21 @@ export function connectSession(
     ready(ready: boolean) {
       send({ kind: 'ready', ready });
     },
+    scan(targetId: string) {
+      send({ kind: 'scan', targetId });
+    },
+    useFirmware(targetId: string) {
+      send({ kind: 'use-firmware', targetId });
+    },
+    shelter(targetId: string) {
+      send({ kind: 'shelter', targetId });
+    },
+    charm(targetId: string) {
+      send({ kind: 'charm', targetId });
+    },
+    interact(targetId: string) {
+      send({ kind: 'interaction', targetId });
+    },
     spectate(targetId: string) {
       send({ kind: 'spectate', targetId });
     },
@@ -155,19 +174,29 @@ export function connectSession(
       socket.emit('start-match');
     },
     returnToLobby() {
+      if (socket.connected) onStatus('Connected', session);
       socket.emit('return-to-lobby');
     },
     loaded(success: boolean, revision: number) {
       socket.emit('loaded', success, revision);
     },
-    equip(slot: string, contentId: string) {
-      send({ kind: 'equipment', slot, contentId });
+    equip(offerId: string, revision: number, slot: string, contentId: string) {
+      return sendTransaction({
+        kind: 'equipment',
+        offerId,
+        revision,
+        slot,
+        contentId,
+      });
     },
     choose(offerId: string, revision: number, choiceId: string) {
       return sendTransaction({ kind: 'choice', offerId, revision, choiceId });
     },
     reroll(offerId: string, revision: number) {
       return sendTransaction({ kind: 'reroll', offerId, revision });
+    },
+    upgradeRarity(offerId: string, revision: number) {
+      return sendTransaction({ kind: 'upgrade-rarity', offerId, revision });
     },
     sendControl(control: {
       x: number;

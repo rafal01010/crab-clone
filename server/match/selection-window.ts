@@ -1,7 +1,23 @@
-export type ChoiceOption = { id: string; label: string };
+export type ChoiceOption = { id: string; label: string; description?: string };
 type Options = readonly [ChoiceOption, ...ChoiceOption[]];
 export type SelectionPrompt =
-  | { kind: 'upgrade'; id: string; revision: number; options: Options }
+  | {
+      kind: 'upgrade';
+      id: string;
+      revision: number;
+      options: Options;
+      rerolls?: number;
+      rarityPurchases?: number;
+    }
+  | {
+      kind: 'poi';
+      id: string;
+      revision: number;
+      siteId: string;
+      budgetMs: number;
+      protected: boolean;
+      options: Options;
+    }
   | {
       kind: 'specialization';
       id: string;
@@ -29,6 +45,11 @@ export type SelectionOutcome =
       automatic: true;
     }
   | {
+      kind: 'cancelled-poi';
+      prompt: Extract<SelectionPrompt, { kind: 'poi' }>;
+      automatic: true;
+    }
+  | {
       kind: 'kept-equipment';
       prompt: Extract<SelectionPrompt, { kind: 'equipment' }>;
       automatic: true;
@@ -40,6 +61,7 @@ export type SelectionState =
       kind: 'protected';
       deadline: number;
       displayed: boolean;
+      displayedPrompt?: SelectionPrompt;
       prompt: SelectionPrompt;
       pending: readonly SelectionPrompt[];
     }
@@ -71,13 +93,28 @@ export class SelectionWindow {
     this.#outcomes.length = 0;
   }
 
+  cancelPoi(now: number): void {
+    const state = this.#state;
+    if (state.kind !== 'protected' || state.prompt.kind !== 'poi') return;
+    this.#outcomes.push({
+      kind: 'cancelled-poi',
+      prompt: state.prompt,
+      automatic: true,
+    });
+    this.next(state, now);
+  }
+
   markDisplayed(id: string, revision: number): void {
     if (
       this.#state.kind === 'protected' &&
       this.#state.prompt.id === id &&
       this.#state.prompt.revision === revision
     )
-      this.#state = { ...this.#state, displayed: true };
+      this.#state = {
+        ...this.#state,
+        displayed: true,
+        displayedPrompt: structuredClone(this.#state.prompt),
+      };
   }
 
   setConnected(connected: boolean, now: number): void {
@@ -129,7 +166,54 @@ export class SelectionWindow {
     this.#state = {
       ...state,
       displayed: false,
-      prompt: { ...state.prompt, revision: revision + 1, options },
+      prompt: {
+        ...state.prompt,
+        revision: revision + 1,
+        options,
+        rerolls: (state.prompt.rerolls ?? 0) + 1,
+        rarityPurchases: 0,
+      },
+    };
+    return true;
+  }
+
+  upgradeRarity(id: string, revision: number, now: number): boolean {
+    this.advance(now);
+    const state = this.#state;
+    if (
+      !this.#connected ||
+      state.kind !== 'protected' ||
+      state.prompt.kind !== 'upgrade' ||
+      state.prompt.id !== id ||
+      state.prompt.revision !== revision
+    )
+      return false;
+    this.#state = {
+      ...state,
+      displayed: false,
+      prompt: {
+        ...state.prompt,
+        revision: revision + 1,
+        rarityPurchases: (state.prompt.rarityPurchases ?? 0) + 1,
+      },
+    };
+    return true;
+  }
+
+  revise(id: string, revision: number, now: number): boolean {
+    this.advance(now);
+    const state = this.#state;
+    if (
+      !this.#connected ||
+      state.kind !== 'protected' ||
+      state.prompt.kind === 'poi' ||
+      state.prompt.id !== id ||
+      state.prompt.revision !== revision
+    )
+      return false;
+    this.#state = {
+      ...state,
+      prompt: { ...state.prompt, revision: revision + 1 },
     };
     return true;
   }
@@ -138,8 +222,21 @@ export class SelectionWindow {
     for (;;) {
       const state = this.#state;
       if (state.kind === 'protected' && now >= state.deadline) {
-        const prompt = state.prompt;
-        if (!state.displayed) {
+        const prompt = state.displayedPrompt ?? state.prompt;
+        if (prompt.kind === 'poi') {
+          this.#outcomes.push({
+            kind: 'cancelled-poi',
+            prompt,
+            automatic: true,
+          });
+          this.#state = {
+            kind: 'exposed',
+            until: state.deadline + this.#exposedMs,
+            pending: state.pending,
+          };
+          continue;
+        }
+        if (!state.displayed && !state.displayedPrompt) {
           this.#state = {
             kind: 'exposed',
             until: state.deadline + this.#exposedMs,
@@ -196,7 +293,8 @@ export class SelectionWindow {
   ): void {
     this.#state = {
       kind: 'protected',
-      deadline: now + SELECTION_WINDOW_MS,
+      deadline:
+        now + (prompt.kind === 'poi' ? prompt.budgetMs : SELECTION_WINDOW_MS),
       displayed: false,
       prompt,
       pending,
@@ -208,13 +306,21 @@ export class SelectionWindow {
   ): void {
     const [prompt, ...pending] = state.pending;
     this.#state = prompt
-      ? { ...state, prompt, pending, displayed: false }
+      ? {
+          ...state,
+          prompt,
+          pending,
+          displayed: false,
+          displayedPrompt: undefined,
+        }
       : { kind: 'exposed', until: now + this.#exposedMs, pending: [] };
   }
 }
 
 export function selectionPermissions(state: SelectionState) {
-  const protectedChoice = state.kind === 'protected';
+  const protectedChoice =
+    state.kind === 'protected' &&
+    (state.prompt.kind !== 'poi' || state.prompt.protected);
   return {
     movement: !protectedChoice,
     salvage: !protectedChoice,

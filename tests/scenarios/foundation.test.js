@@ -9,6 +9,15 @@ import { loadCatalogue } from '../../build-host/server/content/catalogue.js';
 
 await RAPIER.init();
 
+function startMatch(match, ids) {
+  for (const id of ids) match.setReady(id, true);
+  assert.equal(match.accept({ kind: 'start' }), true);
+  const revision = match.view(ids[0]).loadingRevision;
+  for (const playerId of ids)
+    assert.equal(match.accept({ kind: 'loaded', playerId, revision }), true);
+  assert.equal(match.advance(3000), true);
+}
+
 test('lifecycle rejects invalid transitions and preserves connection separately from life', () => {
   const match = new Match('seed-1', new RAPIER.World({ x: 0, y: 0, z: 0 }));
   try {
@@ -17,7 +26,9 @@ test('lifecycle rejects invalid transitions and preserves connection separately 
     assert.equal(match.accept({ kind: 'disconnect', playerId: 'a' }), true);
     assert.equal(match.view('a').players[0].life.kind, 'alive');
     assert.equal(match.accept({ kind: 'connect', playerId: 'a' }), true);
-    assert.equal(match.accept({ kind: 'start' }), true);
+    for (const playerId of ['b', 'c', 'd'])
+      assert.ok(match.accept({ kind: 'join', playerId }));
+    startMatch(match, ['a', 'b', 'c', 'd']);
     assert.equal(match.accept({ kind: 'eliminate', playerId: 'a' }), true);
     assert.equal(
       match.accept({ kind: 'activity', playerId: 'a', activity: 'selecting' }),
@@ -36,8 +47,9 @@ test('private offers are visible only to their owner', () => {
   const match = new Match('seed-2', new RAPIER.World({ x: 0, y: 0, z: 0 }));
   try {
     match.accept({ kind: 'join', playerId: 'a' });
-    match.accept({ kind: 'join', playerId: 'b' });
-    match.accept({ kind: 'start' });
+    for (const playerId of ['b', 'c', 'd'])
+      assert.ok(match.accept({ kind: 'join', playerId }));
+    startMatch(match, ['a', 'b', 'c', 'd']);
     assert.equal(
       match.setOffer('a', {
         id: 'secret-offer',
@@ -258,8 +270,9 @@ test(
 test('selection activity and private offers stay consistent', () => {
   const match = new Match('selection', new RAPIER.World({ x: 0, y: 0, z: 0 }));
   try {
-    match.accept({ kind: 'join', playerId: 'a' });
-    match.accept({ kind: 'start' });
+    for (const playerId of ['a', 'b', 'c', 'd'])
+      assert.ok(match.accept({ kind: 'join', playerId }));
+    startMatch(match, ['a', 'b', 'c', 'd']);
     assert.equal(
       match.accept({ kind: 'activity', playerId: 'a', activity: 'selecting' }),
       false,
@@ -285,10 +298,26 @@ test('selection activity and private offers stay consistent', () => {
 
 test('the agreed Standard configuration is applied once to each player', async () => {
   const { registry, coverage } = await loadCatalogue();
-  assert.deepEqual(registry.coverage(), [
-    { id: 'standard', disposition: 'implemented', selectable: false },
-    { id: 'plated', disposition: 'blocked', selectable: false },
-  ]);
+  assert.ok(
+    registry
+      .coverage()
+      .some(
+        (entry) =>
+          entry.id === 'standard' &&
+          entry.disposition === 'implemented' &&
+          !entry.selectable,
+      ),
+  );
+  assert.ok(
+    registry
+      .coverage()
+      .some(
+        (entry) =>
+          entry.id === 'plated' &&
+          entry.disposition === 'implemented' &&
+          entry.selectable,
+      ),
+  );
   assert.deepEqual(
     registry.definition('plated').values.common,
     [5, 10, 15, 20, 25],
@@ -299,11 +328,11 @@ test('the agreed Standard configuration is applied once to each player', async (
   );
   assert.equal(
     registry.publicContent().some((entry) => entry.id === 'plated'),
-    false,
+    true,
   );
   assert.equal(
     registry.eligible(new Map(), new Set(), 'ordinary').includes('plated'),
-    false,
+    true,
   );
   assert.equal(registry.eligible(new Map(), new Set(), 'starting').length, 0);
   assert.ok(
@@ -332,6 +361,9 @@ test('hidden player identities and state do not enter another viewer packet', ()
   try {
     match.accept({ kind: 'join', playerId: 'viewer' });
     match.accept({ kind: 'join', playerId: 'secret-player' });
+    for (const playerId of ['c', 'd'])
+      assert.ok(match.accept({ kind: 'join', playerId }));
+    startMatch(match, ['viewer', 'secret-player', 'c', 'd']);
     assert.equal(
       match.setPlayerVisibility('viewer', 'secret-player', false),
       true,
@@ -375,12 +407,16 @@ test('specialization requirements refer to owned specializations, not content ID
     affinities: [],
     effect: 'effect',
     specializations: ['root-path'],
+    specializationChoices: [
+      { id: 'root-path', name: 'Path', triggerRank: 1, carcinisationBonus: 1 },
+    ],
   };
   const branch = {
     ...root,
     id: 'branch',
     name: 'Branch',
     specializations: [],
+    specializationChoices: [],
     requirement: { kind: 'specialization', id: 'root-path' },
   };
   const registry = createRegistry([root, branch], new Set(['effect']));
@@ -445,8 +481,9 @@ test('rejected intents do not change authoritative state or consume the offer', 
   const queue = new IntentQueue();
   const session = { playerId: 'a', matchId: 'authority' };
   try {
-    match.accept({ kind: 'join', playerId: 'a' });
-    match.accept({ kind: 'start' });
+    for (const playerId of ['a', 'b', 'c', 'd'])
+      assert.ok(match.accept({ kind: 'join', playerId }));
+    startMatch(match, ['a', 'b', 'c', 'd']);
     match.setOffer('a', { id: 'offer', revision: 4, choices: ['legal'] });
     const before = match.view('a');
     const base = {
@@ -719,6 +756,7 @@ test('offer descriptions use the selected rank values and never project blocked 
   assert.deepEqual(registry.describe('upgrade', 'common', 2), {
     id: 'upgrade',
     name: 'Upgrade',
+    icon: undefined,
     rarity: 'common',
     rank: 2,
     description: 'Adds 10 plating.',

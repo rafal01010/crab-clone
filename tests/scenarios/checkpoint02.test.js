@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Match } from '../../build-host/server/match/match.js';
+import { arenaPointClear, createArena } from '../../build-host/shared/arena.js';
 import {
   SelectionWindow,
   selectionPermissions,
@@ -9,11 +10,51 @@ import {
 
 await RAPIER.init();
 
+function setup(nearby = false) {
+  const world = new RAPIER.World({ x: 0, y: 0, z: 0 });
+  const match = new Match('m', world, 42);
+  for (const playerId of ['a', 'b', 'c', 'd']) {
+    assert.ok(match.accept({ kind: 'join', playerId }));
+    match.setReady(playerId, true);
+  }
+  assert.ok(match.accept({ kind: 'start' }));
+  const revision = match.view('a').loadingRevision;
+  for (const playerId of ['a', 'b', 'c', 'd'])
+    assert.ok(match.accept({ kind: 'loaded', playerId, revision }));
+  assert.ok(match.advance(3000));
+  const view = match.view('a');
+  const arena = createArena(42);
+  let point;
+  for (let x = -8; x <= 8 && !point; x += 2)
+    for (let z = -8; z <= 8 && !point; z += 2)
+      if (arenaPointClear(arena.obstacles, { x, z }, 5)) point = { x, z };
+  assert.ok(point);
+  for (const [index, id] of ['a', 'b'].entries()) {
+    const position = view.players.find((player) => player.id === id).position;
+    const body = world.bodies
+      .getAll()
+      .find(
+        (item) =>
+          item.isDynamic() &&
+          Math.hypot(
+            item.translation().x - position.x,
+            item.translation().z - position.z,
+          ) < 0.01,
+      );
+    assert.ok(body);
+    body.setTranslation(
+      { x: point.x + index * (nearby ? 2 : -8), y: 0.25, z: point.z },
+      true,
+    );
+    body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+  }
+  for (const bot of view.bots) match.setBotHostility(bot.id, false);
+  return match;
+}
+
 test('authoritative movement expires stale input and resumes only with new control', () => {
-  const match = new Match('m', new RAPIER.World({ x: 0, y: 0, z: 0 }));
+  const match = setup();
   try {
-    match.accept({ kind: 'join', playerId: 'a' });
-    match.accept({ kind: 'start' });
     const control = {
       kind: 'control',
       matchId: 'm',
@@ -80,6 +121,7 @@ test('choice windows preserve deadlines and do not consume unseen prompts on dis
     boundaryDamage: true,
     passiveExperience: true,
   });
+  window.markDisplayed('first', 1);
   window.setConnected(false, 9500);
   window.advance(30000);
   assert.equal(window.state.kind, 'exposed');
@@ -95,6 +137,7 @@ test('choice windows preserve deadlines and do not consume unseen prompts on dis
   assert.equal(window.choose('second', 0, 'a', 31000), true);
   assert.equal(window.state.prompt.id, 'branch');
   assert.equal(window.state.deadline, 40000);
+  window.markDisplayed('branch', 0);
   window.advance(40000);
   assert.equal(window.state.kind, 'exposed');
   assert.deepEqual(
@@ -104,10 +147,8 @@ test('choice windows preserve deadlines and do not consume unseen prompts on dis
 });
 
 test('opening a choice stops a moving player immediately', () => {
-  const match = new Match('m', new RAPIER.World({ x: 0, y: 0, z: 0 }));
+  const match = setup();
   try {
-    match.accept({ kind: 'join', playerId: 'a' });
-    match.accept({ kind: 'start' });
     for (let sequence = 1; sequence <= 30; sequence++) {
       match.consume({
         kind: 'control',
@@ -138,11 +179,8 @@ test('opening a choice stops a moving player immediately', () => {
 });
 
 test('other craft can pass a choosing player and that player can move after choosing', () => {
-  const match = new Match('m', new RAPIER.World({ x: 0, y: 0, z: 0 }));
+  const match = setup(true);
   try {
-    match.accept({ kind: 'join', playerId: 'a' });
-    match.accept({ kind: 'join', playerId: 'b' });
-    match.accept({ kind: 'start' });
     match.setOffer('a', { id: 'offer', revision: 0, choices: ['x'] });
     const position = (id) =>
       match.view('a').players.find((player) => player.id === id).position;

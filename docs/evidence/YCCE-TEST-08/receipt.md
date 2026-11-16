@@ -1,0 +1,13 @@
+# YCCE-TEST-08 verification receipt
+
+- Base revision: `5404a3026a8125f2ca38f8a02983ebe3100f4324`; reviewed state: working tree, including prior uncommitted implementation.
+- Environment: Node 24.22.3, local Rapier Match with seed 42; four local Playwright clients and a local production host. The browser fixture grants prerequisite chassis/Leap and places the target; the Claws offer, selection, attack and Leap input are exercised in the browser.
+- Source and behavior comparison: [combined matrix](../../verification/checkpoint08.md). Source pages are unpinned; the documented midpoint and gameplay estimates follow the user's informed-estimate instruction.
+- Video: `test-results/checkpoint08/combined-build.webm`; screenshot: `test-results/checkpoint08/combined-build.png`. These are local generated artifacts.
+- Verification: `npm run build`, `npm run typecheck`, `npm run lint`, and `npm run format:check`; the four-client `checkpoint08-browser.test.js`; and the combined non-browser foundation and checkpoint 02–08 scenarios (235 passed, four skipped). The ordinary foundation run skips three production-host cases and one intentional failure demonstration; they are not counted as passing.
+- Coverage: legal graph and aliases; chassis and weapon rank/rarity matrices; specializations; source damage, healing and status traces; collision, movement, terrain, thermal exposure and expiry. The shared Match fixture is `tests/scenarios/checkpoint08-ability-fixture.js`.
+- Changes found during verification: planar vertical locking; epic rank-two Tongue and Leech midpoint correction; closed HUD input-capture fix; Anaesthetic provocation; independent corrosion stacks with bounded capacity. Earlier test fixtures were updated to current match and selection rules.
+- Limitations: Body Slam (Tail) identity, Leap timing and knockback, Fin values, Arboreal range/cap/decay, and several action timings are estimates or unversioned. Saliva-to-Spit live acquisition remains in checkpoint 09; live coatings and other corrosion interactions remain in checkpoint 10. These are not claimed as source-confirmed.
+- Performance: no YCCE-003 hardware-specific budget or complete workload is defined in the current plan. Corrosion storage is capped at 128 statuses; no claim of measured capacity or performance improvement is made. Full capacity and soak validation remain assigned to the later performance tasks.
+
+- Review: independent acceptance review found no remaining concrete checkpoint requirement after passive-retention, thermal, rank/rarity and secondary-effect checks. The user authorized autonomous completion and the use of informed estimates.

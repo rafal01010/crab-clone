@@ -1458,7 +1458,19 @@
       "id": "body-slam-tail",
       "sourceName": "Body Slam (Tail)",
       "sourceAliases": [],
-      "kind": "unresolved-identity",
+      "kind": "estimated-alias",
+      "identityResolution": {
+        "canonicalId": "body-slam",
+        "sourceAbilityId": 241,
+        "startingBopAbilityId": 100,
+        "confidence": "estimated",
+        "rationale": "The legacy listing describes a rare five-rank tail-slot Body Slam. The current five-rank rare Body Slam has ability ID 241; Bop is starting ability ID 100. No separate current attack with a different identity is documented. Treat the legacy label as the learned Body Slam pending version-specific confirmation.",
+        "sources": [
+          "https://hinamizawa.ai/everything-is-crab/evolutions/",
+          "https://www.neoseeker.com/everything-is-crab/Evolution_Traits",
+          "https://everythingiscrab.wiki.gg/wiki/Body_Slam"
+        ]
+      },
       "owner": "YCCE-053D",
       "evidence": ["bundle-csv", "bundle-crosswalk"],
       "releaseState": "research-only",
@@ -7633,6 +7645,7 @@
     },
     {
       "id": "resistant",
+      "identityDecision": "Provisionally unused, not an alias. Neoseeker lists internal ID 1021 with zero upgrades and a placeholder description; the community evolution inventory instead lists Immune System. The sources do not establish a shared ID or pinned-version disposition.",
       "sourceName": "Resistant",
       "sourceAliases": [],
       "kind": "unresolved-identity",
@@ -8196,6 +8209,7 @@
     },
     {
       "id": "hyperkeratosis",
+      "identityDecision": "Provisionally unused, not an alias. Neoseeker lists internal ID 1204 with zero upgrades and a placeholder description. The community evolution inventory does not describe an applicable Hyperkeratosis effect. The pinned-version disposition remains unverified.",
       "sourceName": "Hyperkeratosis",
       "sourceAliases": [],
       "kind": "unresolved-identity",
@@ -11430,8 +11444,8 @@
     },
     {
       "candidate": "Body Slam (Tail)",
-      "disposition": "unresolved-identity",
-      "canonicalCandidate": "body-slam-tail",
+      "disposition": "estimated-alias",
+      "canonicalCandidate": "body-slam",
       "owner": "YCCE-053D",
       "evidence": ["bundle-csv", "bundle-crosswalk"]
     },

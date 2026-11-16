@@ -1,8 +1,39 @@
 <script lang="ts">
   import type { MatchView } from '../../../shared/match.js';
+  import { terrainAt } from '../../../shared/arena.js';
+  import { FIRMWARE_SCAN_RANGE } from '../../../shared/firmware.js';
 
-  let { state, playerId }: { state: MatchView; playerId: string } = $props();
+  let {
+    state,
+    playerId,
+    oninteract,
+    onscan,
+    onuse,
+    onshelter,
+    oncharm,
+  }: {
+    state: MatchView;
+    playerId: string;
+    oninteract: (id: string) => void;
+    onscan: (id: string) => void;
+    onuse: (id: string) => void;
+    onshelter: (id: string) => void;
+    oncharm: (id: string) => void;
+  } = $props();
   const me = $derived(state.players.find((player) => player.id === playerId));
+  const observed = $derived(
+    state.players.find(
+      (player) => player.id === (state.spectating ?? playerId),
+    ),
+  );
+  const localBiome = $derived(
+    observed
+      ? terrainAt(state.arena, observed.position.x, observed.position.z)
+      : null,
+  );
+  const localWeather = $derived(
+    state.weather.find((weather) => weather.biome === localBiome),
+  );
   const canAct = $derived(
     me?.life.kind === 'alive' &&
       me.life.activity === 'playing' &&
@@ -10,7 +41,7 @@
   );
   const seconds = $derived(Math.floor(state.boundary.elapsedMs / 1000));
   const near = $derived(
-    me
+    me?.life.kind === 'alive'
       ? state.resources
           .filter(
             (resource) =>
@@ -21,6 +52,52 @@
               (me.stats?.salvageReach ?? 0) + 2,
           )
           .slice(0, 3)
+      : [],
+  );
+  const nearbySites = $derived(
+    me?.life.kind === 'alive'
+      ? state.pointsOfInterest.filter(
+          (site) =>
+            Math.hypot(
+              site.position.x - me.position.x,
+              site.position.z - me.position.z,
+            ) <= 3,
+        )
+      : [],
+  );
+  const nearbyFirmware = $derived(
+    me?.life.kind === 'alive'
+      ? state.firmware.filter(
+          (module) =>
+            Math.hypot(
+              module.position.x - me.position.x,
+              module.position.z - me.position.z,
+            ) <= FIRMWARE_SCAN_RANGE,
+        )
+      : [],
+  );
+  const nearbyShelters = $derived(
+    me?.life.kind === 'alive'
+      ? state.shelters.filter(
+          (site) =>
+            Math.hypot(
+              site.position.x - me.position.x,
+              site.position.z - me.position.z,
+            ) <= 3 || me.shelter?.id === site.id,
+        )
+      : [],
+  );
+  const nearbyBots = $derived(
+    me?.life.kind === 'alive'
+      ? state.bots.filter(
+          (bot) =>
+            bot.ownerId !== playerId &&
+            (bot.kind === 'wild' || bot.kind === 'charmed') &&
+            Math.hypot(
+              bot.position.x - me.position.x,
+              bot.position.z - me.position.z,
+            ) <= 3,
+        )
       : [],
   );
   const slots = [
@@ -37,6 +114,12 @@
       >Running · Survivors {state.survivors} / 4 · {Math.floor(
         seconds / 60,
       )}:{String(seconds % 60).padStart(2, '0')}</strong
+    >
+    <span
+      >{state.worldClock.phase === 'day' ? 'Day' : 'Night'} · next phase in {Math.max(
+        0,
+        Math.ceil((state.worldClock.nextTransitionAt - state.time) / 1000),
+      )}s</span
     >
     {#if me}
       <span
@@ -69,6 +152,16 @@
         value={state.progression.progress}
         max={state.progression.required}
       ></progress>
+      {#if state.progression.storedSalvage > 0}
+        <span>Stored salvage: {state.progression.storedSalvage}</span>
+      {/if}
+      {#if state.progression.basking}
+        <span>
+          Basking {state.progression.basking.active
+            ? `${Math.ceil(state.progression.basking.remainingMs / 1000)}s`
+            : 'paused'}
+        </span>
+      {/if}
       {#if me.statuses.length}<span
           >Status: {me.statuses
             .map(
@@ -94,11 +187,27 @@
       >Currency {state.progression.currency} · pending upgrades {state
         .progression.pending}</span
     >
+    {#if state.progression.upgrades.length}
+      <details data-game-capture>
+        <summary>Your upgrades</summary>
+        {#each state.progression.upgrades as upgrade (upgrade.id)}
+          <p>
+            {upgrade.name} · {upgrade.rarity} · rank {upgrade.rank}. {upgrade.description}
+          </p>
+        {/each}
+      </details>
+    {/if}
     {#if state.progression.depletedRewards > 0}<span
         >No legal upgrade available for {state.progression.depletedRewards} level
         reward(s).</span
       >{/if}
-    <span>Temperature — · Sensing —</span>
+    {#if state.thermal}
+      <span
+        >Heat {Math.round(state.thermal.heat)}% · Cold {Math.round(
+          state.thermal.cold,
+        )}%</span
+      >
+    {/if}
   </div>
   <div class="panel map">
     <strong>Minimap</strong>
@@ -137,6 +246,30 @@
     </svg>
   </div>
   <div class="panel warnings" role="status">
+    {#if localWeather}
+      <strong
+        >{localWeather.kind === 'heatwave'
+          ? 'Heatwave'
+          : localWeather.kind === 'blizzard'
+            ? 'Blizzard'
+            : 'Rain'}
+        {localWeather.state === 'warning'
+          ? `in ${Math.max(0, Math.ceil((localWeather.startsAt - state.time) / 1000))}s`
+          : `active · ends in ${Math.max(0, Math.ceil((localWeather.endsAt - state.time) / 1000))}s`}.</strong
+      >
+    {/if}
+    {#if state.thermal && (state.thermal.heat >= 100 || state.thermal.cold >= 100)}
+      <strong
+        >{state.thermal.heat >= 100
+          ? 'Heat exposure is dangerous.'
+          : 'Cold exposure slows movement.'}</strong
+      >
+    {/if}
+    {#each state.radar as hint (`${hint.kind}:${hint.direction}:${hint.distance}`)}
+      <span
+        >{hint.kind === 'elite' ? 'Elite' : 'Site'} · {hint.direction} · {hint.distance}</span
+      >
+    {/each}
     {#if state.boundary.elapsedMs >= state.boundary.shrinkStartMs}
       <strong
         >Danger: boundary closing. Collapse in {Math.ceil(
@@ -152,8 +285,78 @@
       >
     {/if}
     {#if state.meteors.length}<strong
-        >Danger: meteor incoming. Leave the red ring.</strong
+        >{me?.life.kind === 'eliminated'
+          ? 'Meteor incoming.'
+          : 'Danger: meteor incoming. Leave the red ring.'}</strong
       >{/if}
+    {#each state.nestDefenses as nest (nest.siteId)}
+      <span
+        >Defend the egg · {Math.ceil(
+          Math.max(0, nest.endsAt - state.time) / 1000,
+        )}s · integrity {Math.ceil(nest.health)}</span
+      >
+    {/each}
+    {#each nearbySites as site (site.id)}
+      <button
+        class="site-action"
+        disabled={!canAct || site.status !== 'available'}
+        onclick={() => oninteract(site.id)}
+      >
+        {site.kind.replaceAll('-', ' ')} · {site.status === 'available'
+          ? 'Interact (E)'
+          : site.status}
+      </button>
+    {/each}
+    {#each nearbyShelters as site (site.id)}
+      <button
+        class="site-action"
+        disabled={!canAct || (site.occupied && me?.shelter?.id !== site.id)}
+        onclick={() => onshelter(site.id)}
+        >{me?.shelter?.id === site.id
+          ? 'Exit shelter'
+          : 'Enter shelter'}</button
+      >
+    {/each}
+    {#each nearbyBots as bot (bot.id)}
+      <button
+        class="site-action"
+        disabled={!canAct || !!me?.shelter}
+        onclick={() => oncharm(bot.id)}>Charm nearby creature</button
+      >
+    {/each}
+    {#if state.firmwareSensory.deafened}<span>Deafening effect active</span
+      >{/if}
+    {#if state.lastCharm && state.time - state.lastCharm.at < 5000}<span
+        >{state.lastCharm.success
+          ? 'Creature charmed.'
+          : 'Charm failed. Try again shortly.'}</span
+      >{/if}
+    {#if state.lastFirmware && state.time - state.lastFirmware.at < 5000}<span
+        >Firmware used: {state.lastFirmware.effect}</span
+      >{/if}
+    {#each nearbyFirmware as module (module.id)}
+      {#if module.knowledge.kind === 'identified'}
+        <span>Firmware {module.appearance} · {module.knowledge.effect}</span>
+      {:else}
+        <button
+          class="site-action"
+          disabled={!canAct}
+          onclick={() => onscan(module.id)}
+        >
+          {module.knowledge.kind === 'failed' ? 'Retry scan' : 'Scan firmware'} ·
+          {module.appearance}
+        </button>
+        {#if module.knowledge.kind === 'failed'}<span
+            >Not identified. More senses or identification chance may help.</span
+          >{/if}
+      {/if}
+      <button
+        class="site-action"
+        disabled={!canAct || !!me?.shelter}
+        onclick={() => onuse(module.id)}
+        >Use firmware · {module.appearance}</button
+      >
+    {/each}
     {#each near as resource (resource.id)}
       <span
         >Salvage {resource.source} · {resource.rarity} · stage {resource.stage +
@@ -174,13 +377,21 @@
       <div class="panel slot">
         <strong>{slot.label} · {slot.key}</strong>
         <span>{id ?? (slot.id === 'primary' ? 'Basic strike' : 'Empty')}</span>
+        {#if ability?.ammunition}
+          <span
+            >Stones {ability.ammunition.charges} / {ability.ammunition
+              .capacity}</span
+          >
+        {/if}
         <span
           >{!canAct
             ? 'Unavailable'
             : id || slot.id === 'primary'
-              ? cooldown > 0
-                ? `Ready in ${Math.ceil(cooldown / 1000)}s`
-                : 'Ready'
+              ? ability?.ammunition && ability.ammunition.charges === 0
+                ? `Reloading · ${Math.max(0, Math.ceil((ability.ammunition.nextAt - state.time) / 1000))}s`
+                : cooldown > 0
+                  ? `Ready in ${Math.ceil(cooldown / 1000)}s`
+                  : 'Ready'
               : 'Unavailable'}</span
         >
       </div>
@@ -210,6 +421,9 @@
     display: grid;
     gap: 3px;
   }
+  .vitals details {
+    pointer-events: auto;
+  }
   progress {
     width: 100%;
     height: 7px;
@@ -234,6 +448,11 @@
     width: 36%;
     display: grid;
     gap: 3px;
+  }
+  .site-action {
+    pointer-events: auto;
+    text-transform: capitalize;
+    cursor: pointer;
   }
   .warnings:empty {
     display: none;

@@ -9,6 +9,7 @@ import { loadCatalogue } from './content/catalogue.js';
 import { observe } from './match/view.js';
 import { IntentQueue } from './network/intents.js';
 import type { Acknowledgment } from '../shared/protocol/index.js';
+import { ArenaGenerationError } from '../shared/arena.js';
 
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? '0.0.0.0';
@@ -32,6 +33,15 @@ const sessions = new Map<string, Session>();
 const server = createServer(handler);
 const io = new Server(server, { maxHttpBufferSize: 4096, serveClient: false });
 const commands: (() => void)[] = [];
+function createRoomMatch(id: string, revision = 0): Match {
+  const world = new RAPIER.World({ x: 0, y: 0, z: 0 });
+  try {
+    return new Match(id, world, undefined, undefined, revision);
+  } catch (error) {
+    world.free();
+    throw error;
+  }
+}
 function roomList() {
   return [...rooms.values()].map((room) => {
     const first = room.sessions.values().next().value;
@@ -110,9 +120,19 @@ io.on('connection', (socket) => {
       if (!session && input.roomId === null) {
         if (rooms.size >= roomLimit) return respond('Room limit reached');
         const id = randomUUID();
+        let match: Match;
+        try {
+          match = createRoomMatch(id);
+        } catch (error) {
+          if (!(error instanceof ArenaGenerationError)) throw error;
+          console.error(error.message);
+          return respond(
+            'Could not generate a playable map. Try creating the room again.',
+          );
+        }
         room = {
           id,
-          match: new Match(id, new RAPIER.World({ x: 0, y: 0, z: 0 })),
+          match,
           intents: new IntentQueue(),
           sessions: new Map(),
           revision: 0,
@@ -191,13 +211,18 @@ io.on('connection', (socket) => {
       if (phase !== 'finished' && phase !== 'aborted') return;
       const previous = room.match;
       const roster = previous.roster();
-      const next = new Match(
-        room.id,
-        new RAPIER.World({ x: 0, y: 0, z: 0 }),
-        undefined,
-        undefined,
-        room.revision + 1,
-      );
+      let next: Match;
+      try {
+        next = createRoomMatch(room.id, room.revision + 1);
+      } catch (error) {
+        if (!(error instanceof ArenaGenerationError)) throw error;
+        console.error(error.message);
+        socket.emit(
+          'room-error',
+          'Could not generate a playable map. Try returning to the lobby again.',
+        );
+        return;
+      }
       for (const player of roster) {
         if (
           !next.accept({ kind: 'join', playerId: player.id, name: player.name })
@@ -292,7 +317,12 @@ const timer = setInterval(() => {
       room.match.syncWallClock(now);
       for (const intent of room.intents.drain()) {
         const applied = room.match.consume(intent);
-        if (intent.kind === 'choice' || intent.kind === 'reroll') {
+        if (
+          intent.kind === 'choice' ||
+          intent.kind === 'reroll' ||
+          intent.kind === 'upgrade-rarity' ||
+          intent.kind === 'equipment'
+        ) {
           const session = [...room.sessions.values()].find(
             (item) => item.playerId === intent.playerId,
           );

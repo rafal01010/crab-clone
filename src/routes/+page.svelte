@@ -35,7 +35,8 @@
         status === 'Connected' &&
           observation?.state.phase === 'running' &&
           player?.life.kind === 'alive' &&
-          player.life.activity === 'playing',
+          player.life.activity === 'playing' &&
+          !player.shelter,
       );
     }
     connection = connectSession(
@@ -102,13 +103,15 @@
 <main>
   <header>
     <h1>You Can Crab Everything</h1>
-    <p>{status} · Starter playable subset. Checkpoint verification pending.</p>
+    <p>{status} · Verified starter subset.</p>
   </header>
   {#if !session}
     <section aria-label="Rooms">
       <label>Display name <input bind:value={name} maxlength="24" /></label>
       <button
-        disabled={!name.trim() || status !== 'Connected'}
+        disabled={!name.trim() ||
+          status === 'Connecting' ||
+          status === 'Disconnected'}
         onclick={() => connection.join(null, name.trim())}>Create room</button
       >
       <h2>Rooms</h2>
@@ -253,11 +256,17 @@
           return {
             id,
             name:
-              detail?.name ??
+              (offer.kind === 'poi'
+                ? offer.labels?.find((item) => item.id === id)?.label
+                : detail?.name) ??
               offer.labels?.find((item) => item.id === id)?.label ??
               id,
-            description: detail?.description ?? '',
+            description:
+              detail?.description ??
+              offer.labels?.find((item) => item.id === id)?.description ??
+              '',
             rarity: detail?.rarity ?? '',
+            icon: detail?.icon,
             rank: detail?.rank ?? 0,
             cost: null,
           };
@@ -277,49 +286,51 @@
           y: 50,
           radius: (observation.state.boundary.radius * 100) / 64,
         }}
-        warning={observation.state.meteors.length
-          ? 'Meteor incoming. Move away from the red ring.'
-          : observation.state.boundary.elapsedMs >=
-              observation.state.boundary.shrinkStartMs
-            ? 'The boundary is closing.'
-            : observation.state.boundary.shrinkStartMs -
-                  observation.state.boundary.elapsedMs <=
-                60000
-              ? 'The boundary will begin closing soon.'
-              : null}
-        rerollCostAvailable={observation.state.progression.currency >= 1}
+        warning={offer.protected === false
+          ? 'You are vulnerable while choosing at this site.'
+          : observation.state.meteors.length
+            ? 'Meteor incoming. Finish choosing to see the danger.'
+            : observation.state.boundary.elapsedMs >=
+                observation.state.boundary.shrinkStartMs
+              ? 'The boundary is closing.'
+              : observation.state.boundary.shrinkStartMs -
+                    observation.state.boundary.elapsedMs <=
+                  60000
+                ? 'The boundary will begin closing soon.'
+                : null}
+        rerollCost={offer.rerollCost ?? 1}
+        rerollCostAvailable={observation.state.progression.currency >=
+          (offer.rerollCost ?? 1)}
+        rarityCost={offer.rarityCost ?? null}
+        rarityCostAvailable={offer.rarityCost != null &&
+          observation.state.progression.currency >= offer.rarityCost}
         onchoose={(choice) =>
           connection.choose(offer.id, offer.revision, choice)}
         onreroll={() => connection.reroll(offer.id, offer.revision)}
+        onupgrade={() => connection.upgradeRarity(offer.id, offer.revision)}
+        equipment={observation.state.equipment}
+        onequip={(slot, id) =>
+          connection.equip(offer.id, offer.revision, slot, id)}
       />
-    {/if}
-    {#if observation.state.offer}
-      <section aria-label="Equipment">
-        <h2>Equipment</h2>
-        {#each ['primary', 'secondary', 'movement', 'ultimate'] as slot (slot)}
-          <p>
-            {slot}: {observation.state.equipment.slots[
-              slot as keyof typeof observation.state.equipment.slots
-            ] ?? 'Empty'}
-          </p>
-          {#if observation.state.offer}
-            <button onclick={() => connection.equip(slot, '-')}
-              >Unequip {slot}</button
-            >
-            {#each observation.state.equipment.learned.filter((ability) => ability.slotType === (slot === 'primary' || slot === 'secondary' ? 'attack' : slot)) as ability (ability.id)}
-              <button onclick={() => connection.equip(slot, ability.id)}
-                >Equip {ability.id} in {slot}</button
-              >
-            {/each}
-          {/if}
-        {/each}
-      </section>
     {/if}
   {/if}
   <div class="arena">
-    <canvas bind:this={canvas} tabindex="0" aria-label="Match world"></canvas>
+    <canvas
+      bind:this={canvas}
+      class:distorted={observation?.state.firmwareSensory.distortion}
+      tabindex="0"
+      aria-label="Match world"
+    ></canvas>
     {#if observation?.state.phase === 'running' && session}
-      <MatchHud state={observation.state} playerId={session.playerId} />
+      <MatchHud
+        state={observation.state}
+        playerId={session.playerId}
+        oninteract={(id) => connection.interact(id)}
+        onscan={(id) => connection.scan(id)}
+        onuse={(id) => connection.useFirmware(id)}
+        onshelter={(id) => connection.shelter(id)}
+        oncharm={(id) => connection.charm(id)}
+      />
     {/if}
   </div>
 </main>
@@ -352,6 +363,9 @@
     font-size: clamp(2rem, 4vw, 3rem);
     font-weight: 400;
     letter-spacing: -0.04em;
+  }
+  canvas.distorted {
+    filter: hue-rotate(130deg) saturate(1.8);
   }
   .arena {
     position: relative;

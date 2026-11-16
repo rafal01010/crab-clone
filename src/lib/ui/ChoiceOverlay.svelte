@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import type { UpgradeIcon } from '../../../shared/match.js';
   export type Offer = {
     id: string;
     name: string;
@@ -7,6 +8,16 @@
     rarity: string;
     rank: number;
     cost: number | null;
+    icon?: UpgradeIcon;
+  };
+  const icons: Record<UpgradeIcon, string> = {
+    power: '◆',
+    salvage: '◉',
+    plating: '⬡',
+    attack: '✦',
+    arms: '⋔',
+    movement: '➜',
+    wings: '◇',
   };
   export type MapPoint = { id: string; x: number; y: number; self: boolean };
   let {
@@ -20,7 +31,13 @@
     onchoose,
     kind = 'upgrade',
     rerollCostAvailable = false,
+    rerollCost = 1,
+    rarityCost = null,
+    rarityCostAvailable = false,
     onreroll,
+    onupgrade,
+    equipment,
+    onequip,
   }: {
     offerId: string;
     revision: number;
@@ -30,9 +47,25 @@
     boundary: { x: number; y: number; radius: number } | null;
     warning: string | null;
     onchoose: (id: string) => Promise<boolean>;
-    kind?: 'upgrade' | 'specialization' | 'equipment';
+    kind?: 'upgrade' | 'specialization' | 'equipment' | 'poi';
     rerollCostAvailable?: boolean;
+    rerollCost?: number;
+    rarityCost?: number | null;
+    rarityCostAvailable?: boolean;
     onreroll?: () => Promise<boolean>;
+    onupgrade?: () => Promise<boolean>;
+    equipment?: {
+      slots: Record<
+        'primary' | 'secondary' | 'movement' | 'ultimate',
+        string | null
+      >;
+      learned: {
+        id: string;
+        slotType: 'attack' | 'movement' | 'ultimate';
+        readyAt: number;
+      }[];
+    };
+    onequip?: (slot: string, id: string) => Promise<boolean>;
   } = $props();
   let selected = $state<string | null>(null);
   let submitted = $state(false);
@@ -89,6 +122,38 @@
       if (identity === JSON.stringify([offerId, revision])) submitted = false;
     }
   }
+  async function upgrade() {
+    if (!onupgrade || submitted || remainingMs <= 0) return;
+    const identity = JSON.stringify([offerId, revision]);
+    submitted = true;
+    try {
+      if (
+        !(await onupgrade()) &&
+        identity === JSON.stringify([offerId, revision])
+      ) {
+        submitted = false;
+        transactionError = 'The rarity upgrade was not applied. Try again.';
+      }
+    } catch {
+      if (identity === JSON.stringify([offerId, revision])) submitted = false;
+    }
+  }
+  async function changeEquipment(slot: string, id: string) {
+    if (!onequip || submitted || remainingMs <= 0) return;
+    const identity = JSON.stringify([offerId, revision]);
+    submitted = true;
+    try {
+      if (
+        !(await onequip(slot, id)) &&
+        identity === JSON.stringify([offerId, revision])
+      ) {
+        submitted = false;
+        transactionError = 'The equipment change was not applied. Try again.';
+      }
+    } catch {
+      if (identity === JSON.stringify([offerId, revision])) submitted = false;
+    }
+  }
   function keyboard(event: KeyboardEvent) {
     const target = event.target;
     if (
@@ -122,7 +187,7 @@
       }
       return;
     }
-    if (['1', '2', '3'].includes(event.key)) {
+    if (['1', '2', '3', '4'].includes(event.key)) {
       event.preventDefault();
       select(Number(event.key) - 1);
     } else if (event.key === 'Enter' && choice) {
@@ -139,19 +204,23 @@
   role="dialog"
   tabindex="-1"
   aria-modal="true"
-  aria-label="Choose an upgrade"
+  aria-label={kind === 'poi' ? 'Choose a site reward' : 'Choose an upgrade'}
   data-game-capture
 >
   <div class="choice-shell">
     <header class="choice-header">
       <div>
-        <p class="eyebrow">Evolution available</p>
+        <p class="eyebrow">
+          {kind === 'poi' ? 'Site discovered' : 'Evolution available'}
+        </p>
         <h1>
-          {kind === 'specialization'
-            ? 'Choose a specialization.'
-            : kind === 'equipment'
-              ? 'Choose equipment.'
-              : 'Choose your next upgrade.'}
+          {kind === 'poi'
+            ? 'Choose a site reward.'
+            : kind === 'specialization'
+              ? 'Choose a specialization.'
+              : kind === 'equipment'
+                ? 'Choose equipment.'
+                : 'Choose your next upgrade.'}
         </h1>
       </div>
       <div class="time">
@@ -164,6 +233,32 @@
     {#if transactionError}<p class="warning" role="status">
         {transactionError}
       </p>{/if}
+    {#if equipment && onequip && (kind === 'upgrade' || kind === 'specialization')}
+      <details>
+        <summary>Change equipped abilities</summary>
+        <p>Replacing an ability keeps it learned and preserves its cooldown.</p>
+        {#each ['primary', 'secondary', 'movement', 'ultimate'] as slot (slot)}
+          {@const current =
+            equipment.slots[slot as keyof typeof equipment.slots]}
+          <p>{slot}: {current ?? 'Empty'}</p>
+          {#if current}
+            <button
+              type="button"
+              disabled={submitted || remainingMs <= 0}
+              onclick={() => changeEquipment(slot, '-')}>Unequip {slot}</button
+            >
+          {/if}
+          {#each equipment.learned.filter((ability) => ability.slotType === (slot === 'primary' || slot === 'secondary' ? 'attack' : slot) && ability.id !== current) as ability (ability.id)}
+            <button
+              type="button"
+              disabled={submitted || remainingMs <= 0}
+              onclick={() => changeEquipment(slot, ability.id)}
+              >Equip {ability.id} in {slot}</button
+            >
+          {/each}
+        {/each}
+      </details>
+    {/if}
     <div class="choice-body">
       <div class="offers">
         {#each offers as offer, index (offer.id)}
@@ -176,7 +271,11 @@
             onclick={() => select(index)}
           >
             <span class="offer-index">0{index + 1} <kbd>{index + 1}</kbd></span>
-            <span class="offer-name">{offer.name}</span>
+            <span class="offer-name"
+              >{#if offer.icon}<span aria-hidden="true"
+                  >{icons[offer.icon]}
+                </span>{/if}{offer.name}</span
+            >
             <span class="offer-meta"
               >{offer.rarity}{#if offer.rank > 0}
                 · Rank {offer.rank}{/if}{#if offer.cost !== null}
@@ -222,7 +321,14 @@
         <button
           type="button"
           disabled={submitted || !rerollCostAvailable || remainingMs <= 0}
-          onclick={reroll}>Reroll (1 currency)</button
+          onclick={reroll}>Reroll ({rerollCost} currency)</button
+        >
+      {/if}
+      {#if kind === 'upgrade' && onupgrade && rarityCost !== null}
+        <button
+          type="button"
+          disabled={submitted || !rarityCostAvailable || remainingMs <= 0}
+          onclick={upgrade}>Upgrade rarity ({rarityCost} currency)</button
         >
       {/if}
       <button

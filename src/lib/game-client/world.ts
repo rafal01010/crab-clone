@@ -2,12 +2,36 @@ import * as THREE from 'three';
 import type { Observation } from '../../../shared/protocol/index.js';
 import { SnapshotClock, SnapshotTimeline } from './snapshots.js';
 import { LocalPrediction } from './local-prediction.js';
-import type { Movement } from '../../../shared/movement.js';
+import {
+  terrainSpeedMultiplier,
+  type Movement,
+} from '../../../shared/movement.js';
+import { terrainRegionAt } from '../../../shared/arena.js';
+import { THERMAL_RULES } from '../../../shared/weather.js';
+import type { Terrain } from '../../../shared/movement.js';
 
 type Entity = {
   mesh: THREE.Mesh;
   radius: number;
   timeline: SnapshotTimeline;
+  modules: Record<
+    | 'arms'
+    | 'tentacles'
+    | 'legs'
+    | 'more-legs'
+    | 'fin'
+    | 'lightweight'
+    | 'wings'
+    | 'tail'
+    | 'slam'
+    | 'spines'
+    | 'crest'
+    | 'fins',
+    THREE.Group
+  >;
+  attackCue: THREE.Mesh;
+  hitCue: THREE.Mesh;
+  guardCue: THREE.Mesh;
 };
 
 export function createWorld(canvas: HTMLCanvasElement) {
@@ -18,11 +42,66 @@ export function createWorld(canvas: HTMLCanvasElement) {
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
   camera.position.set(0, 12, 12);
   camera.lookAt(0, 0, 0);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x303040, 2));
+  const light = new THREE.HemisphereLight(0xffffff, 0x303040, 2);
+  scene.add(light);
   const geometry = new THREE.BoxGeometry(1, 0.5, 1);
   const material = new THREE.MeshStandardMaterial({ color: 0xff8e64 });
   const headingGeometry = new THREE.BoxGeometry(0.12, 0.08, 0.55);
   const headingMaterial = new THREE.MeshBasicMaterial({ color: 0x26384a });
+  const hitMaterial = new THREE.MeshBasicMaterial({ color: 0xffe9a3 });
+  const guardGeometry = new THREE.TorusGeometry(0.8, 0.045, 6, 20);
+  const guardMaterial = new THREE.MeshBasicMaterial({ color: 0x91d8e7 });
+  const moduleGeometry = new THREE.BoxGeometry(1, 1, 1);
+  const moduleMaterial = new THREE.MeshStandardMaterial({ color: 0xf7b16e });
+  function makeModules(mesh: THREE.Mesh): Entity['modules'] {
+    const modules = {
+      arms: new THREE.Group(),
+      tentacles: new THREE.Group(),
+      legs: new THREE.Group(),
+      'more-legs': new THREE.Group(),
+      fin: new THREE.Group(),
+      lightweight: new THREE.Group(),
+      wings: new THREE.Group(),
+      tail: new THREE.Group(),
+      slam: new THREE.Group(),
+      spines: new THREE.Group(),
+      crest: new THREE.Group(),
+      fins: new THREE.Group(),
+    };
+    const part = (
+      group: THREE.Group,
+      x: number,
+      y: number,
+      z: number,
+      sx: number,
+      sy: number,
+      sz: number,
+    ) => {
+      const shape = new THREE.Mesh(moduleGeometry, moduleMaterial);
+      shape.position.set(x, y, z);
+      shape.scale.set(sx, sy, sz);
+      group.add(shape);
+    };
+    for (const side of [-1, 1]) {
+      part(modules.arms, side * 0.7, 0, 0.25, 0.55, 0.18, 0.2);
+      part(modules.tentacles, side * 0.72, 0, -0.05, 0.68, 0.12, 0.16);
+      part(modules.tentacles, side * 0.9, 0, -0.32, 0.42, 0.12, 0.14);
+      part(modules.legs, side * 0.52, -0.15, 0.3, 0.32, 0.15, 0.14);
+      part(modules.legs, side * 0.52, -0.15, -0.2, 0.32, 0.15, 0.14);
+      part(modules['more-legs'], side * 0.53, -0.15, -0.43, 0.36, 0.15, 0.14);
+      part(modules.lightweight, side * 0.33, 0.27, 0, 0.08, 0.08, 0.85);
+      part(modules.wings, side * 0.75, 0.25, -0.15, 0.6, 0.08, 0.55);
+      part(modules.spines, side * 0.35, 0.38, -0.12, 0.1, 0.45, 0.1);
+    }
+    part(modules.tail, 0, 0, -0.75, 0.25, 0.15, 0.65);
+    part(modules.fin, 0, 0.35, -0.25, 0.12, 0.45, 0.5);
+    part(modules.slam, 0, 0.05, 0.6, 0.55, 0.25, 0.28);
+    part(modules.crest, 0, 0.43, -0.08, 0.12, 0.4, 0.55);
+    for (const side of [-1, 1])
+      part(modules.fins, side * 0.55, 0.29, -0.3, 0.12, 0.36, 0.52);
+    for (const group of Object.values(modules)) mesh.add(group);
+    return modules;
+  }
   const grid = new THREE.GridHelper(200, 200, 0x566176, 0x333d50);
   scene.add(grid);
   const raycaster = new THREE.Raycaster();
@@ -36,9 +115,19 @@ export function createWorld(canvas: HTMLCanvasElement) {
   const projectileGeometry = new THREE.SphereGeometry(0.18);
   const projectileMaterial = new THREE.MeshBasicMaterial({ color: 0xffdb74 });
   const projectiles = new Map<number, THREE.Mesh>();
+  const trailGeometry = new THREE.CircleGeometry(1, 24);
+  const trailMaterial = new THREE.MeshBasicMaterial({
+    color: 0x568b7b,
+    transparent: true,
+    opacity: 0.48,
+    depthWrite: false,
+  });
+  const trails = new Map<number, THREE.Mesh>();
   const botGeometry = new THREE.ConeGeometry(0.7, 1, 4);
   const botMaterial = new THREE.MeshStandardMaterial({ color: 0xa1a9b3 });
+  const botAllyMaterial = new THREE.MeshStandardMaterial({ color: 0x66dbbc });
   const botTier2Material = new THREE.MeshStandardMaterial({ color: 0x8a70c4 });
+  const botEliteMaterial = new THREE.MeshStandardMaterial({ color: 0xe7bc58 });
   const botTellMaterial = new THREE.MeshStandardMaterial({ color: 0xff754a });
   const bots = new Map<string, THREE.Mesh>();
   const resourceGeometry = new THREE.SphereGeometry(0.4);
@@ -49,6 +138,25 @@ export function createWorld(canvas: HTMLCanvasElement) {
     repair: new THREE.MeshStandardMaterial({ color: 0xe9d475 }),
   };
   const resources = new Map<string, THREE.Mesh>();
+  const poiGeometry = new THREE.CylinderGeometry(0.48, 0.68, 1.3, 6);
+  const poiMaterials = {
+    available: new THREE.MeshStandardMaterial({ color: 0x6de6d0 }),
+    reserved: new THREE.MeshStandardMaterial({ color: 0xf2ba57 }),
+    claimed: new THREE.MeshStandardMaterial({ color: 0x626a6d }),
+  };
+  const sites = new Map<string, THREE.Mesh>();
+  const shelterGeometry = new THREE.TorusGeometry(1, 0.13, 8, 24);
+  const shelterMaterial = new THREE.MeshStandardMaterial({ color: 0x846f5d });
+  const shelters = new Map<string, THREE.Mesh>();
+  const firmwareGeometry = new THREE.OctahedronGeometry(0.5);
+  const firmwareMaterials = Array.from(
+    { length: 16 },
+    (_, index) =>
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color().setHSL(index / 16, 0.65, 0.55),
+      }),
+  );
+  const firmware = new Map<string, THREE.Mesh>();
   const ringGeometry = new THREE.RingGeometry(0.96, 1, 96);
   const boundaryMaterial = new THREE.MeshBasicMaterial({
     color: 0xffae45,
@@ -66,8 +174,13 @@ export function createWorld(canvas: HTMLCanvasElement) {
   const meteors = new Map<number, THREE.Mesh>();
   const prediction = new LocalPrediction();
   let snapshotClock = new SnapshotClock();
-  let arenaSeed: number | null = null;
+  let arenaSeed: string | null = null;
   const arenaObjects: THREE.Mesh[] = [];
+  const terrainMeshes: {
+    mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>;
+    terrain: Terrain;
+    waterDepth: number;
+  }[] = [];
   let matchId = '';
   let roundId = '';
   let viewerId: string | null = null;
@@ -77,6 +190,26 @@ export function createWorld(canvas: HTMLCanvasElement) {
   let lastTimestamp = 0;
   let lastRevision = -1;
   let frame = 0;
+  function clearObservedEntities() {
+    for (const entity of entities.values()) scene.remove(entity.mesh);
+    entities.clear();
+    for (const mesh of projectiles.values()) scene.remove(mesh);
+    projectiles.clear();
+    for (const mesh of trails.values()) scene.remove(mesh);
+    trails.clear();
+    for (const mesh of bots.values()) scene.remove(mesh);
+    bots.clear();
+    for (const mesh of resources.values()) scene.remove(mesh);
+    resources.clear();
+    for (const mesh of sites.values()) scene.remove(mesh);
+    sites.clear();
+    for (const mesh of shelters.values()) scene.remove(mesh);
+    shelters.clear();
+    for (const mesh of firmware.values()) scene.remove(mesh);
+    firmware.clear();
+    for (const mesh of meteors.values()) scene.remove(mesh);
+    meteors.clear();
+  }
   function clear() {
     for (const mesh of arenaObjects) {
       scene.remove(mesh);
@@ -86,17 +219,9 @@ export function createWorld(canvas: HTMLCanvasElement) {
       else mesh.material.dispose();
     }
     arenaObjects.length = 0;
+    terrainMeshes.length = 0;
     arenaSeed = null;
-    for (const entity of entities.values()) scene.remove(entity.mesh);
-    entities.clear();
-    for (const mesh of projectiles.values()) scene.remove(mesh);
-    projectiles.clear();
-    for (const mesh of bots.values()) scene.remove(mesh);
-    bots.clear();
-    for (const mesh of resources.values()) scene.remove(mesh);
-    resources.clear();
-    for (const mesh of meteors.values()) scene.remove(mesh);
-    meteors.clear();
+    clearObservedEntities();
     boundary.visible = false;
     followId = null;
   }
@@ -222,11 +347,42 @@ export function createWorld(canvas: HTMLCanvasElement) {
         observation.revision <= lastRevision
       )
         return false;
-      if (arenaSeed !== observation.state.arena.seed) {
+      if (arenaSeed !== observation.state.roundId) {
         if (arenaSeed !== null) {
           clear();
           snapshotClock = new SnapshotClock();
           prediction.reset();
+        }
+        const terrainColors = {
+          grass: 0x486b4c,
+          sand: 0xa78b58,
+          snow: 0xb2c5cb,
+          water: 0x416d88,
+        };
+        for (const [
+          index,
+          region,
+        ] of observation.state.arena.terrain.entries()) {
+          const mesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(region.width, region.depth),
+            new THREE.MeshStandardMaterial({
+              color:
+                region.terrain === 'water' && region.waterDepth > 0
+                  ? region.waterDepth === 1
+                    ? 0x32566e
+                    : 0x263f59
+                  : terrainColors[region.terrain],
+            }),
+          );
+          mesh.rotation.x = -Math.PI / 2;
+          mesh.position.set(region.x, -0.02 + index * 0.001, region.z);
+          scene.add(mesh);
+          arenaObjects.push(mesh);
+          terrainMeshes.push({
+            mesh,
+            terrain: region.terrain,
+            waterDepth: region.waterDepth,
+          });
         }
         for (const box of observation.state.arena.obstacles) {
           const mesh = new THREE.Mesh(
@@ -237,9 +393,47 @@ export function createWorld(canvas: HTMLCanvasElement) {
           scene.add(mesh);
           arenaObjects.push(mesh);
         }
-        arenaSeed = observation.state.arena.seed;
+        arenaSeed = observation.state.roundId;
       }
-      followId = observation.state.spectating ?? viewerId;
+      const nextFollowId = observation.state.spectating ?? viewerId;
+      if (followId !== nextFollowId) {
+        clearObservedEntities();
+        prediction.reset();
+      }
+      followId = nextFollowId;
+      const terrainColors = {
+        grass: 0x486b4c,
+        sand: 0xa78b58,
+        snow: 0xb2c5cb,
+        water: 0x416d88,
+      };
+      for (const { mesh, terrain, waterDepth } of terrainMeshes) {
+        const event = observation.state.weather.find(
+          (item) => item.biome === terrain && item.state === 'active',
+        );
+        const color =
+          event?.kind === 'heatwave'
+            ? 0xb9693b
+            : event?.kind === 'blizzard'
+              ? 0x849eae
+              : event?.kind === 'rain'
+                ? 0x365d62
+                : terrain === 'water' && waterDepth > 0
+                  ? waterDepth === 1
+                    ? 0x32566e
+                    : 0x263f59
+                  : terrainColors[terrain];
+        mesh.material.color.setHex(color);
+      }
+      const clock = observation.state.worldClock;
+      const transition = Math.max(
+        0,
+        Math.min(1, (clock.nextTransitionAt - observation.state.time) / 10_000),
+      );
+      light.intensity =
+        clock.phase === 'day'
+          ? 0.65 + 1.35 * transition
+          : 2 - 1.35 * transition;
       boundary.visible =
         observation.state.phase === 'running' &&
         observation.state.boundary.elapsedMs >=
@@ -281,14 +475,19 @@ export function createWorld(canvas: HTMLCanvasElement) {
         }
         mesh.material = bot.attacking
           ? botTellMaterial
-          : bot.tier > 1
-            ? botTier2Material
-            : botMaterial;
+          : bot.ownerId
+            ? botAllyMaterial
+            : bot.elite
+              ? botEliteMaterial
+              : bot.tier > 1
+                ? botTier2Material
+                : botMaterial;
         mesh.position.set(
           bot.position.x,
           bot.position.y + 0.35,
           bot.position.z,
         );
+        mesh.scale.setScalar(bot.radius * 2 * (bot.elite ? 1.4 : 1));
       }
       const resourceIds = new Set(
         observation.state.resources.map((resource) => resource.id),
@@ -314,6 +513,63 @@ export function createWorld(canvas: HTMLCanvasElement) {
         mesh.position.set(resource.position.x, 0.4, resource.position.z);
         mesh.scale.setScalar(1 - resource.stage * 0.2);
       }
+      const siteIds = new Set(
+        observation.state.pointsOfInterest.map((site) => site.id),
+      );
+      for (const [id, mesh] of sites)
+        if (!siteIds.has(id)) {
+          scene.remove(mesh);
+          sites.delete(id);
+        }
+      for (const site of observation.state.pointsOfInterest) {
+        let mesh = sites.get(site.id);
+        if (!mesh) {
+          mesh = new THREE.Mesh(poiGeometry, poiMaterials.available);
+          scene.add(mesh);
+          sites.set(site.id, mesh);
+        }
+        mesh.material = poiMaterials[site.status];
+        mesh.position.set(site.position.x, 0.65, site.position.z);
+      }
+      const shelterIds = new Set(
+        observation.state.shelters.map((site) => site.id),
+      );
+      for (const [id, mesh] of shelters)
+        if (!shelterIds.has(id)) {
+          scene.remove(mesh);
+          shelters.delete(id);
+        }
+      for (const site of observation.state.shelters) {
+        let mesh = shelters.get(site.id);
+        if (!mesh) {
+          mesh = new THREE.Mesh(shelterGeometry, shelterMaterial);
+          mesh.rotation.x = -Math.PI / 2;
+          scene.add(mesh);
+          shelters.set(site.id, mesh);
+        }
+        mesh.position.set(site.position.x, 0.1, site.position.z);
+      }
+      const firmwareIds = new Set(
+        observation.state.firmware.map((module) => module.id),
+      );
+      for (const [id, mesh] of firmware)
+        if (!firmwareIds.has(id)) {
+          scene.remove(mesh);
+          firmware.delete(id);
+        }
+      for (const module of observation.state.firmware) {
+        let mesh = firmware.get(module.id);
+        if (!mesh) {
+          const index = Number(module.appearance.replace('pattern-', '')) - 1;
+          mesh = new THREE.Mesh(
+            firmwareGeometry,
+            firmwareMaterials[index] ?? firmwareMaterials[0],
+          );
+          scene.add(mesh);
+          firmware.set(module.id, mesh);
+        }
+        mesh.position.set(module.position.x, 0.55, module.position.z);
+      }
       const activeProjectiles = new Set(
         observation.state.projectiles.map((projectile) => projectile.id),
       );
@@ -335,6 +591,25 @@ export function createWorld(canvas: HTMLCanvasElement) {
           projectile.position.z,
         );
       }
+      const activeTrails = new Set(
+        observation.state.trails.map((trail) => trail.id),
+      );
+      for (const [id, mesh] of trails)
+        if (!activeTrails.has(id)) {
+          scene.remove(mesh);
+          trails.delete(id);
+        }
+      for (const trail of observation.state.trails) {
+        let mesh = trails.get(trail.id);
+        if (!mesh) {
+          mesh = new THREE.Mesh(trailGeometry, trailMaterial);
+          mesh.rotation.x = -Math.PI / 2;
+          scene.add(mesh);
+          trails.set(trail.id, mesh);
+        }
+        mesh.position.set(trail.position.x, 0.04, trail.position.z);
+        mesh.scale.setScalar(trail.radius);
+      }
       const visible = new Set(
         observation.state.players.map((player) => player.id),
       );
@@ -354,11 +629,26 @@ export function createWorld(canvas: HTMLCanvasElement) {
           const heading = new THREE.Mesh(headingGeometry, headingMaterial);
           heading.position.set(0, 0.3, 0.45);
           mesh.add(heading);
+          const attackCue = new THREE.Mesh(moduleGeometry, headingMaterial);
+          attackCue.position.set(0, 0.1, 0.85);
+          attackCue.scale.set(0.65, 0.08, 0.12);
+          mesh.add(attackCue);
+          const hitCue = new THREE.Mesh(moduleGeometry, hitMaterial);
+          hitCue.position.set(0, 0.32, 0);
+          hitCue.scale.set(0.7, 0.06, 0.7);
+          mesh.add(hitCue);
+          const guardCue = new THREE.Mesh(guardGeometry, guardMaterial);
+          guardCue.rotation.x = Math.PI / 2;
+          mesh.add(guardCue);
           scene.add(mesh);
           entity = {
             mesh,
             radius: player.radius,
             timeline: new SnapshotTimeline(snapshotClock),
+            modules: makeModules(mesh),
+            attackCue,
+            hitCue,
+            guardCue,
           };
           entity.mesh.position.set(
             player.position.x,
@@ -368,16 +658,56 @@ export function createWorld(canvas: HTMLCanvasElement) {
           entities.set(player.id, entity);
         }
         entity.mesh.visible = player.life.kind === 'alive';
+        entity.attackCue.visible = player.attacking;
+        const worldScale = player.radius * 2;
+        entity.attackCue.scale.z = player.attackReach / worldScale;
+        entity.attackCue.position.z = player.attackReach / (2 * worldScale);
+        entity.hitCue.visible = player.hit;
+        entity.guardCue.visible = player.guarding;
+        for (const [name, group] of Object.entries(entity.modules)) {
+          const module = player.modules?.find((item) => item.kind === name);
+          group.visible = !!module;
+          if (module)
+            group.scale.setScalar(
+              1 + Math.min(4, Math.max(0, module.rank - 1)) * 0.08,
+            );
+        }
         entity.radius = player.radius;
-        entity.mesh.scale.set(player.radius * 2, 1, player.radius * 2);
+        entity.mesh.scale.setScalar(worldScale);
         entity.mesh.rotation.y = player.aim;
         if (player.id === viewerId) {
           canPredict =
             observation.state.phase === 'running' &&
             player.life.kind === 'alive' &&
-            player.life.activity === 'playing';
+            player.life.activity === 'playing' &&
+            !player.shelter;
           if (connected && canPredict) {
-            prediction.speedFactor((player.stats?.speed ?? 5) / 5);
+            const region = terrainRegionAt(
+              observation.state.arena,
+              player.position.x,
+              player.position.z,
+            );
+            const terrain = region?.terrain ?? 'grass';
+            const specific =
+              terrain === 'sand'
+                ? player.stats?.sandAdaptation
+                : terrain === 'snow'
+                  ? player.stats?.snowAdaptation
+                  : terrain === 'water'
+                    ? player.stats?.waterAdaptation
+                    : 0;
+            prediction.speedFactor(
+              ((player.stats?.speed ?? 5) / 5) *
+                terrainSpeedMultiplier(
+                  terrain,
+                  player.stats?.terrainAdaptation ?? 0,
+                  specific ?? 0,
+                  region?.waterDepth,
+                ) *
+                ((observation.state.thermal?.cold ?? 0) >= 100
+                  ? THERMAL_RULES.coldSpeedFactor
+                  : 1),
+            );
             prediction.observe(player.position, performance.now());
           } else prediction.reset();
         }
@@ -408,13 +738,28 @@ export function createWorld(canvas: HTMLCanvasElement) {
       material.dispose();
       headingGeometry.dispose();
       headingMaterial.dispose();
+      hitMaterial.dispose();
+      guardGeometry.dispose();
+      guardMaterial.dispose();
+      moduleGeometry.dispose();
+      moduleMaterial.dispose();
       projectileGeometry.dispose();
       projectileMaterial.dispose();
+      trailGeometry.dispose();
+      trailMaterial.dispose();
       botGeometry.dispose();
       botMaterial.dispose();
+      botAllyMaterial.dispose();
       botTier2Material.dispose();
+      botEliteMaterial.dispose();
       botTellMaterial.dispose();
       resourceGeometry.dispose();
+      poiGeometry.dispose();
+      shelterGeometry.dispose();
+      shelterMaterial.dispose();
+      for (const material of Object.values(poiMaterials)) material.dispose();
+      firmwareGeometry.dispose();
+      for (const material of firmwareMaterials) material.dispose();
       for (const material of Object.values(resourceMaterials))
         material.dispose();
       grid.geometry.dispose();

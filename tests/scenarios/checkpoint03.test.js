@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Match } from '../../build-host/server/match/match.js';
 import { createStarterRegistry } from '../../build-host/server/content/starter.js';
+import { arenaPointClear, createArena } from '../../build-host/shared/arena.js';
 
 await RAPIER.init();
 const ids = ['a', 'b', 'c', 'd'];
@@ -27,8 +28,51 @@ function step(match, ms) {
   for (let n = 0; n < ms; n += 1000 / 60)
     match.advance(Math.min(1000 / 60, ms - n));
 }
+function stepAndChoose(match, ms) {
+  for (let n = 0; n < ms; n += 1000 / 60) {
+    const offer = match.view('a').offer;
+    if (offer)
+      assert.ok(
+        match.consume({
+          kind: 'choice',
+          matchId: 'room',
+          playerId: 'a',
+          sequence: n,
+          offerId: offer.id,
+          revision: offer.revision,
+          choiceId: offer.choices[0],
+        }),
+      );
+    match.advance(Math.min(1000 / 60, ms - n));
+  }
+}
 function player(match, id) {
   return match.view(id).players.find((p) => p.id === id);
+}
+function bodyAt(world, position) {
+  const body = world.bodies
+    .getAll()
+    .find(
+      (item) =>
+        item.isDynamic() &&
+        Math.hypot(
+          item.translation().x - position.x,
+          item.translation().z - position.z,
+        ) < 0.01,
+    );
+  assert.ok(body);
+  return body;
+}
+function openPoint() {
+  const obstacles = createArena(42).obstacles;
+  for (let x = -8; x <= 8; x += 2)
+    for (let z = -8; z <= 8; z += 2)
+      if (arenaPointClear(obstacles, { x, z }, 5)) return { x, z };
+  throw Error('No open test position');
+}
+function moveBody(body, x, z) {
+  body.setTranslation({ x, y: 0.25, z }, true);
+  body.setLinvel({ x: 0, y: 0, z: 0 }, true);
 }
 function damage(targetId, ownerId, amount, channel = 'direct') {
   return { targetId, ownerId, amount, channel, depth: 0 };
@@ -146,7 +190,7 @@ test('salvage stages, wallet idempotency and XP overflow preserve outcomes', () 
       repair: false,
     });
     assert.ok(id);
-    step(m, 3100);
+    stepAndChoose(m, 6000);
     const events = m.takeCollections().filter((e) => e.resourceId === id);
     assert.deepEqual(
       events.map((e) => e.stage),
@@ -171,7 +215,10 @@ test('salvage stages, wallet idempotency and XP overflow preserve outcomes', () 
     while ((reward = m.takePendingReward('a'))) rewards.push(reward);
     assert.equal(rewards.find((r) => r.level === 12).pool, 'branching');
     assert.equal(rewards.find((r) => r.level === 24).pool, 'branching');
-    assert.equal(rewards.length, progression.level - 1);
+    assert.equal(
+      rewards.length + m.takeSelections().length + (m.view('a').offer ? 1 : 0),
+      progression.level - 1,
+    );
     const spent = Array.from(
       { length: progression.level - 1 },
       (_, i) => 10 + i * 5,
@@ -182,7 +229,7 @@ test('salvage stages, wallet idempotency and XP overflow preserve outcomes', () 
   }
 });
 
-test('every selectable starter rank and rarity changes the corresponding authoritative result', () => {
+test('initial passive and chassis ranks change the corresponding authoritative result', () => {
   const registry = createStarterRegistry();
   const values = {
     'muscular-tissue': {
@@ -205,7 +252,7 @@ test('every selectable starter rank and rarity changes the corresponding authori
     },
     arms: { branching: [2, 4, 6] },
     slithery: { branching: [1, 1.75, 2.25] },
-    wings: { branching: [1] },
+    wings: { branching: [0.5] },
   };
   for (const [id, rarities] of Object.entries(values))
     for (const [rarity, table] of Object.entries(rarities)) {
@@ -231,7 +278,7 @@ test('every selectable starter rank and rarity changes the corresponding authori
             assert.equal(p.stats.speed, 5 + value);
             assert.equal(
               p.stats.terrainAdaptation,
-              id === 'wings' ? 40 : (i + 1) * 20,
+              id === 'wings' ? 80 : (i + 1) * 20,
             );
             assert.ok(m.terrainMovementFactor('a', 'water') > 0.5);
           }
@@ -242,7 +289,7 @@ test('every selectable starter rank and rarity changes the corresponding authori
     }
   assert.deepEqual(
     registry.eligible(new Map(), new Set(), 'branching').sort(),
-    ['arms', 'slithery', 'wings'],
+    ['arms', 'legs', 'ruminant', 'slithery', 'tentacles', 'wings'],
   );
   assert.ok(
     !registry
@@ -462,39 +509,52 @@ test('equipment swaps preserve learned abilities and cooldown, and plating refil
       .view('a')
       .equipment.learned.find((a) => a.id === 'body-slam').readyAt;
     assert.ok(readyAt > m.view('a').time);
+    assert.ok(m.grantProgress('a', 15));
+    step(m, 20);
+    const firstOffer = m.view('a').offer;
+    assert.ok(firstOffer);
     assert.ok(
-      m.setOffer('a', { id: 'swap', revision: 1, choices: ['continue'] }),
+      m.consume({
+        kind: 'equipment',
+        matchId: 'room',
+        playerId: 'a',
+        sequence: 2,
+        offerId: firstOffer.id,
+        revision: firstOffer.revision,
+        slot: 'primary',
+        contentId: '-',
+      }),
     );
-    m.consume({
-      kind: 'equipment',
-      matchId: 'room',
-      playerId: 'a',
-      sequence: 2,
-      slot: 'primary',
-      contentId: '-',
-    });
-    m.consume({
-      kind: 'equipment',
-      matchId: 'room',
-      playerId: 'a',
-      sequence: 3,
-      slot: 'secondary',
-      contentId: 'body-slam',
-    });
+    const secondOffer = m.view('a').offer;
+    assert.ok(
+      m.consume({
+        kind: 'equipment',
+        matchId: 'room',
+        playerId: 'a',
+        sequence: 3,
+        offerId: secondOffer.id,
+        revision: secondOffer.revision,
+        slot: 'secondary',
+        contentId: 'body-slam',
+      }),
+    );
     assert.equal(m.view('a').equipment.slots.secondary, 'body-slam');
     assert.equal(
       m.view('a').equipment.learned.find((a) => a.id === 'body-slam').readyAt,
       readyAt,
     );
-    m.consume({
-      kind: 'choice',
-      matchId: 'room',
-      playerId: 'a',
-      sequence: 4,
-      offerId: 'swap',
-      revision: 1,
-      choiceId: 'continue',
-    });
+    const finalOffer = m.view('a').offer;
+    assert.ok(
+      m.consume({
+        kind: 'choice',
+        matchId: 'room',
+        playerId: 'a',
+        sequence: 4,
+        offerId: finalOffer.id,
+        revision: finalOffer.revision,
+        choiceId: finalOffer.choices[0],
+      }),
+    );
     m.consume({
       kind: 'control',
       matchId: 'room',
@@ -533,37 +593,15 @@ test('bot kills pay once and resource stages cannot be claimed twice', () => {
 });
 
 test('two nearby players contest one resource without duplicating its stages', () => {
-  const m = setup();
+  const world = new RAPIER.World({ x: 0, y: 0, z: 0 });
+  const m = setup(world);
   try {
-    let sequence = 0;
-    for (
-      let i = 0;
-      i < 500 && player(m, 'b').position.x - player(m, 'a').position.x > 1.5;
-      i++
-    ) {
-      m.consume({
-        kind: 'control',
-        matchId: 'room',
-        playerId: 'b',
-        sequence: sequence++,
-        x: -1,
-        y: 0,
-        aim: 0,
-        buttons: 0,
-      });
-      m.advance(1000 / 60);
-    }
-    m.consume({
-      kind: 'control',
-      matchId: 'room',
-      playerId: 'b',
-      sequence: sequence++,
-      x: 0,
-      y: 0,
-      aim: 0,
-      buttons: 0,
-    });
-    step(m, 300);
+    const point = openPoint();
+    const first = bodyAt(world, player(m, 'a').position);
+    const second = bodyAt(world, player(m, 'b').position);
+    moveBody(first, point.x - 0.8, point.z);
+    moveBody(second, point.x + 0.8, point.z);
+    step(m, 20);
     const a = player(m, 'a').position,
       b = player(m, 'b').position;
     assert.ok(
@@ -732,7 +770,7 @@ test('joined players defeat a bot, collect its drop and advance through a level'
       ledger.every((e) => e.playerId === 'a' && e.provenance === 'own-kill'),
     );
     assert.ok(m.view('a').progression.level >= 2);
-    assert.deepEqual(m.takePendingReward('a'), { level: 2, pool: 'ordinary' });
+    assert.ok(m.view('a').offer?.choices.length);
   } finally {
     m.dispose();
   }
@@ -853,39 +891,16 @@ test('repair salvage counts actual hull recovery and full-hull consumption', () 
 });
 
 test('bots show windup, damage players, and credit a single reward when defeated', () => {
-  const m = setup();
+  const world = new RAPIER.World({ x: 0, y: 0, z: 0 });
+  const m = setup(world);
   try {
-    const bot = m.view('a').bots[0];
-    let sequence = 0;
-    for (let i = 0; i < 500; i++) {
-      const p = player(m, 'a').position;
-      const b = m.view('a').bots.find((x) => x.id === bot.id).position;
-      const dx = b.x - p.x,
-        dz = b.z - p.z,
-        d = Math.hypot(dx, dz);
-      if (d < 1.5) break;
-      m.consume({
-        kind: 'control',
-        matchId: 'room',
-        playerId: 'a',
-        sequence: sequence++,
-        x: dx / d,
-        y: dz / d,
-        aim: 0,
-        buttons: 0,
-      });
-      m.advance(1000 / 60);
-    }
-    m.consume({
-      kind: 'control',
-      matchId: 'room',
-      playerId: 'a',
-      sequence: sequence++,
-      x: 0,
-      y: 0,
-      aim: 0,
-      buttons: 0,
-    });
+    const bot = m.view('a').bots.find((entry) => entry.role === 'hunter');
+    assert.ok(bot);
+    const point = openPoint();
+    const a = bodyAt(world, player(m, 'a').position);
+    const b = bodyAt(world, bot.position);
+    moveBody(a, point.x - 0.75, point.z);
+    moveBody(b, point.x + 0.75, point.z);
     assert.ok(m.setBotHostility(bot.id, true));
     let sawWindup = false;
     for (let i = 0; i < 180; i++) {
@@ -927,8 +942,16 @@ test('status refresh, immunity, elimination, and regeneration respect lifecycle'
     );
     assert.equal(
       player(m, 'a').statuses.filter((s) => s.kind === 'corrosion').length,
-      1,
+      2,
     );
+    m.takeDamageLedger();
+    step(m, 1000);
+    const poison = m
+      .takeDamageLedger()
+      .filter(
+        ({ event }) => event.targetId === 'a' && event.channel === 'corrosion',
+      );
+    assert.deepEqual(poison.map(({ result }) => result.hull).sort(), [2, 4]);
     assert.ok(m.setStatusImmunity('a', 'corrosion', true));
     assert.equal(player(m, 'a').statuses.length, 0);
     assert.equal(
@@ -1076,7 +1099,7 @@ test('resource killer and source provenance survive each partial stage', () => {
         killerKind,
         repair: false,
       });
-      step(m, 3100);
+      stepAndChoose(m, 6000);
       const events = m.takeCollections().filter((e) => e.resourceId === id);
       assert.deepEqual(
         events.map((e) => e.stage),
@@ -1140,37 +1163,18 @@ test('an intervening wall blocks bot attacks until the route is open', () => {
   const world = new RAPIER.World({ x: 0, y: 0, z: 0 }),
     m = setup(world);
   try {
-    const id = m.view('a').bots[0].id;
-    let seq = 0;
-    for (let i = 0; i < 400; i++) {
-      const p = player(m, 'a').position,
-        bot = m.view('a').bots.find((b) => b.id === id).position;
-      const dx = bot.x - p.x,
-        dz = bot.z - p.z,
-        d = Math.hypot(dx, dz);
-      if (d < 3) break;
-      m.consume({
-        kind: 'control',
-        matchId: 'room',
-        playerId: 'a',
-        sequence: seq++,
-        x: dx / d,
-        y: dz / d,
-        aim: 0,
-        buttons: 0,
-      });
-      m.advance(1000 / 60);
-    }
-    m.consume({
-      kind: 'control',
-      matchId: 'room',
-      playerId: 'a',
-      sequence: seq++,
-      x: 0,
-      y: 0,
-      aim: 0,
-      buttons: 0,
-    });
+    const hunter = m.view('a').bots.find((bot) => bot.role === 'hunter');
+    assert.ok(hunter);
+    const id = hunter.id;
+    const point = openPoint();
+    const aBody = bodyAt(world, player(m, 'a').position);
+    const botBody = bodyAt(
+      world,
+      m.view('a').bots.find((b) => b.id === id).position,
+    );
+    moveBody(aBody, point.x - 1.5, point.z);
+    moveBody(botBody, point.x + 1.5, point.z);
+    assert.ok(m.setBotHostility(id, true));
     const p = player(m, 'a').position,
       b = m.view('a').bots.find((v) => v.id === id).position;
     const wall = world.createCollider(

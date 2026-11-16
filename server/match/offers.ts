@@ -21,6 +21,18 @@ export function rarityRank(rarity: string): number {
   return RARITY_ORDER[rarity] ?? -1;
 }
 
+export function nextRarity(
+  definition: ContentDefinition,
+  current: string,
+): string | undefined {
+  const rank = rarityRank(current);
+  if (rank < 0 || current === 'branching' || current === 'fixed')
+    return undefined;
+  return definition.rarities
+    .filter((rarity) => rarityRank(rarity) > rank)
+    .sort((a, b) => rarityRank(a) - rarityRank(b))[0];
+}
+
 export type OfferChoice = { id: string; rarity: string; rank: number };
 
 function draw<T>(
@@ -58,7 +70,7 @@ export function generateOffer(
               sum +
               (affinity === 'Carcinisation'
                 ? 0
-                : (affinities.get(affinity) ?? 0) * 0.1),
+                : Math.max(0, affinities.get(affinity) ?? 0) * 0.1),
             0,
           )) *
         (1 + (ranks.get(item.id) ?? 0) * 0.25),

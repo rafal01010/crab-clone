@@ -29,6 +29,7 @@ export function createCraft(
       .setCcdEnabled(true)
       .setCanSleep(false),
   );
+  body.setEnabledTranslations(true, false, true, true);
   const collider = world.createCollider(
     RAPIER.ColliderDesc.cylinder(HOVER.halfHeight, radius)
       .setFriction(0)

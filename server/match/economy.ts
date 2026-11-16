@@ -13,6 +13,8 @@ export type Resource = {
   expiresAt: number;
   collectors: Map<string, number>;
   claimantRarities: Map<string, ResourceRarity>;
+  claimantRepair: Map<string, boolean>;
+  storedBy: string | null;
 };
 export const RESOURCE_TOTAL: Record<ResourceRarity, number> = {
   common: 10,

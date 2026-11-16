@@ -19,14 +19,11 @@
     movement: '➜',
     wings: '◇',
   };
-  export type MapPoint = { id: string; x: number; y: number; self: boolean };
   let {
     offerId,
     revision,
     offers,
     remainingMs,
-    mapPoints,
-    boundary,
     warning,
     onchoose,
     kind = 'upgrade',
@@ -43,8 +40,6 @@
     revision: number;
     offers: readonly Offer[];
     remainingMs: number;
-    mapPoints: readonly MapPoint[];
-    boundary: { x: number; y: number; radius: number } | null;
     warning: string | null;
     onchoose: (id: string) => Promise<boolean>;
     kind?: 'upgrade' | 'specialization' | 'equipment' | 'poi';
@@ -289,31 +284,6 @@
           </button>
         {/each}
       </div>
-      <aside class="map" aria-label="Live map">
-        <span class="eyebrow">Live map</span>
-        <svg
-          viewBox="0 0 100 100"
-          role="img"
-          aria-label="Player positions and safe area"
-        >
-          <rect x="0" y="0" width="100" height="100" fill="#111" />
-          {#if boundary}<circle
-              cx={boundary.x}
-              cy={boundary.y}
-              r={boundary.radius}
-              fill="none"
-              stroke="#ffb829"
-              stroke-width="1"
-            />{/if}
-          {#each mapPoints as point (point.id)}<circle
-              cx={point.x}
-              cy={point.y}
-              r={point.self ? 2.5 : 1.5}
-              fill={point.self ? '#fff' : '#bdbdbd'}
-            />{/each}
-        </svg>
-        <p>You are protected while choosing. The boundary still harms you.</p>
-      </aside>
     </div>
     <footer>
       <p>Use 1, 2, or 3 to select. Press Enter to confirm.</p>
@@ -465,14 +435,6 @@
     text-decoration: underline;
     text-underline-offset: 4px;
   }
-  .map {
-    flex: 0 0 148px;
-  }
-  .map svg {
-    display: block;
-    width: 100%;
-  }
-  .map p,
   footer p {
     color: #bdbdbd;
     font-size: 13px;
@@ -503,9 +465,6 @@
     }
     .offers {
       grid-template-columns: 1fr;
-    }
-    .map {
-      width: 120px;
     }
     footer {
       align-items: start;

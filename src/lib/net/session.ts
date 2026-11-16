@@ -173,6 +173,9 @@ export function connectSession(
     start() {
       socket.emit('start-match');
     },
+    finishMatch() {
+      socket.emit('finish-match');
+    },
     returnToLobby() {
       if (socket.connected) onStatus('Connected', session);
       socket.emit('return-to-lobby');

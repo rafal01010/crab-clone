@@ -77,6 +77,7 @@ export type RuntimeEffect =
       trigger: 'interval' | 'hurt' | 'attack';
       intervalMs: number;
       range: number;
+      chanceMultiplier?: number;
     }
   | {
       kind: 'hurt-status-aura';
@@ -437,7 +438,9 @@ export function validRuntimeEffect(effect: RuntimeEffect): boolean {
           effect.trigger === 'attack') &&
         duration(effect.intervalMs) &&
         effect.intervalMs >= 250 &&
-        positive(effect.range, 100)
+        positive(effect.range, 100) &&
+        (effect.chanceMultiplier === undefined ||
+          positive(effect.chanceMultiplier, 100))
       );
     case 'hurt-status-aura':
       return (
@@ -1132,8 +1135,8 @@ export class RuntimeEffects {
     now: number,
     trigger: 'interval' | 'hurt' | 'attack',
     enabled: boolean,
-  ): number[] {
-    const ranges: number[] = [];
+  ): Extract<RuntimeEffect, { kind: 'charm-aura' }>[] {
+    const effects: Extract<RuntimeEffect, { kind: 'charm-aura' }>[] = [];
     for (const state of this.#effects.values()) {
       if (
         state.kind !== 'charm-aura' ||
@@ -1142,9 +1145,9 @@ export class RuntimeEffects {
       )
         continue;
       state.nextAt = now + state.effect.intervalMs;
-      if (enabled) ranges.push(state.effect.range);
+      if (enabled) effects.push(state.effect);
     }
-    return ranges;
+    return effects;
   }
 
   hurtStatusAuras(

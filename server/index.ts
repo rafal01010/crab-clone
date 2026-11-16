@@ -197,6 +197,16 @@ io.on('connection', (socket) => {
         room.match.accept({ kind: 'start' });
     }),
   );
+  socket.on('finish-match', () =>
+    enqueue(() => {
+      const room = active ? rooms.get(active.roomId) : undefined;
+      if (room && active?.socketId === socket.id)
+        room.match.accept({
+          kind: 'finish-survivor',
+          playerId: active.playerId,
+        });
+    }),
+  );
   socket.on('return-to-lobby', () =>
     enqueue(() => {
       const room = active ? rooms.get(active.roomId) : undefined;

@@ -1,3 +1,6 @@
+import { SOURCE_GAMEPLAY } from '../content/source-gameplay.js';
+import { SOURCE_ABILITIES } from '../content/source-balance.js';
+import { sourceRank } from '../content/source-tuning.js';
 import type { Ability } from './equipment.js';
 import type { Stat, StatModifier } from './stats.js';
 
@@ -147,11 +150,22 @@ const effects: ReadonlyMap<string, UpgradeEffect> = new Map<
       details: [{ name: 'social', stat: 'social', sign: 1 }],
     },
   ],
-  ['arms', { kind: 'stats', stats: ['physical', 'ability', 'salvageReach'] }],
+  [
+    'arms',
+    {
+      kind: 'multi-stats',
+      primary: 'ability',
+      details: [
+        { name: 'physical', stat: 'physical', sign: 1 },
+        { name: 'reach', stat: 'salvageReach', sign: 1 },
+      ],
+    },
+  ],
   ['tentacles', { kind: 'tentacles' }],
   ['legs', { kind: 'stats', stats: ['speed'] }],
   ['more-legs', { kind: 'stats', stats: ['speed'] }],
   ['tail', { kind: 'tail' }],
+  ['tail-wag', { kind: 'stats', stats: [] }],
   ['prehensile-tail', { kind: 'stats', stats: ['salvageReach'] }],
   ['fin', { kind: 'stats', stats: ['waterAdaptation'] }],
   ['hollow-bones', { kind: 'hollow-bones' }],
@@ -184,6 +198,27 @@ const effects: ReadonlyMap<string, UpgradeEffect> = new Map<
 export const upgradeEffectIds: ReadonlySet<string> = new Set(effects.keys());
 
 export function upgradeEffect(
+  id: string,
+  effectId: string,
+  rarity: string,
+  rank: number,
+  value: number,
+  details: Readonly<Record<string, number>> = {},
+): { modifiers: StatModifier[]; ability: Ability | null } | null {
+  const effect = baseUpgradeEffect(id, effectId, rarity, rank, value, details);
+  const tuning = SOURCE_ABILITIES[id];
+  if (!effect?.ability || !tuning) return effect;
+  const cooldown = sourceRank(tuning.cooldownMs, rarity, rank);
+  if (cooldown !== undefined) effect.ability.cooldown = cooldown;
+  if (tuning.recoveryMs !== undefined)
+    effect.ability.recoveryMs = tuning.recoveryMs;
+  const ranges = tuning.damageRanges?.[rarity];
+  const range = ranges?.[Math.min(rank, ranges.length) - 1];
+  if (range) effect.ability.damageRange = { ...range };
+  return effect;
+}
+
+function baseUpgradeEffect(
   id: string,
   effectId: string,
   rarity: string,
@@ -375,8 +410,9 @@ export function upgradeEffect(
         ability: {
           id,
           slotType: 'attack',
-          action: 'charge',
-          cooldown: 1000,
+          action: 'physical-strike',
+          cooldown: SOURCE_GAMEPLAY.horns.cooldownMs,
+          recoveryMs: 300,
           damage: value,
           bypassPlating: true,
         },
@@ -419,7 +455,7 @@ export function upgradeEffect(
           cooldown: details.cooldown * 1000,
           damage: value,
           damageBasis: 'physical',
-          range: 12,
+          range: details.range ?? 12,
           rootDuringFlight: true,
         },
       };
@@ -446,7 +482,16 @@ export function upgradeEffect(
         },
       };
     case 'spur':
-      return { modifiers: [], ability: null };
+      return {
+        modifiers: [],
+        ability: {
+          id,
+          slotType: 'attack',
+          action: 'physical-strike',
+          cooldown: 2000,
+          damage: value,
+        },
+      };
     case 'slide':
       if (details.distance === undefined || details.duration === undefined)
         return null;
@@ -500,8 +545,8 @@ export function upgradeEffect(
           action: 'dash',
           cooldown: value * 1000,
           damage: 0,
-          distance: 3.5,
-          durationMs: 200,
+          distance: details.distance ?? 3.5,
+          durationMs: (details.duration ?? 0.2) * 1000,
         },
       };
     case 'turtle-down':
@@ -513,14 +558,17 @@ export function upgradeEffect(
           action: 'guard',
           cooldown: value * 1000,
           damage: 0,
-          durationMs: 750,
-          stunMs: 1500,
+          durationMs: (details.duration ?? 0.75) * 1000,
+          stunMs: (details.stun ?? 1.5) * 1000,
         },
       };
     case 'stoner':
       if (details.chargedDamage === undefined) return null;
       return {
-        modifiers: [],
+        modifiers: [
+          modifier('physical', details.statBonus ?? 0),
+          modifier('ability', details.statBonus ?? 0),
+        ],
         ability: {
           id,
           slotType: 'attack',
@@ -528,9 +576,9 @@ export function upgradeEffect(
           cooldown: 800,
           damage: value,
           chargedDamage: details.chargedDamage,
-          chargeMs: 1200,
+          chargeMs: (details.chargeSeconds ?? 1.2) * 1000,
           damageBasis: 'hybrid',
-          ammunition: { capacity: rank + 1, reloadMs: 3000 },
+          ammunition: { capacity: details.ammo ?? rank + 1, reloadMs: 3000 },
         },
       };
   }

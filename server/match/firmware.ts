@@ -1,3 +1,5 @@
+import { SOURCE_GAMEPLAY } from '../content/source-gameplay.js';
+import { sourceCurve } from '../content/source-curve.js';
 import { randomInt } from 'node:crypto';
 import type { Point } from '../../shared/arena.js';
 
@@ -40,36 +42,19 @@ const EFFECTS: readonly FirmwareEffect[] = [
 export type FirmwareModule = {
   id: string;
   appearance: string;
+  stage: number;
   position: Point;
 };
 
-// Senses uses the project's 100-based units. Values interpolate the unversioned source table.
-const IDENTIFICATION_CURVE = [
-  [0, 0],
-  [50, 0.05],
-  [100, 0.25],
-  [150, 0.6],
-  [200, 0.9],
-  [250, 1],
-] as const;
 export function identificationChance(senses: number, bonus: number): number {
-  const value = Math.max(0, senses);
-  const upper = IDENTIFICATION_CURVE.findIndex(
-    ([threshold]) => value <= threshold,
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      sourceCurve(SOURCE_GAMEPLAY.firmwareIdentification, senses / 100) +
+        bonus / 100,
+    ),
   );
-  let chance = 1;
-  if (upper === 0) chance = 0;
-  else if (upper > 0) {
-    const lowerPoint = IDENTIFICATION_CURVE[upper - 1];
-    const upperPoint = IDENTIFICATION_CURVE[upper];
-    if (!lowerPoint || !upperPoint)
-      throw new Error('Invalid identification curve');
-    chance =
-      lowerPoint[1] +
-      ((upperPoint[1] - lowerPoint[1]) * (value - lowerPoint[0])) /
-        (upperPoint[0] - lowerPoint[0]);
-  }
-  return Math.max(0, Math.min(1, chance + bonus / 100));
 }
 
 function shuffled<T>(values: readonly T[]): T[] {
@@ -112,6 +97,7 @@ export class FirmwareField {
       return {
         id: `firmware-${index + 1}`,
         appearance,
+        stage: 0,
         position: { ...position },
       };
     });
@@ -126,13 +112,24 @@ export class FirmwareField {
     return this.#modules.find((item) => item.id === id);
   }
   spawn(position: Point): boolean {
-    if (this.#modules.length >= 64) return false;
+    if (
+      this.#modules.length >= 64 ||
+      this.#modules.some(
+        (module) =>
+          Math.hypot(
+            module.position.x - position.x,
+            module.position.z - position.z,
+          ) < 4,
+      )
+    )
+      return false;
     const appearances = [...this.#effects.keys()];
     const appearance = appearances[randomInt(appearances.length)];
     if (!appearance) return false;
     this.#modules.push({
       id: `firmware-${this.#nextId++}`,
       appearance,
+      stage: 0,
       position: { ...position },
     });
     return true;

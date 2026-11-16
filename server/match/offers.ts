@@ -1,13 +1,6 @@
+import { SOURCE_GAMEPLAY } from '../content/source-gameplay.js';
 import type { ContentDefinition } from '../content/registry.js';
 
-const RARITY_WEIGHT: Readonly<Record<string, number>> = {
-  common: 60,
-  rare: 25,
-  epic: 12,
-  legendary: 3,
-  branching: 1,
-  fixed: 1,
-};
 const RARITY_ORDER: Readonly<Record<string, number>> = {
   common: 0,
   rare: 1,
@@ -41,6 +34,7 @@ function draw<T>(
   random: () => number,
 ): T | undefined {
   const total = items.reduce((sum, item) => sum + weight(item), 0);
+  if (total <= 0) return undefined;
   let value = random() * total;
   for (const item of items) {
     value -= weight(item);
@@ -55,9 +49,19 @@ export function generateOffer(
   affinities: ReadonlyMap<string, number>,
   ownedRarities: ReadonlyMap<string, string>,
   random: () => number,
+  level = 1,
 ): OfferChoice[] {
+  const table =
+    SOURCE_GAMEPLAY.offerRarities.find(
+      (row) => level >= row.minimumLevel && level <= row.maximumLevel,
+    ) ?? SOURCE_GAMEPLAY.offerRarities.at(-1);
+  const weights: Readonly<Record<string, number>> = {
+    ...table?.weights,
+    branching: 1,
+    fixed: 1,
+  };
   const remaining = definitions.filter((entry) =>
-    entry.rarities.some((rarity) => (RARITY_WEIGHT[rarity] ?? 0) > 0),
+    entry.rarities.some((rarity) => (weights[rarity] ?? 0) > 0),
   );
   const result: OfferChoice[] = [];
   while (remaining.length && result.length < 3) {
@@ -78,15 +82,11 @@ export function generateOffer(
     );
     if (!entry) break;
     remaining.splice(remaining.indexOf(entry), 1);
-    const rarity = draw(
-      entry.rarities,
-      (item) => RARITY_WEIGHT[item] ?? 0,
-      random,
-    );
+    const rarity = draw(entry.rarities, (item) => weights[item] ?? 0, random);
     const owned = ownedRarities.get(entry.id);
     const effectiveRarity =
       owned && rarityRank(owned) > rarityRank(rarity ?? '') ? owned : rarity;
-    if (effectiveRarity && (RARITY_WEIGHT[effectiveRarity] ?? 0) > 0)
+    if (effectiveRarity)
       result.push({
         id: entry.id,
         rarity: effectiveRarity,

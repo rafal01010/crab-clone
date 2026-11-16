@@ -1,4 +1,5 @@
 import { validFieldStatus, type FieldStatus } from './field-status.js';
+import { SOURCE_ACTIONS } from '../content/source-balance.js';
 
 export type AbilitySlot = 'primary' | 'secondary' | 'movement' | 'ultimate';
 export type Ability = {
@@ -6,6 +7,8 @@ export type Ability = {
   slotType: 'attack' | 'movement' | 'ultimate';
   cooldown: number;
   damage: number;
+  recoveryMs?: number;
+  damageRange?: { x: number; y: number };
 } & (
   | {
       action:
@@ -101,6 +104,15 @@ export function validAbility(ability: Ability): boolean {
     ability.cooldown >= 0 &&
     Number.isFinite(ability.damage) &&
     ability.damage >= 0 &&
+    (ability.damageRange === undefined ||
+      (Number.isFinite(ability.damageRange.x) &&
+        Number.isFinite(ability.damageRange.y) &&
+        ability.damageRange.x >= 0 &&
+        ability.damageRange.y >= ability.damageRange.x)) &&
+    (ability.recoveryMs === undefined ||
+      (Number.isFinite(ability.recoveryMs) &&
+        ability.recoveryMs >= 0 &&
+        ability.recoveryMs <= 2000)) &&
     (!('hits' in ability) ||
       ability.hits === undefined ||
       (Number.isSafeInteger(ability.hits) &&
@@ -245,6 +257,11 @@ export function validAbility(ability: Ability): boolean {
         ability.durationMs <= 300_000))
   );
 }
+
+export function rollAbilityDamage(ability: Ability): number {
+  const range = ability.damageRange;
+  return range ? range.x + Math.random() * (range.y - range.x) : ability.damage;
+}
 export type Equipment = {
   learned: Map<string, Ability>;
   slots: Record<AbilitySlot, string | null>;
@@ -260,8 +277,10 @@ export function initialEquipment(): Equipment {
           id: 'basic-dash',
           slotType: 'movement',
           action: 'dash',
-          cooldown: 4500,
+          cooldown: SOURCE_ACTIONS.dash.cooldownMs,
           damage: 0,
+          distance: SOURCE_ACTIONS.dash.distance,
+          durationMs: SOURCE_ACTIONS.dash.durationMs,
         },
       ],
     ]),
@@ -330,4 +349,18 @@ export function equip(
     if (equipment.slots[other] === id) equipment.slots[other] = null;
   equipment.slots[slot] = id;
   return true;
+}
+
+export function acquisitionSlot(
+  equipment: Equipment,
+  ability: Ability,
+): AbilitySlot {
+  const slots: AbilitySlot[] =
+    ability.slotType === 'attack'
+      ? ['primary', 'secondary']
+      : [ability.slotType];
+  return (
+    slots.find((slot) => equipment.slots[slot] === null) ??
+    (ability.slotType === 'attack' ? 'secondary' : ability.slotType)
+  );
 }

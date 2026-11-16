@@ -7,7 +7,6 @@
     state,
     playerId,
     oninteract,
-    onscan,
     onuse,
     onshelter,
     oncharm,
@@ -15,7 +14,6 @@
     state: MatchView;
     playerId: string;
     oninteract: (id: string) => void;
-    onscan: (id: string) => void;
     onuse: (id: string) => void;
     onshelter: (id: string) => void;
     oncharm: (id: string) => void;
@@ -92,7 +90,8 @@
       ? state.bots.filter(
           (bot) =>
             bot.ownerId !== playerId &&
-            (bot.kind === 'wild' || bot.kind === 'charmed') &&
+            bot.friendshipUntil !== null &&
+            bot.friendshipUntil > state.time &&
             Math.hypot(
               bot.position.x - me.position.x,
               bot.position.z - me.position.z,
@@ -100,6 +99,24 @@
         )
       : [],
   );
+  const firmwareEffects: Readonly<Record<string, string>> = {
+    delicious: 'Extra progression',
+    yummy: 'Extra progression',
+    nutritious: 'Progression',
+    inert: 'No extra effect',
+    medicinal: 'Repair over four seconds',
+    lethal: 'Severe corrosion',
+    poisonous: 'Corrosion',
+    stinging: 'Mild corrosion',
+    refreshing: 'Adds cold and reduces remaining ability cooldowns',
+    spicy: 'Adds heat and grants a brief speed boost',
+    entertaining: 'Increases companion capacity',
+    amusing: 'Increases companion capacity',
+    prolific: 'More firmware capsules spawn',
+    deafening: 'Temporary deafness',
+    hallucinogenic: 'Temporary visual distortion',
+    mystic: 'Permanent increase to a random stat',
+  };
   const slots = [
     { id: 'primary', label: 'Primary', key: 'Mouse 1' },
     { id: 'secondary', label: 'Secondary', key: 'Mouse 2' },
@@ -209,42 +226,6 @@
       >
     {/if}
   </div>
-  <div class="panel map">
-    <strong>Minimap</strong>
-    <svg
-      viewBox="0 0 100 100"
-      role="img"
-      aria-label="Observed players and closing boundary"
-    >
-      <rect x="0" y="0" width="100" height="100" fill="#263b3d" />
-      <circle
-        cx="50"
-        cy="50"
-        r={(state.boundary.radius * 100) / 64}
-        fill="none"
-        stroke="#ffce72"
-        stroke-width="1.5"
-      />
-      {#each state.players.filter((player) => player.life.kind === 'alive') as player (player.id)}
-        {#if player.id === playerId}
-          <rect
-            x={((player.position.x + 32) * 100) / 64 - 2.5}
-            y={((player.position.z + 32) * 100) / 64 - 2.5}
-            width="5"
-            height="5"
-            fill="#fff"
-          />
-        {:else}
-          <circle
-            cx={((player.position.x + 32) * 100) / 64}
-            cy={((player.position.z + 32) * 100) / 64}
-            r="2.5"
-            fill="#ff8665"
-          />
-        {/if}
-      {/each}
-    </svg>
-  </div>
   <div class="panel warnings" role="status">
     {#if localWeather}
       <strong
@@ -307,21 +288,30 @@
           : site.status}
       </button>
     {/each}
+    {#if nearbyShelters.length}<span
+        >Burrows hide you from enemies and relieve temperature exposure. Each
+        hole wears out after about five seconds at normal size; larger craft use
+        it faster. The boundary still damages you.</span
+      >{/if}
     {#each nearbyShelters as site (site.id)}
       <button
         class="site-action"
         disabled={!canAct || (site.occupied && me?.shelter?.id !== site.id)}
         onclick={() => onshelter(site.id)}
         >{me?.shelter?.id === site.id
-          ? 'Exit shelter'
-          : 'Enter shelter'}</button
+          ? `Exit burrow · E · ${Math.max(0, Math.ceil((me.shelter.until - state.time) / 1000))}s left`
+          : `Enter burrow · E · ${Math.ceil(site.remainingFraction * 100)}% remaining`}</button
       >
     {/each}
+    {#if state.bots.some((bot) => bot.friendshipUntil !== null && bot.friendshipUntil > state.time)}<span
+        >A green creature is offering friendship. Approach and press E;
+        attacking cancels the offer.</span
+      >{/if}
     {#each nearbyBots as bot (bot.id)}
       <button
         class="site-action"
         disabled={!canAct || !!me?.shelter}
-        onclick={() => oncharm(bot.id)}>Charm nearby creature</button
+        onclick={() => oncharm(bot.id)}>Accept friendship · E</button
       >
     {/each}
     {#if state.firmwareSensory.deafened}<span>Deafening effect active</span
@@ -329,32 +319,37 @@
     {#if state.lastCharm && state.time - state.lastCharm.at < 5000}<span
         >{state.lastCharm.success
           ? 'Creature charmed.'
-          : 'Charm failed. Try again shortly.'}</span
+          : 'Charm attempt failed.'}</span
       >{/if}
     {#if state.lastFirmware && state.time - state.lastFirmware.at < 5000}<span
-        >Firmware used: {state.lastFirmware.effect}</span
+        >Firmware: {firmwareEffects[state.lastFirmware.effect] ??
+          state.lastFirmware.effect}</span
+      >{/if}
+    {#if nearbyFirmware.length}<span
+        >Firmware capsules give salvage and can help or harm you. Matching
+        patterns share effects for this run. Stay close while consuming.</span
       >{/if}
     {#each nearbyFirmware as module (module.id)}
       {#if module.knowledge.kind === 'identified'}
-        <span>Firmware {module.appearance} · {module.knowledge.effect}</span>
-      {:else}
-        <button
-          class="site-action"
-          disabled={!canAct}
-          onclick={() => onscan(module.id)}
+        <span
+          >Firmware {module.appearance} · {firmwareEffects[
+            module.knowledge.effect
+          ] ?? module.knowledge.effect}</span
         >
-          {module.knowledge.kind === 'failed' ? 'Retry scan' : 'Scan firmware'} ·
-          {module.appearance}
-        </button>
-        {#if module.knowledge.kind === 'failed'}<span
-            >Not identified. More senses or identification chance may help.</span
-          >{/if}
+      {:else}
+        <span
+          >{module.knowledge.kind === 'failed'
+            ? 'Senses could not identify this firmware. More Senses or identification chance may help.'
+            : 'Senses checks nearby firmware automatically.'}</span
+        >
       {/if}
       <button
         class="site-action"
         disabled={!canAct || !!me?.shelter}
         onclick={() => onuse(module.id)}
-        >Use firmware · {module.appearance}</button
+        >Consume firmware · E · {module.appearance}{module.stage > 0
+          ? ` · ${module.stage}/4`
+          : ''}</button
       >
     {/each}
     {#each near as resource (resource.id)}
@@ -371,7 +366,8 @@
       {@const ability = state.equipment.learned.find((item) => item.id === id)}
       {@const cooldown = Math.max(
         0,
-        Math.max(ability?.readyAt ?? 0, state.equipment.basicReadyAt) -
+        (ability?.readyAt ??
+          (slot.id === 'primary' ? state.equipment.basicReadyAt : 0)) -
           state.time,
       )}
       <div class="panel slot">
@@ -427,19 +423,6 @@
   progress {
     width: 100%;
     height: 7px;
-  }
-  .map {
-    position: absolute;
-    right: 8px;
-    top: 8px;
-    width: min(130px, 16%);
-    display: grid;
-    gap: 4px;
-  }
-  svg {
-    width: 100%;
-    border: 1px solid #85938b;
-    overflow: hidden;
   }
   .warnings {
     position: absolute;

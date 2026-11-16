@@ -1,3 +1,5 @@
+import { MAP_RULES } from '../../shared/arena.js';
+
 export type FinaleConfig = {
   shrinkStartMs: number;
   tinyAtMs: number;
@@ -15,7 +17,7 @@ export const DEFAULT_FINALE: FinaleConfig = {
   shrinkStartMs: 18 * 60_000,
   tinyAtMs: 25 * 60_000,
   collapseAtMs: 28 * 60_000,
-  initialRadius: 46,
+  initialRadius: MAP_RULES.halfExtent,
   tinyRadius: 3,
   boundaryDamagePerSecond: 10,
   meteorIntervalMs: 8_000,

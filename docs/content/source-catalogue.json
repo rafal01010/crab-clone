@@ -107,7 +107,10 @@
         "behavior": "Close range physical slam scaling with maximum HP",
         "hovercraftTranslation": "Kinetic ram scaled by hull HP",
         "trigger": "Close range physical slam scaling with maximum HP",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17635"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -188,7 +191,15 @@
           "resolution": "Unresolved version coverage. Do not silently choose the older value."
         }
       ],
-      "identityDecision": "Learned maximum-HP attack. The fan starting-action label belongs to Bop, not this record."
+      "identityDecision": "Learned maximum-HP attack. The fan starting-action label belongs to Bop, not this record.",
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17635"],
+        "owner": "YCCE-053",
+        "canonicalContentId": "body-slam",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "claws",
@@ -206,7 +217,14 @@
         "behavior": "Fast repeated physical strikes",
         "hovercraftTranslation": "Close-range rotary cutters",
         "trigger": "Fast repeated physical strikes",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": [
+            "sharedassets0.assets:17637",
+            "sharedassets0.assets:17792",
+            "resources.assets:54806"
+          ]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -289,7 +307,19 @@
           "owner": "YCCE-053A",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": [
+          "sharedassets0.assets:17637",
+          "sharedassets0.assets:17792",
+          "resources.assets:54806"
+        ],
+        "owner": "YCCE-053A",
+        "canonicalContentId": "claws",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "pincer",
@@ -307,7 +337,14 @@
         "behavior": "Two-pincer ability-damage attacks",
         "hovercraftTranslation": "Dual energy claws",
         "trigger": "Two-pincer ability-damage attacks",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": [
+            "sharedassets0.assets:17645",
+            "sharedassets0.assets:17859",
+            "resources.assets:54831"
+          ]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -390,7 +427,19 @@
           "owner": "YCCE-053B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": [
+          "sharedassets0.assets:17645",
+          "sharedassets0.assets:17859",
+          "resources.assets:54831"
+        ],
+        "owner": "YCCE-053B",
+        "canonicalContentId": "pincer",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "toe-beans",
@@ -408,7 +457,14 @@
         "behavior": "Social attack with chance to charm",
         "hovercraftTranslation": "Drone-hacking pulse",
         "trigger": "Social attack with chance to charm",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": [
+            "sharedassets0.assets:17654",
+            "sharedassets0.assets:17920",
+            "resources.assets:54850"
+          ]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -494,6 +550,18 @@
       ],
       "fieldEvidence": {
         "minimumRarityOrPool": ["bundle-crosswalk", "patch-1.1"]
+      },
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": [
+          "sharedassets0.assets:17654",
+          "sharedassets0.assets:17920",
+          "resources.assets:54850"
+        ],
+        "owner": "YCCE-053C",
+        "canonicalContentId": "toe-beans",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
       }
     },
     {
@@ -512,7 +580,10 @@
         "behavior": "Heavy ranged attack using limited stone ammunition",
         "hovercraftTranslation": "Ammo-limited heavy railgun",
         "trigger": "Heavy ranged attack using limited stone ammunition",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17653", "resources.assets:54846"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -646,7 +717,15 @@
           "indexedWikiValue": "Common",
           "resolution": "Unresolved version coverage. Do not silently choose the older value."
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17653", "resources.assets:54846"],
+        "owner": "YCCE-055",
+        "canonicalContentId": "stoner",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "beak",
@@ -665,22 +744,8 @@
         "hovercraftTranslation": "Precision energy lance and faster salvage",
         "trigger": "Ranged ability hit and improved feeding speed",
         "numericalTables": {
-          "kind": "partial-older-reference",
-          "values": [
-            {
-              "rank": 1,
-              "rarity": "Common",
-              "abilityMultiplier": [0.8, 1.0],
-              "baseCooldownSeconds": 1.0
-            },
-            {
-              "rank": 5,
-              "rarity": "Legendary",
-              "abilityMultiplier": [2.0, 2.5]
-            }
-          ],
-          "evidence": ["bundle-crosswalk"],
-          "releaseApproval": false
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17634", "sharedassets0.assets:17778"]
         }
       },
       "availability": {
@@ -786,7 +851,15 @@
           "owner": "YCCE-055A",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17634", "sharedassets0.assets:17778"],
+        "owner": "YCCE-055A",
+        "canonicalContentId": "beak",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "leech",
@@ -804,7 +877,10 @@
         "behavior": "Close-range draining attacks",
         "hovercraftTranslation": "Energy-drain siphon",
         "trigger": "Close-range draining attacks",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17642", "sharedassets0.assets:17835"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -909,7 +985,15 @@
           "owner": "YCCE-056",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17642", "sharedassets0.assets:17835"],
+        "owner": "YCCE-056",
+        "canonicalContentId": "leech",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "antlers",
@@ -927,7 +1011,10 @@
         "behavior": "High physical hit with self-damage",
         "hovercraftTranslation": "Recoil-heavy kinetic lance",
         "trigger": "High physical hit with self-damage",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17632", "sharedassets0.assets:17755"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -999,7 +1086,15 @@
           "owner": "YCCE-054",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17632", "sharedassets0.assets:17755"],
+        "owner": "YCCE-054",
+        "canonicalContentId": "antlers",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "jaws",
@@ -1023,46 +1118,8 @@
         "hovercraftTranslation": "Hull crusher, bonus against disabled targets",
         "trigger": "Physical hit bonuses on stunned targets and feeding bonus",
         "numericalTables": {
-          "kind": "partial-older-reference",
-          "values": [
-            {
-              "rank": 1,
-              "rarity": "Common",
-              "physicalMultiplier": [0.6, 1.1],
-              "baseCooldownSeconds": 0.8
-            },
-            {
-              "rank": 5,
-              "rarity": "Common",
-              "physicalMultiplier": [1.4, 1.9]
-            },
-            {
-              "rank": 5,
-              "rarity": "Legendary",
-              "physicalMultiplier": [1.8, 2.4]
-            }
-          ],
-          "evidence": ["bundle-crosswalk"],
-          "releaseApproval": false,
-          "comparisons": [
-            {
-              "field": "physicalMultiplier",
-              "rank": 2,
-              "rarity": "Epic",
-              "observations": [
-                {
-                  "source": "wiki-jaws",
-                  "value": [1, 1.6]
-                },
-                {
-                  "source": "neoseeker-jaws",
-                  "value": [1, 1.5]
-                }
-              ],
-              "status": "wiki selected by user preference; source versions not established",
-              "preferredSource": "wiki-jaws"
-            }
-          ]
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17641", "sharedassets0.assets:17826"]
         }
       },
       "availability": {
@@ -1168,7 +1225,15 @@
           "owner": "YCCE-054A",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17641", "sharedassets0.assets:17826"],
+        "owner": "YCCE-054A",
+        "canonicalContentId": "jaws",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "horns",
@@ -1186,7 +1251,10 @@
         "behavior": "Charging physical attack ignoring plating",
         "hovercraftTranslation": "Armor-piercing boost ram",
         "trigger": "Charging physical attack ignoring plating",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17640", "sharedassets0.assets:17815"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -1264,7 +1332,15 @@
           "question": "Older fan imagery labels Goat. Wiki Horns entry lists no specialization. Establish whether Goat is cosmetic or gameplay content.",
           "owner": "YCCE-054B"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17640", "sharedassets0.assets:17815"],
+        "owner": "YCCE-054B",
+        "canonicalContentId": "horns",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "trunk",
@@ -1282,7 +1358,10 @@
         "behavior": "Slow hybrid swipe and increased feeding reach",
         "hovercraftTranslation": "Hydraulic manipulator swipe and salvage reach",
         "trigger": "Slow hybrid swipe and increased feeding reach",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17655", "sharedassets0.assets:17932"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -1354,7 +1433,15 @@
           "owner": "YCCE-054C",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17655", "sharedassets0.assets:17932"],
+        "owner": "YCCE-054C",
+        "canonicalContentId": "trunk",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "stinger",
@@ -1372,7 +1459,10 @@
         "behavior": "Physical hit plus damage-over-time poison",
         "hovercraftTranslation": "Corrosive harpoon",
         "trigger": "Physical hit plus damage-over-time poison",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17652", "sharedassets0.assets:17898"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -1452,7 +1542,15 @@
           "indexedWikiValue": "Rare",
           "resolution": "Unresolved version coverage. Do not silently choose the older value."
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17652", "sharedassets0.assets:17898"],
+        "owner": "YCCE-056A",
+        "canonicalContentId": "stinger",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "body-slam-tail",
@@ -1482,7 +1580,10 @@
         "behavior": "Tail-origin slam variant; separate catalogue record",
         "hovercraftTranslation": "Rear impact ram variant",
         "trigger": "Tail-origin slam variant; separate catalogue record",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17635"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -1561,7 +1662,15 @@
           "owner": "YCCE-053D"
         }
       ],
-      "identityDecision": "Retain the candidate until its ID and behavior are compared with learned Body Slam. Do not add a duplicate selectable ability or silently omit it."
+      "identityDecision": "Retain the candidate until its ID and behavior are compared with learned Body Slam. Do not add a duplicate selectable ability or silently omit it.",
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17635"],
+        "owner": "YCCE-053D",
+        "canonicalContentId": "body-slam",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "spur",
@@ -1579,7 +1688,10 @@
         "behavior": "Auto-triggered follow-up physical hit after attack",
         "hovercraftTranslation": "Automatic auxiliary cannon",
         "trigger": "Auto-triggered follow-up physical hit after attack",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17651"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -1684,7 +1796,15 @@
           "owner": "YCCE-056B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17651"],
+        "owner": "YCCE-056B",
+        "canonicalContentId": "spur",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "spit",
@@ -1702,7 +1822,10 @@
         "behavior": "Low-damage ranged ability projectile",
         "hovercraftTranslation": "Low-power plasma bolt",
         "trigger": "Low-damage ranged ability projectile",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17650", "resources.assets:54845"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -1791,7 +1914,15 @@
           "owner": "YCCE-055B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17650", "resources.assets:54845"],
+        "owner": "YCCE-055B",
+        "canonicalContentId": "spit",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "courting-display",
@@ -1809,7 +1940,10 @@
         "behavior": "Charm target to join player",
         "hovercraftTranslation": "Capture or hack nearby bot",
         "trigger": "Charm target to join player",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17639"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -1881,7 +2015,15 @@
           "owner": "YCCE-064D",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17639"],
+        "owner": "YCCE-064D",
+        "canonicalContentId": "courting-display",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "sharpen",
@@ -1899,7 +2041,10 @@
         "behavior": "Temporary contact-attack bonus scaling with Predator",
         "hovercraftTranslation": "Overdrive contact-damage buff",
         "trigger": "Temporary contact-attack bonus scaling with Predator",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17648"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -1971,7 +2116,15 @@
           "owner": "YCCE-066",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17648"],
+        "owner": "YCCE-066",
+        "canonicalContentId": "sharpen",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "pistol-pincer",
@@ -1989,7 +2142,14 @@
         "behavior": "Large hit using stronger of physical and ability, plus push",
         "hovercraftTranslation": "Hydraulic shock cannon with high damage and impulse",
         "trigger": "Large hit using stronger of physical and ability, plus push",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": [
+            "sharedassets0.assets:17646",
+            "sharedassets0.assets:17864",
+            "resources.assets:54832"
+          ]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -2062,7 +2222,19 @@
           "owner": "YCCE-066A",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": [
+          "sharedassets0.assets:17646",
+          "sharedassets0.assets:17864",
+          "resources.assets:54832"
+        ],
+        "owner": "YCCE-066A",
+        "canonicalContentId": "pistol-pincer",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "constriction",
@@ -2080,7 +2252,10 @@
         "behavior": "Area stun and physical damage over time while stationary",
         "hovercraftTranslation": "Stationary EMP clamp field",
         "trigger": "Area stun and physical damage over time while stationary",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17638", "resources.assets:54807"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -2163,7 +2338,15 @@
           "owner": "YCCE-066B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17638", "resources.assets:54807"],
+        "owner": "YCCE-066B",
+        "canonicalContentId": "constriction",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "moulting",
@@ -2181,7 +2364,10 @@
         "behavior": "Self-stun followed by bonuses scaling with Carcinisation",
         "hovercraftTranslation": "Emergency chassis reconfiguration",
         "trigger": "Self-stun followed by bonuses scaling with Carcinisation",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17644", "resources.assets:54823"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -2254,7 +2440,15 @@
           "owner": "YCCE-066C",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17644", "resources.assets:54823"],
+        "owner": "YCCE-066C",
+        "canonicalContentId": "moulting",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "burrower",
@@ -2272,7 +2466,10 @@
         "behavior": "Create a burrow for shelter",
         "hovercraftTranslation": "Deployable bunker field",
         "trigger": "Create a burrow for shelter",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17636", "resources.assets:54804"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -2344,7 +2541,15 @@
           "owner": "YCCE-066D",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17636", "resources.assets:54804"],
+        "owner": "YCCE-066D",
+        "canonicalContentId": "burrower",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "basic-dash",
@@ -2362,7 +2567,10 @@
         "behavior": "Baseline short dash",
         "hovercraftTranslation": "Standard short hover burst",
         "trigger": "Baseline short dash",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17657"]
+        }
       },
       "availability": {
         "pool": "starting",
@@ -2435,7 +2643,15 @@
           "questionTemplate": "specializations"
         }
       ],
-      "identityDecision": "Hidden starting movement, not an ordinary selectable upgrade."
+      "identityDecision": "Hidden starting movement, not an ordinary selectable upgrade.",
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17657"],
+        "owner": "YCCE-057",
+        "canonicalContentId": "basic-dash",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "slide",
@@ -2453,7 +2669,10 @@
         "behavior": "Long-distance low-cooldown dash",
         "hovercraftTranslation": "Extended lateral thruster slide",
         "trigger": "Long-distance low-cooldown dash",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17662", "resources.assets:54842"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -2526,7 +2745,15 @@
           "owner": "YCCE-057A",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17662", "resources.assets:54842"],
+        "owner": "YCCE-057A",
+        "canonicalContentId": "slide",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "sprint",
@@ -2544,7 +2771,10 @@
         "behavior": "Temporary speed increase",
         "hovercraftTranslation": "Engine overboost",
         "trigger": "Temporary speed increase",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17663"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -2616,7 +2846,15 @@
           "owner": "YCCE-057B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17663"],
+        "owner": "YCCE-057B",
+        "canonicalContentId": "sprint",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "turtle-down",
@@ -2639,7 +2877,10 @@
         "behavior": "Timed protection and contact-block stun. The legacy stealth description is rejected.",
         "hovercraftTranslation": "Timed defensive field and correctly timed contact-block disable.",
         "trigger": "Stealth or evasion movement; exact effect needs verification",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17658", "resources.assets:54813"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -2756,7 +2997,15 @@
           "questionTemplate": "specializations"
         }
       ],
-      "identityDecision": "Use Turtle Down, with Hide internal names as legacy alias evidence. Do not create a separate stealth ability."
+      "identityDecision": "Use Turtle Down, with Hide internal names as legacy alias evidence. Do not create a separate stealth ability.",
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17658", "resources.assets:54813"],
+        "owner": "YCCE-061K",
+        "canonicalContentId": "turtle-down",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "leap",
@@ -2780,7 +3029,10 @@
         "behavior": "Leap over obstacles and avoid damage during movement",
         "hovercraftTranslation": "Vertical jump thrusters with i-frames",
         "trigger": "Leap over obstacles and avoid damage during movement",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17660", "resources.assets:54820"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -2887,6 +3139,14 @@
       ],
       "fieldEvidence": {
         "minimumRarityOrPool": ["bundle-crosswalk", "patch-1.1"]
+      },
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17660", "resources.assets:54820"],
+        "owner": "YCCE-057C",
+        "canonicalContentId": "leap",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
       }
     },
     {
@@ -2905,7 +3165,10 @@
         "behavior": "Short quick dash linked to Legs",
         "hovercraftTranslation": "Side thruster burst",
         "trigger": "Short quick dash linked to Legs",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17661", "resources.assets:54840"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -2978,7 +3241,15 @@
           "owner": "YCCE-057D",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17661", "resources.assets:54840"],
+        "owner": "YCCE-057D",
+        "canonicalContentId": "scuttle",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "more-legs",
@@ -2996,7 +3267,10 @@
         "behavior": "Increase movement speed; Carcinisation-tagged",
         "hovercraftTranslation": "Additional drive thrusters",
         "trigger": "Increase movement speed; Carcinisation-tagged",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17700", "resources.assets:54822"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -3081,6 +3355,14 @@
       ],
       "fieldEvidence": {
         "minimumRarityOrPool": ["bundle-crosswalk", "patch-1.1"]
+      },
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17700", "resources.assets:54822"],
+        "owner": "YCCE-052G",
+        "canonicalContentId": "more-legs",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
       }
     },
     {
@@ -3099,7 +3381,10 @@
         "behavior": "Movement speed and terrain adaptation; locomotion branch",
         "hovercraftTranslation": "Terrain-skimming hover hull",
         "trigger": "Movement speed and terrain adaptation; locomotion branch",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17727"]
+        }
       },
       "availability": {
         "pool": "branching",
@@ -3171,7 +3456,15 @@
           "owner": "YCCE-052C",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17727"],
+        "owner": "YCCE-052C",
+        "canonicalContentId": "slithery",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "tentacles",
@@ -3189,7 +3482,14 @@
         "behavior": "Movement speed and ability, unlock appendage weapons",
         "hovercraftTranslation": "Modular multi-arm chassis",
         "trigger": "Movement speed and ability, unlock appendage weapons",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": [
+            "sharedassets0.assets:17738",
+            "sharedassets0.assets:17911",
+            "resources.assets:54849"
+          ]
+        }
       },
       "availability": {
         "pool": "branching",
@@ -3275,7 +3575,19 @@
           "indexedWikiValue": "5",
           "resolution": "Confirm rank cap and order-sensitive Arms interaction in 1.2.1."
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": [
+          "sharedassets0.assets:17738",
+          "sharedassets0.assets:17911",
+          "resources.assets:54849"
+        ],
+        "owner": "YCCE-052A",
+        "canonicalContentId": "tentacles",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "hollow-bones",
@@ -3293,7 +3605,10 @@
         "behavior": "Speed buff traded for lower damage resistance",
         "hovercraftTranslation": "Lightweight chassis trade-off",
         "trigger": "Speed buff traded for lower damage resistance",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17694"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -3365,7 +3680,15 @@
           "owner": "YCCE-052I",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17694"],
+        "owner": "YCCE-052I",
+        "canonicalContentId": "hollow-bones",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "wings",
@@ -3383,7 +3706,10 @@
         "behavior": "Movement speed and terrain adaptation",
         "hovercraftTranslation": "Glider or extended hover-wing kit",
         "trigger": "Movement speed and terrain adaptation",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17742", "sharedassets0.assets:17936"]
+        }
       },
       "availability": {
         "pool": "branching",
@@ -3455,7 +3781,15 @@
           "owner": "YCCE-052D",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17742", "sharedassets0.assets:17936"],
+        "owner": "YCCE-052D",
+        "canonicalContentId": "wings",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "legs",
@@ -3473,7 +3807,10 @@
         "behavior": "Speed boost and alternative locomotion specialization",
         "hovercraftTranslation": "Multi-thruster propulsion platform",
         "trigger": "Speed boost and alternative locomotion specialization",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17698", "sharedassets0.assets:17841"]
+        }
       },
       "availability": {
         "pool": "branching",
@@ -3578,7 +3915,15 @@
           "owner": "YCCE-052B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17698", "sharedassets0.assets:17841"],
+        "owner": "YCCE-052B",
+        "canonicalContentId": "legs",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "fin",
@@ -3596,7 +3941,14 @@
         "behavior": "Strong water terrain adaptation",
         "hovercraftTranslation": "Surface-water stabilizer",
         "trigger": "Strong water terrain adaptation",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": [
+            "sharedassets0.assets:17688",
+            "sharedassets0.assets:17803",
+            "resources.assets:54811"
+          ]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -3671,6 +4023,18 @@
       ],
       "fieldEvidence": {
         "maxRank": ["bundle-crosswalk", "patch-1.1"]
+      },
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": [
+          "sharedassets0.assets:17688",
+          "sharedassets0.assets:17803",
+          "resources.assets:54811"
+        ],
+        "owner": "YCCE-052H",
+        "canonicalContentId": "fin",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
       }
     },
     {
@@ -3689,7 +4053,10 @@
         "behavior": "Slower movement with cheaper level progress",
         "hovercraftTranslation": "Eco-mode engine: slower but cheaper XP thresholds",
         "trigger": "Slower movement with cheaper level progress",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17728"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -3761,7 +4128,15 @@
           "owner": "YCCE-058",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17728"],
+        "owner": "YCCE-058",
+        "canonicalContentId": "slow-metabolism",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "arms",
@@ -3779,7 +4154,14 @@
         "behavior": "Improve physical, ability and feeding reach; unlock limbs attacks",
         "hovercraftTranslation": "Weapon hardpoints and salvage arms",
         "trigger": "Improve physical, ability and feeding reach; unlock limbs attacks",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": [
+            "sharedassets0.assets:17671",
+            "sharedassets0.assets:17761",
+            "resources.assets:54803"
+          ]
+        }
       },
       "availability": {
         "pool": "branching",
@@ -3857,7 +4239,19 @@
           "owner": "YCCE-052",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": [
+          "sharedassets0.assets:17671",
+          "sharedassets0.assets:17761",
+          "resources.assets:54803"
+        ],
+        "owner": "YCCE-052",
+        "canonicalContentId": "arms",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "prehensile-tail",
@@ -3875,7 +4269,14 @@
         "behavior": "Increase feeding reach and alternative extensions",
         "hovercraftTranslation": "Telescoping scrap collector",
         "trigger": "Increase feeding reach and alternative extensions",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": [
+            "sharedassets0.assets:17715",
+            "sharedassets0.assets:17870",
+            "resources.assets:54836"
+          ]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -3981,7 +4382,19 @@
           "owner": "YCCE-052F",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": [
+          "sharedassets0.assets:17715",
+          "sharedassets0.assets:17870",
+          "resources.assets:54836"
+        ],
+        "owner": "YCCE-052F",
+        "canonicalContentId": "prehensile-tail",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "stomach",
@@ -4000,26 +4413,8 @@
         "hovercraftTranslation": "Fast salvage processor",
         "trigger": "Improve feeding speed",
         "numericalTables": {
-          "kind": "partial-older-reference",
-          "values": [
-            {
-              "rank": 1,
-              "rarity": "Common",
-              "feedingSpeedModifier": 0.25
-            },
-            {
-              "rank": 5,
-              "rarity": "Common",
-              "feedingSpeedModifier": 1.25
-            },
-            {
-              "rank": 5,
-              "rarity": "Legendary",
-              "feedingSpeedModifier": 2.0
-            }
-          ],
-          "evidence": ["bundle-crosswalk"],
-          "releaseApproval": false
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17732"]
         }
       },
       "availability": {
@@ -4092,7 +4487,15 @@
           "owner": "YCCE-058A",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17732"],
+        "owner": "YCCE-058A",
+        "canonicalContentId": "stomach",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "saliva",
@@ -4110,7 +4513,10 @@
         "behavior": "Feeding speed plus regeneration",
         "hovercraftTranslation": "Coolant recycling and salvage throughput",
         "trigger": "Feeding speed plus regeneration",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17723", "sharedassets0.assets:17875"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -4182,7 +4588,15 @@
           "owner": "YCCE-058B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17723", "sharedassets0.assets:17875"],
+        "owner": "YCCE-058B",
+        "canonicalContentId": "saliva",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "forager",
@@ -4200,7 +4614,10 @@
         "behavior": "Increase health-food drop probability and poison resistance",
         "hovercraftTranslation": "Medkit-scrap probability and corrosion shielding",
         "trigger": "Increase health-food drop probability and poison resistance",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17689"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -4272,7 +4689,15 @@
           "owner": "YCCE-058C",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17689"],
+        "owner": "YCCE-058C",
+        "canonicalContentId": "forager",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "cheek-pouch",
@@ -4290,7 +4715,10 @@
         "behavior": "Store food to consume passively",
         "hovercraftTranslation": "Scrap reserve auto-processor",
         "trigger": "Store food to consume passively",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17675", "sharedassets0.assets:17791"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -4395,7 +4823,15 @@
           "owner": "YCCE-058D",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17675", "sharedassets0.assets:17791"],
+        "owner": "YCCE-058D",
+        "canonicalContentId": "cheek-pouch",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "herbivore",
@@ -4413,7 +4849,10 @@
         "behavior": "Increase plant resource XP",
         "hovercraftTranslation": "Boost common terrain-scrap yields",
         "trigger": "Increase plant resource XP",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17692"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -4485,7 +4924,15 @@
           "owner": "YCCE-059",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17692"],
+        "owner": "YCCE-059",
+        "canonicalContentId": "herbivore",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "carnivore",
@@ -4503,7 +4950,10 @@
         "behavior": "Increase meat resource XP",
         "hovercraftTranslation": "Boost kill-derived salvage yields",
         "trigger": "Increase meat resource XP",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17673"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -4575,7 +5025,15 @@
           "owner": "YCCE-059A",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17673"],
+        "owner": "YCCE-059A",
+        "canonicalContentId": "carnivore",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "piscivore",
@@ -4593,7 +5051,10 @@
         "behavior": "Increase fish resource XP",
         "hovercraftTranslation": "Boost aquatic-resource salvage yields",
         "trigger": "Increase fish resource XP",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17710"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -4665,7 +5126,15 @@
           "owner": "YCCE-059B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17710"],
+        "owner": "YCCE-059B",
+        "canonicalContentId": "piscivore",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "omnivore",
@@ -4683,7 +5152,10 @@
         "behavior": "Increase mixed food progress",
         "hovercraftTranslation": "Generalized salvage XP efficiency",
         "trigger": "Increase mixed food progress",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17705", "resources.assets:54826"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -4771,7 +5243,15 @@
           "owner": "YCCE-059C",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17705", "resources.assets:54826"],
+        "owner": "YCCE-059C",
+        "canonicalContentId": "omnivore",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "vegan",
@@ -4789,7 +5269,10 @@
         "behavior": "Strong vegetation XP; gives up animal-food sources",
         "hovercraftTranslation": "Scavenger-only build locking out combat loot",
         "trigger": "Strong vegetation XP; gives up animal-food sources",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:18047", "resources.assets:54852"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -4862,7 +5345,15 @@
           "owner": "YCCE-059D",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:18047", "resources.assets:54852"],
+        "owner": "YCCE-059D",
+        "canonicalContentId": "vegan",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "ruminant",
@@ -4880,7 +5371,10 @@
         "behavior": "Prey-affinity based passive XP, temporarily stops after hit",
         "hovercraftTranslation": "Passive research generation while unharmed",
         "trigger": "Prey-affinity based passive XP, temporarily stops after hit",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17722"]
+        }
       },
       "availability": {
         "pool": "branching",
@@ -4952,7 +5446,15 @@
           "owner": "YCCE-058F",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17722"],
+        "owner": "YCCE-058F",
+        "canonicalContentId": "ruminant",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "chonky",
@@ -4970,7 +5472,10 @@
         "behavior": "Increase size and physical attack",
         "hovercraftTranslation": "Heavy armor chassis and kinetic damage",
         "trigger": "Increase size and physical attack",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17676", "resources.assets:54805"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -5042,7 +5547,15 @@
           "owner": "YCCE-060",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17676", "resources.assets:54805"],
+        "owner": "YCCE-060",
+        "canonicalContentId": "chonky",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "reach",
@@ -5060,7 +5573,10 @@
         "behavior": "Increase attack area or reach",
         "hovercraftTranslation": "Extend weapon range and blast radius",
         "trigger": "Increase attack area or reach",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17716"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -5132,7 +5648,15 @@
           "owner": "YCCE-058E",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17716"],
+        "owner": "YCCE-058E",
+        "canonicalContentId": "reach",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "muscular-tissue",
@@ -5150,7 +5674,10 @@
         "behavior": "Increase physical damage",
         "hovercraftTranslation": "Kinetic weapon amplifier",
         "trigger": "Increase physical damage",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17702", "resources.assets:54824"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -5222,7 +5749,15 @@
           "owner": "YCCE-060A",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17702", "resources.assets:54824"],
+        "owner": "YCCE-060A",
+        "canonicalContentId": "muscular-tissue",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "more-mass",
@@ -5240,7 +5775,10 @@
         "behavior": "Increase size, physical damage, and max HP",
         "hovercraftTranslation": "Reinforced frame with mass, HP and kinetic power",
         "trigger": "Increase size, physical damage, and max HP",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17701"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -5312,7 +5850,15 @@
           "owner": "YCCE-060B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17701"],
+        "owner": "YCCE-060B",
+        "canonicalContentId": "more-mass",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "alpha",
@@ -5330,7 +5876,10 @@
         "behavior": "Increase social, size, HP and affinity",
         "hovercraftTranslation": "Command hull: bot control and heavy frame",
         "trigger": "Increase social, size, HP and affinity",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17668"]
+        }
       },
       "availability": {
         "pool": "branching",
@@ -5402,7 +5951,15 @@
           "owner": "YCCE-064",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17668"],
+        "owner": "YCCE-064",
+        "canonicalContentId": "alpha",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "elusive",
@@ -5420,7 +5977,10 @@
         "behavior": "Decrease size, increase dodge",
         "hovercraftTranslation": "Compact frame with evasion",
         "trigger": "Decrease size, increase dodge",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17684"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -5492,7 +6052,15 @@
           "owner": "YCCE-060C",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17684"],
+        "owner": "YCCE-060C",
+        "canonicalContentId": "elusive",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "smol",
@@ -5510,7 +6078,10 @@
         "behavior": "Increase speed and reduce size",
         "hovercraftTranslation": "Ultra-light microcraft kit",
         "trigger": "Increase speed and reduce size",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17729"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -5582,7 +6153,15 @@
           "owner": "YCCE-060D",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17729"],
+        "owner": "YCCE-060D",
+        "canonicalContentId": "smol",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "ambush",
@@ -5600,7 +6179,10 @@
         "behavior": "Deal more damage briefly after leaving burrow",
         "hovercraftTranslation": "Bunker exit burst damage",
         "trigger": "Deal more damage briefly after leaving burrow",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17669", "resources.assets:54802"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -5680,7 +6262,15 @@
           "indexedWikiValue": "Epic",
           "resolution": "Unresolved version coverage. Do not silently choose the older value."
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17669", "resources.assets:54802"],
+        "owner": "YCCE-062F",
+        "canonicalContentId": "ambush",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "poisonous-saliva",
@@ -5698,7 +6288,10 @@
         "behavior": "Add poison to compatible attacks",
         "hovercraftTranslation": "Corrosive coating for compatible weapons",
         "trigger": "Add poison to compatible attacks",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17712", "resources.assets:54833"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -5806,7 +6399,15 @@
           "owner": "YCCE-063A",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17712", "resources.assets:54833"],
+        "owner": "YCCE-063A",
+        "canonicalContentId": "poisonous-saliva",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "revenge",
@@ -5824,7 +6425,10 @@
         "behavior": "Temporary physical and ability boost when hit",
         "hovercraftTranslation": "Reactive damage overdrive",
         "trigger": "Temporary physical and ability boost when hit",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17720"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -5896,7 +6500,15 @@
           "owner": "YCCE-063B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17720"],
+        "owner": "YCCE-063B",
+        "canonicalContentId": "revenge",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "poisonous-spores",
@@ -5914,7 +6526,10 @@
         "behavior": "Poison nearby enemies after taking damage",
         "hovercraftTranslation": "Reactive corrosive discharge",
         "trigger": "Poison nearby enemies after taking damage",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17713", "resources.assets:54834"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -5987,7 +6602,15 @@
           "owner": "YCCE-063C",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17713", "resources.assets:54834"],
+        "owner": "YCCE-063C",
+        "canonicalContentId": "poisonous-spores",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "virulent",
@@ -6005,7 +6628,10 @@
         "behavior": "Increase poison damage; specialized variants",
         "hovercraftTranslation": "Corrosion system amplifier",
         "trigger": "Increase poison damage; specialized variants",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17740", "resources.assets:54853"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -6126,7 +6752,15 @@
           "owner": "YCCE-063D",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17740", "resources.assets:54853"],
+        "owner": "YCCE-063D",
+        "canonicalContentId": "virulent",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "aggressive",
@@ -6144,7 +6778,10 @@
         "behavior": "Increase physical damage in endless phase",
         "hovercraftTranslation": "Infinite-mode kinetic damage stack",
         "trigger": "Increase physical damage in endless phase",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17666"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -6216,7 +6853,15 @@
           "owner": "YCCE-067B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17666"],
+        "owner": "YCCE-067B",
+        "canonicalContentId": "aggressive",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "cunning",
@@ -6234,7 +6879,10 @@
         "behavior": "Increase ability damage in endless phase",
         "hovercraftTranslation": "Infinite-mode energy damage stack",
         "trigger": "Increase ability damage in endless phase",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17680"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -6306,7 +6954,15 @@
           "owner": "YCCE-067C",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17680"],
+        "owner": "YCCE-067C",
+        "canonicalContentId": "cunning",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "plated",
@@ -6331,27 +6987,8 @@
         "hovercraftTranslation": "Regenerating armor plates",
         "trigger": "Increase plating",
         "numericalTables": {
-          "kind": "conflicting-unversioned-references",
-          "field": "additionalPlating",
-          "rankOrder": [1, 2, 3, 4, 5],
-          "values": {
-            "wiki-plated": {
-              "Common": [5, 10, 15, 20, 25],
-              "Rare": [6, 12, 18, 24, 30],
-              "Epic": [7, 14, 21, 28, 35],
-              "Legendary": [8, 16, 24, 32, 40]
-            },
-            "neoseeker-traits": {
-              "Common": [4, 8, 12, 16, 20],
-              "Rare": [5, 10, 15, 20, 25],
-              "Epic": [6, 12, 18, 24, 30],
-              "Legendary": [7, 14, 21, 28, 35]
-            }
-          },
-          "releaseApproval": false,
-          "preferredSource": "wiki-plated",
-          "selectionReason": "User explicitly selected the wiki whenever it conflicts with Neoseeker.",
-          "status": "selected by user preference; 1.2.1 fidelity is not independently established"
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17711", "sharedassets0.assets:17869"]
         }
       },
       "availability": {
@@ -6424,7 +7061,15 @@
           "owner": "YCCE-061",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17711", "sharedassets0.assets:17869"],
+        "owner": "YCCE-061",
+        "canonicalContentId": "plated",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "scales",
@@ -6443,21 +7088,8 @@
         "hovercraftTranslation": "Heat-resistant composite armor",
         "trigger": "Damage resistance plus heat adaptation",
         "numericalTables": {
-          "kind": "partial-older-reference",
-          "values": [
-            {
-              "rank": 1,
-              "rarity": "Common",
-              "resistanceModifier": 0.05
-            },
-            {
-              "rank": 3,
-              "rarity": "Legendary",
-              "resistanceModifier": 0.26
-            }
-          ],
-          "evidence": ["bundle-crosswalk"],
-          "releaseApproval": false
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17724", "sharedassets0.assets:17880"]
         }
       },
       "availability": {
@@ -6563,7 +7195,15 @@
           "owner": "YCCE-061A",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17724", "sharedassets0.assets:17880"],
+        "owner": "YCCE-061A",
+        "canonicalContentId": "scales",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "carapace",
@@ -6581,7 +7221,10 @@
         "behavior": "Damage resistance and plating",
         "hovercraftTranslation": "Composite armored shell",
         "trigger": "Damage resistance and plating",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17672", "sharedassets0.assets:17785"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -6653,7 +7296,15 @@
           "owner": "YCCE-061B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17672", "sharedassets0.assets:17785"],
+        "owner": "YCCE-061B",
+        "canonicalContentId": "carapace",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "fur",
@@ -6671,7 +7322,10 @@
         "behavior": "Damage resistance plus cold adaptation",
         "hovercraftTranslation": "Thermal insulation armor",
         "trigger": "Damage resistance plus cold adaptation",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17691", "sharedassets0.assets:17814"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -6776,7 +7430,15 @@
           "owner": "YCCE-065A",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17691", "sharedassets0.assets:17814"],
+        "owner": "YCCE-065A",
+        "canonicalContentId": "fur",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "shell",
@@ -6794,7 +7456,10 @@
         "behavior": "Damage resistance",
         "hovercraftTranslation": "Ceramic hard shell",
         "trigger": "Damage resistance",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17725", "sharedassets0.assets:17881"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -6866,7 +7531,15 @@
           "owner": "YCCE-061C",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17725", "sharedassets0.assets:17881"],
+        "owner": "YCCE-061C",
+        "canonicalContentId": "shell",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "spines",
@@ -6884,7 +7557,10 @@
         "behavior": "Return damage on contact; specialization options",
         "hovercraftTranslation": "Reactive collision spikes",
         "trigger": "Return damage on contact; specialization options",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17731", "sharedassets0.assets:17892"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -6989,7 +7665,15 @@
           "owner": "YCCE-061D",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17731", "sharedassets0.assets:17892"],
+        "owner": "YCCE-061D",
+        "canonicalContentId": "spines",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "overwhelm",
@@ -7007,7 +7691,10 @@
         "behavior": "Bonus hit damage proportional to active plating",
         "hovercraftTranslation": "Armor-pressure weapon coupling",
         "trigger": "Bonus hit damage proportional to active plating",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17707", "resources.assets:54828"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -7079,7 +7766,15 @@
           "owner": "YCCE-060E",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17707", "resources.assets:54828"],
+        "owner": "YCCE-060E",
+        "canonicalContentId": "overwhelm",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "exoskeleton",
@@ -7097,7 +7792,10 @@
         "behavior": "Plating and social stats; branch-tagged in older catalogue",
         "hovercraftTranslation": "External armored drone frame",
         "trigger": "Plating and social stats; branch-tagged in older catalogue",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17685", "sharedassets0.assets:17800"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -7169,7 +7867,15 @@
           "owner": "YCCE-061E",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17685", "sharedassets0.assets:17800"],
+        "owner": "YCCE-061E",
+        "canonicalContentId": "exoskeleton",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "agile",
@@ -7188,21 +7894,8 @@
         "hovercraftTranslation": "Evasive targeting stabilizer",
         "trigger": "Dodge bonus and reduced movement slowdown while attacking",
         "numericalTables": {
-          "kind": "partial-older-reference",
-          "values": [
-            {
-              "rank": 1,
-              "rarity": "Common",
-              "dodgeModifier": 0.05
-            },
-            {
-              "rank": 5,
-              "rarity": "Legendary",
-              "dodgeModifier": 0.45
-            }
-          ],
-          "evidence": ["bundle-crosswalk"],
-          "releaseApproval": false
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17667", "resources.assets:54801"]
         }
       },
       "availability": {
@@ -7275,7 +7968,15 @@
           "owner": "YCCE-060F",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17667", "resources.assets:54801"],
+        "owner": "YCCE-060F",
+        "canonicalContentId": "agile",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "dexterous",
@@ -7293,7 +7994,10 @@
         "behavior": "Ability buff and cooldown reduction",
         "hovercraftTranslation": "Fast weapon cycling computer",
         "trigger": "Ability buff and cooldown reduction",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17682"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -7365,7 +8069,15 @@
           "owner": "YCCE-060G",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17682"],
+        "owner": "YCCE-060G",
+        "canonicalContentId": "dexterous",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "more-eyes",
@@ -7383,7 +8095,10 @@
         "behavior": "Increase senses and dodge",
         "hovercraftTranslation": "Expanded radar and threat avoidance",
         "trigger": "Increase senses and dodge",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17699"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -7455,7 +8170,15 @@
           "owner": "YCCE-062",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17699"],
+        "owner": "YCCE-062",
+        "canonicalContentId": "more-eyes",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "shifty",
@@ -7473,7 +8196,10 @@
         "behavior": "Small-size tradeoff increases dodge and damage",
         "hovercraftTranslation": "Microcraft size-to-evasion converter",
         "trigger": "Small-size tradeoff increases dodge and damage",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17726", "resources.assets:54841"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -7545,7 +8271,15 @@
           "owner": "YCCE-061F",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17726", "resources.assets:54841"],
+        "owner": "YCCE-061F",
+        "canonicalContentId": "shifty",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "subcutaneous-fat",
@@ -7563,7 +8297,10 @@
         "behavior": "Thermal adaptation and maximum HP. Fat to Subcutaneous Fat mapping remains provisional.",
         "hovercraftTranslation": "Thermal reserve and hull capacity.",
         "trigger": "Constitution or HP related; current behavior unverified",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17687"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -7641,11 +8378,19 @@
           "question": "Confirm legacy Fat identity against Subcutaneous Fat ID 1020 before treating the mapping as final.",
           "owner": "YCCE-065G"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17687"],
+        "owner": "YCCE-065G",
+        "canonicalContentId": "subcutaneous-fat",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "resistant",
-      "identityDecision": "Provisionally unused, not an alias. Neoseeker lists internal ID 1021 with zero upgrades and a placeholder description; the community evolution inventory instead lists Immune System. The sources do not establish a shared ID or pinned-version disposition.",
+      "identityDecision": "The local 1.2__9606 localization identifies this internal name as immune-system. Use that canonical upgrade's numeric records, not a separate selectable upgrade. The earlier unused-name inference is superseded; graph reconciliation and 1.2.1 parity remain pending.",
       "sourceName": "Resistant",
       "sourceAliases": [],
       "kind": "unresolved-identity",
@@ -7660,7 +8405,10 @@
         "behavior": "Resistance-related; exact behavior unverified",
         "hovercraftTranslation": "Hazard shielding (unverified)",
         "trigger": "Resistance-related; exact behavior unverified",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17718", "resources.assets:54838"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -7738,7 +8486,15 @@
           "question": "Establish whether this is a distinct playable 1.2.1 ability, an alias, or an unused legacy record. No omission without individual review.",
           "owner": "YCCE-061L"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17718", "resources.assets:54838"],
+        "owner": "YCCE-061L",
+        "canonicalContentId": "immune-system",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "impervious",
@@ -7756,7 +8512,10 @@
         "behavior": "Split incoming damage into immediate and delayed portions",
         "hovercraftTranslation": "Delayed-damage hull system",
         "trigger": "Split incoming damage into immediate and delayed portions",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17697", "resources.assets:54815"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -7828,7 +8587,15 @@
           "owner": "YCCE-061G",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17697", "resources.assets:54815"],
+        "owner": "YCCE-061G",
+        "canonicalContentId": "impervious",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "regenerative-tissue",
@@ -7847,21 +8614,8 @@
         "hovercraftTranslation": "Auto-repair nanites",
         "trigger": "Improve HP regeneration",
         "numericalTables": {
-          "kind": "partial-older-reference",
-          "values": [
-            {
-              "rank": 1,
-              "rarity": "Common",
-              "regenerationStat": 2
-            },
-            {
-              "rank": 5,
-              "rarity": "Legendary",
-              "regenerationStat": 16
-            }
-          ],
-          "evidence": ["bundle-crosswalk"],
-          "releaseApproval": false
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17717"]
         }
       },
       "availability": {
@@ -7934,7 +8688,15 @@
           "owner": "YCCE-061H",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17717"],
+        "owner": "YCCE-061H",
+        "canonicalContentId": "regenerative-tissue",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "hump",
@@ -7952,7 +8714,10 @@
         "behavior": "Gain permanent max HP on healing-food pickups at full HP",
         "hovercraftTranslation": "Add permanent hull HP from full-health repair pickups",
         "trigger": "Gain permanent max HP on healing-food pickups at full HP",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17695", "sharedassets0.assets:17823"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -8024,7 +8789,15 @@
           "owner": "YCCE-065",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17695", "sharedassets0.assets:17823"],
+        "owner": "YCCE-065",
+        "canonicalContentId": "hump",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "robust",
@@ -8042,7 +8815,10 @@
         "behavior": "Scale max HP with size",
         "hovercraftTranslation": "Mass-to-hull-HP scaling",
         "trigger": "Scale max HP with size",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17721", "resources.assets:54839"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -8114,7 +8890,15 @@
           "owner": "YCCE-060H",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17721", "resources.assets:54839"],
+        "owner": "YCCE-060H",
+        "canonicalContentId": "robust",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "pack",
@@ -8132,7 +8916,10 @@
         "behavior": "Buff player and allied attacks by number of charmed allies",
         "hovercraftTranslation": "Drone-squad amplifier",
         "trigger": "Buff player and allied attacks by number of charmed allies",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17708", "resources.assets:54829"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -8205,11 +8992,19 @@
           "owner": "YCCE-064A",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17708", "resources.assets:54829"],
+        "owner": "YCCE-064A",
+        "canonicalContentId": "pack",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "hyperkeratosis",
-      "identityDecision": "Provisionally unused, not an alias. Neoseeker lists internal ID 1204 with zero upgrades and a placeholder description. The community evolution inventory does not describe an applicable Hyperkeratosis effect. The pinned-version disposition remains unverified.",
+      "identityDecision": "The local 1.2__9606 localization identifies this internal name as fibroblasts. Use that canonical upgrade's numeric records, not a separate selectable upgrade. The earlier unused-name inference is superseded; graph reconciliation and 1.2.1 parity remain pending.",
       "sourceName": "Hyperkeratosis",
       "sourceAliases": [],
       "kind": "unresolved-identity",
@@ -8224,7 +9019,10 @@
         "behavior": "Plating-related; exact behavior unverified",
         "hovercraftTranslation": "Armor hardening (unverified)",
         "trigger": "Plating-related; exact behavior unverified",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17696", "resources.assets:54814"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -8302,7 +9100,15 @@
           "question": "Establish whether this is a distinct playable 1.2.1 ability, an alias, or an unused legacy record. No omission without individual review.",
           "owner": "YCCE-061M"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17696", "resources.assets:54814"],
+        "owner": "YCCE-061M",
+        "canonicalContentId": "fibroblasts",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "sturdy",
@@ -8320,7 +9126,10 @@
         "behavior": "Increase HP in endless phase",
         "hovercraftTranslation": "Infinite-mode hull stack",
         "trigger": "Increase HP in endless phase",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17734"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -8392,7 +9201,15 @@
           "owner": "YCCE-067D",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17734"],
+        "owner": "YCCE-067D",
+        "canonicalContentId": "sturdy",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "tail",
@@ -8410,7 +9227,10 @@
         "behavior": "Increase social and ability, unlock tail-dependent traits",
         "hovercraftTranslation": "Rear utility mount and drone control",
         "trigger": "Increase social and ability, unlock tail-dependent traits",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17736", "sharedassets0.assets:17903"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -8482,7 +9302,15 @@
           "owner": "YCCE-052E",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17736", "sharedassets0.assets:17903"],
+        "owner": "YCCE-052E",
+        "canonicalContentId": "tail",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "antennae",
@@ -8500,7 +9328,10 @@
         "behavior": "Increase senses and social",
         "hovercraftTranslation": "Sensor array and bot-hack strength",
         "trigger": "Increase senses and social",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17670", "sharedassets0.assets:17749"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -8572,7 +9403,15 @@
           "owner": "YCCE-062A",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17670", "sharedassets0.assets:17749"],
+        "owner": "YCCE-062A",
+        "canonicalContentId": "antennae",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "detachable-tail",
@@ -8590,7 +9429,10 @@
         "behavior": "After damage or dodge leave target decoy",
         "hovercraftTranslation": "Emergency decoy buoy",
         "trigger": "After damage or dodge leave target decoy",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17681", "resources.assets:54809"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -8663,7 +9505,15 @@
           "owner": "YCCE-062G",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17681", "resources.assets:54809"],
+        "owner": "YCCE-062G",
+        "canonicalContentId": "detachable-tail",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "tail-wag",
@@ -8681,7 +9531,10 @@
         "behavior": "Periodic automatic charm attempts",
         "hovercraftTranslation": "Periodic drone-hacking beacon",
         "trigger": "Periodic automatic charm attempts",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17737", "resources.assets:54848"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -8754,7 +9607,15 @@
           "owner": "YCCE-064B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17737", "resources.assets:54848"],
+        "owner": "YCCE-064B",
+        "canonicalContentId": "tail-wag",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "whining",
@@ -8772,7 +9633,10 @@
         "behavior": "On hit attempt to charm nearby enemies",
         "hovercraftTranslation": "Retaliatory hacking burst",
         "trigger": "On hit attempt to charm nearby enemies",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17741"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -8844,7 +9708,15 @@
           "owner": "YCCE-064C",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17741"],
+        "owner": "YCCE-064C",
+        "canonicalContentId": "whining",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "commanding",
@@ -8862,7 +9734,10 @@
         "behavior": "Increase allied damage in endless phase",
         "hovercraftTranslation": "Infinite-mode drone-command boost",
         "trigger": "Increase allied damage in endless phase",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17677"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -8934,7 +9809,15 @@
           "owner": "YCCE-067E",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17677"],
+        "owner": "YCCE-067E",
+        "canonicalContentId": "commanding",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "cortex",
@@ -8952,7 +9835,10 @@
         "behavior": "Increase ability damage",
         "hovercraftTranslation": "Energy damage processor",
         "trigger": "Increase ability damage",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17679", "sharedassets0.assets:17796"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -9024,7 +9910,15 @@
           "owner": "YCCE-062B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17679", "sharedassets0.assets:17796"],
+        "owner": "YCCE-062B",
+        "canonicalContentId": "cortex",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "synapse",
@@ -9042,7 +9936,10 @@
         "behavior": "Reduce cooldowns",
         "hovercraftTranslation": "Advanced heat-cycle system",
         "trigger": "Reduce cooldowns",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17735", "resources.assets:54847"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -9116,7 +10013,15 @@
           "owner": "YCCE-062C",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17735", "resources.assets:54847"],
+        "owner": "YCCE-062C",
+        "canonicalContentId": "synapse",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "snout",
@@ -9134,7 +10039,14 @@
         "behavior": "Increase senses; identify mushroom resources",
         "hovercraftTranslation": "Salvage-spectrum scanner",
         "trigger": "Increase senses; identify mushroom resources",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": [
+            "sharedassets0.assets:17730",
+            "sharedassets0.assets:17887",
+            "resources.assets:54843"
+          ]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -9239,7 +10151,19 @@
           "owner": "YCCE-062D",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": [
+          "sharedassets0.assets:17730",
+          "sharedassets0.assets:17887",
+          "resources.assets:54843"
+        ],
+        "owner": "YCCE-062D",
+        "canonicalContentId": "snout",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "fungoid",
@@ -9257,7 +10181,10 @@
         "behavior": "Generate mushrooms periodically",
         "hovercraftTranslation": "Periodic scrap synthesizer",
         "trigger": "Generate mushrooms periodically",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17690", "sharedassets0.assets:17808"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -9366,7 +10293,15 @@
           "owner": "YCCE-063",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17690", "sharedassets0.assets:17808"],
+        "owner": "YCCE-063",
+        "canonicalContentId": "fungoid",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "outlier",
@@ -9384,7 +10319,10 @@
         "behavior": "Grant random legendary upgrade",
         "hovercraftTranslation": "Experimental legendary module roll",
         "trigger": "Grant random legendary upgrade",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17706", "resources.assets:54827"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -9464,7 +10402,15 @@
           "indexedWikiValue": "Rare",
           "resolution": "Unresolved version coverage. Do not silently choose the older value."
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17706", "resources.assets:54827"],
+        "owner": "YCCE-067",
+        "canonicalContentId": "outlier",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "convergent-evolution",
@@ -9488,25 +10434,8 @@
         "hovercraftTranslation": "Experimental specialization resonance",
         "trigger": "Boost highest affinity and Carcinisation-tagged offer chance",
         "numericalTables": {
-          "kind": "partially-corroborated",
-          "values": [
-            {
-              "rank": 1,
-              "rarity": "Epic",
-              "highestAffinityBonus": 10,
-              "carcinisationOfferChancePerPoint": 0.15,
-              "evidence": ["wiki-convergent"]
-            },
-            {
-              "rank": 1,
-              "rarity": "Legendary",
-              "highestAffinityBonus": 15,
-              "carcinisationOfferChancePerPoint": 0.2,
-              "evidence": ["wiki-convergent", "patch-1.1"]
-            }
-          ],
-          "limitations": "The 1.1 notes establish the legendary +15 and 15/20% changes but do not independently identify the Epic affinity bonus or verify all values in 1.2.1.",
-          "releaseApproval": false
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17678", "resources.assets:54808"]
         }
       },
       "availability": {
@@ -9582,6 +10511,14 @@
       ],
       "fieldEvidence": {
         "minimumRarityOrPool": ["bundle-crosswalk", "patch-1.1"]
+      },
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17678", "resources.assets:54808"],
+        "owner": "YCCE-067A",
+        "canonicalContentId": "convergent-evolution",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
       }
     },
     {
@@ -9600,7 +10537,10 @@
         "behavior": "Increase resource progression",
         "hovercraftTranslation": "Infinite-mode salvage XP bonus",
         "trigger": "Increase resource progression",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17719"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -9672,7 +10612,15 @@
           "owner": "YCCE-067F",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17719"],
+        "owner": "YCCE-067F",
+        "canonicalContentId": "resourceful",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "nomadic",
@@ -9690,7 +10638,10 @@
         "behavior": "Gain XP when exploring points of interest",
         "hovercraftTranslation": "Map exploration data bonus",
         "trigger": "Gain XP when exploring points of interest",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17704"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -9762,7 +10713,15 @@
           "owner": "YCCE-065B",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17704"],
+        "owner": "YCCE-065B",
+        "canonicalContentId": "nomadic",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "diurnal",
@@ -9780,7 +10739,10 @@
         "behavior": "Daytime damage bonus, phase modifier",
         "hovercraftTranslation": "Daylight solar damage bonus",
         "trigger": "Daytime damage bonus, phase modifier",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17683", "resources.assets:54810"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -9852,7 +10814,15 @@
           "owner": "YCCE-065C",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17683", "resources.assets:54810"],
+        "owner": "YCCE-065C",
+        "canonicalContentId": "diurnal",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "nocturnal",
@@ -9870,7 +10840,10 @@
         "behavior": "Nighttime damage bonus and senses",
         "hovercraftTranslation": "Night-ops damage and radar",
         "trigger": "Nighttime damage bonus and senses",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17703", "resources.assets:54825"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -9942,7 +10915,15 @@
           "owner": "YCCE-065D",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17703", "resources.assets:54825"],
+        "owner": "YCCE-065D",
+        "canonicalContentId": "nocturnal",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "hibernation",
@@ -9960,7 +10941,10 @@
         "behavior": "Gain XP per second while sheltering",
         "hovercraftTranslation": "Bunker-only passive research",
         "trigger": "Gain XP per second while sheltering",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17693", "resources.assets:54812"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -10033,7 +11017,15 @@
           "owner": "YCCE-065E",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17693", "resources.assets:54812"],
+        "owner": "YCCE-065E",
+        "canonicalContentId": "hibernation",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "pollinator",
@@ -10051,7 +11043,10 @@
         "behavior": "Exploration improves vegetation and triggers random bonuses",
         "hovercraftTranslation": "Resource-site infrastructure bonuses",
         "trigger": "Exploration improves vegetation and triggers random bonuses",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17714", "resources.assets:54835"]
+        }
       },
       "availability": {
         "pool": "branching",
@@ -10123,7 +11118,15 @@
           "owner": "YCCE-065F",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17714", "resources.assets:54835"],
+        "owner": "YCCE-065F",
+        "canonicalContentId": "pollinator",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "extremophile",
@@ -10141,7 +11144,10 @@
         "behavior": "Increase cataclysm resistance in endless mode",
         "hovercraftTranslation": "Infinite-mode hazard endurance",
         "trigger": "Increase cataclysm resistance in endless mode",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17686"]
+        }
       },
       "availability": {
         "pool": "finale",
@@ -10214,7 +11220,15 @@
           "questionTemplate": "specializations"
         }
       ],
-      "identityDecision": "Preserve finale-gated content; do not discard as endless-only. Exact source eligibility and shrink-onset adaptation require reconciliation."
+      "identityDecision": "Preserve finale-gated content; do not discard as endless-only. Exact source eligibility and shrink-onset adaptation require reconciliation.",
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17686"],
+        "owner": "YCCE-067G",
+        "canonicalContentId": "extremophile",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "strength-in-numbers",
@@ -10232,7 +11246,10 @@
         "behavior": "Increase resistance per charmed ally late-game",
         "hovercraftTranslation": "Infinite-mode drone-squad endurance",
         "trigger": "Increase resistance per charmed ally late-game",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17733"]
+        }
       },
       "availability": {
         "pool": "finale",
@@ -10305,7 +11322,15 @@
           "questionTemplate": "specializations"
         }
       ],
-      "identityDecision": "Preserve finale-gated content; do not discard as endless-only. Exact source eligibility and shrink-onset adaptation require reconciliation."
+      "identityDecision": "Preserve finale-gated content; do not discard as endless-only. Exact source eligibility and shrink-onset adaptation require reconciliation.",
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17733"],
+        "owner": "YCCE-067H",
+        "canonicalContentId": "strength-in-numbers",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "tracker",
@@ -10323,7 +11348,10 @@
         "behavior": "Mark alpha enemies for increased food drops",
         "hovercraftTranslation": "Mark elite bots for increased salvage",
         "trigger": "Mark alpha enemies for increased food drops",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17739", "resources.assets:54851"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -10411,7 +11439,15 @@
           "owner": "YCCE-062E",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17739", "resources.assets:54851"],
+        "owner": "YCCE-062E",
+        "canonicalContentId": "tracker",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "lick-wounds",
@@ -10429,7 +11465,10 @@
         "behavior": "Active heal, hit reduces cooldown and scales with feeding speed",
         "hovercraftTranslation": "Active field repair, hit-based recharge",
         "trigger": "Active heal, hit reduces cooldown and scales with feeding speed",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17643", "resources.assets:54821"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -10512,7 +11551,15 @@
           "owner": "YCCE-066E",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17643", "resources.assets:54821"],
+        "owner": "YCCE-066E",
+        "canonicalContentId": "lick-wounds",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "projectile-tongue",
@@ -10530,7 +11577,10 @@
         "behavior": "Ranged stun hit that temporarily roots player",
         "hovercraftTranslation": "Grappling harpoon that locks movement on use",
         "trigger": "Ranged stun hit that temporarily roots player",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17647", "resources.assets:54837"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -10639,7 +11689,15 @@
           "owner": "YCCE-055C",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17647", "resources.assets:54837"],
+        "owner": "YCCE-055C",
+        "canonicalContentId": "projectile-tongue",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "pedal-glands",
@@ -10657,7 +11715,10 @@
         "behavior": "Leave slowing trail while pursued and improve terrain adaptation",
         "hovercraftTranslation": "Automatic oil/slick trail when chased",
         "trigger": "Leave slowing trail while pursued and improve terrain adaptation",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17709", "resources.assets:54830"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -10767,7 +11828,15 @@
           "owner": "YCCE-063E",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17709", "resources.assets:54830"],
+        "owner": "YCCE-063E",
+        "canonicalContentId": "pedal-glands",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "spinnerets",
@@ -10785,7 +11854,10 @@
         "behavior": "Deploy web slow field; stunned foes receive extra damage",
         "hovercraftTranslation": "Area electro-net trap",
         "trigger": "Deploy web slow field; stunned foes receive extra damage",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17649", "resources.assets:54844"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -10894,7 +11966,15 @@
           "owner": "YCCE-064E",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17649", "resources.assets:54844"],
+        "owner": "YCCE-064E",
+        "canonicalContentId": "spinnerets",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "jet",
@@ -10912,7 +11992,10 @@
         "behavior": "Dash that deploys secretions behind player",
         "hovercraftTranslation": "Dash that drops all equipped hazard systems",
         "trigger": "Dash that deploys secretions behind player",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17659", "resources.assets:54819"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -11005,7 +12088,15 @@
           "owner": "YCCE-064F",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17659", "resources.assets:54819"],
+        "owner": "YCCE-064F",
+        "canonicalContentId": "jet",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "fibroblasts",
@@ -11023,7 +12114,10 @@
         "behavior": "Permanent max HP from healing a threshold of actual HP",
         "hovercraftTranslation": "Permanent hull HP from repair milestones",
         "trigger": "Permanent max HP from healing a threshold of actual HP",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17696", "resources.assets:54814"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -11095,7 +12189,15 @@
           "owner": "YCCE-061I",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17696", "resources.assets:54814"],
+        "owner": "YCCE-061I",
+        "canonicalContentId": "fibroblasts",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "immune-system",
@@ -11113,7 +12215,10 @@
         "behavior": "Increase poison resistance",
         "hovercraftTranslation": "Corrosion shielding",
         "trigger": "Increase poison resistance",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17718", "resources.assets:54838"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -11185,7 +12290,15 @@
           "owner": "YCCE-061J",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17718", "resources.assets:54838"],
+        "owner": "YCCE-061J",
+        "canonicalContentId": "immune-system",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "scavenger",
@@ -11203,7 +12316,10 @@
         "behavior": "Bonus XP from food of animals not killed by player",
         "hovercraftTranslation": "Extra XP from third-party wreck salvage",
         "trigger": "Bonus XP from food of animals not killed by player",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17674"]
+        }
       },
       "availability": {
         "pool": "ordinary",
@@ -11275,7 +12391,15 @@
           "owner": "YCCE-059E",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17674"],
+        "owner": "YCCE-059E",
+        "canonicalContentId": "scavenger",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     },
     {
       "id": "bop",
@@ -11288,7 +12412,10 @@
       "candidateFields": {
         "category": "Attack",
         "behavior": "Weak starting physical attack; separate from learned maximum-HP Body Slam.",
-        "numericalTables": null
+        "numericalTables": {
+          "source": "local-game-configuration.json",
+          "keys": ["sharedassets0.assets:17633"]
+        }
       },
       "availability": {
         "pool": "starting",
@@ -11354,7 +12481,15 @@
           "owner": "YCCE-053",
           "questionTemplate": "specializations"
         }
-      ]
+      ],
+      "localConfiguration": {
+        "build": "1.2__9606",
+        "file": "local-game-configuration.json",
+        "keys": ["sharedassets0.assets:17633"],
+        "owner": "YCCE-053",
+        "canonicalContentId": "bop",
+        "policy": "Use decoded configuration before estimates. Unconsumed fields remain implementation work; source runtime formulas and version parity are not verified."
+      }
     }
   ],
   "candidateDispositions": [

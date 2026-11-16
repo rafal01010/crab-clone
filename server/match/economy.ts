@@ -1,3 +1,6 @@
+import { SOURCE_GAMEPLAY } from '../content/source-gameplay.js';
+import { sourceCurve } from '../content/source-curve.js';
+
 export type ResourceSource = 'vegetation' | 'meat' | 'aquatic';
 export type ResourceRarity = 'common' | 'rare' | 'epic' | 'legendary';
 export type Resource = {
@@ -9,6 +12,7 @@ export type Resource = {
   ownerId: string | null;
   killerKind: 'player' | 'ally' | 'third-party' | null;
   repair: boolean;
+  healingRoll: number;
   stage: number;
   expiresAt: number;
   collectors: Map<string, number>;
@@ -16,14 +20,10 @@ export type Resource = {
   claimantRepair: Map<string, boolean>;
   storedBy: string | null;
 };
-export const RESOURCE_TOTAL: Record<ResourceRarity, number> = {
-  common: 10,
-  rare: 30,
-  epic: 90,
-  legendary: 300,
-};
+export const RESOURCE_TOTAL: Readonly<Record<ResourceRarity, number>> =
+  SOURCE_GAMEPLAY.food.totals;
 export const STAGE_WEIGHT = [1, 1, 1, 2] as const;
-export const MAX_RESOURCES = 128;
+export const MAX_RESOURCES = 256;
 export type CollectionEvent = {
   resourceId: string;
   playerId: string;
@@ -45,9 +45,42 @@ export type Progression = {
   pending: { level: number; pool: 'ordinary' | 'branching' }[];
   depletedRewards: number;
 };
-// Provisional curve until a versioned source formula is available.
 export function levelRequirement(level: number, modifier: number): number {
-  return ((10 + (level - 1) * 5) * Math.max(10, modifier)) / 100;
+  // Curve input is reconstructed as the zero-based completed-level count.
+  const required = sourceCurve(
+    SOURCE_GAMEPLAY.progression.requirements,
+    level - 1,
+  );
+  return (
+    required *
+    (level >= SOURCE_GAMEPLAY.progression.minimumModifiedLevel
+      ? Math.max(25, modifier) / 100
+      : 1)
+  );
+}
+
+export function foodHealing(maximumHealth: number, stage: number): number {
+  const tuning = SOURCE_GAMEPLAY.food.healing;
+  const final = stage === STAGE_WEIGHT.length - 1;
+  // Final flat healing replaces the normal flat term; its percentage is additional.
+  return (
+    (final ? tuning.finalFlat : tuning.flatPerBite) +
+    maximumHealth *
+      (tuning.fractionPerBite + (final ? tuning.finalExtraFraction : 0))
+  );
+}
+
+export function healingFood(
+  resource: Resource,
+  rarity: ResourceRarity,
+  bonus: number,
+): boolean {
+  return (
+    rarity !== 'legendary' &&
+    (resource.repair ||
+      resource.healingRoll <
+        SOURCE_GAMEPLAY.food.healingChance[rarity] + bonus / 100)
+  );
 }
 export type Wallet = {
   balance: number;

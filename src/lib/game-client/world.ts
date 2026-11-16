@@ -102,8 +102,6 @@ export function createWorld(canvas: HTMLCanvasElement) {
     for (const group of Object.values(modules)) mesh.add(group);
     return modules;
   }
-  const grid = new THREE.GridHelper(200, 200, 0x566176, 0x333d50);
-  scene.add(grid);
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0));
@@ -210,7 +208,7 @@ export function createWorld(canvas: HTMLCanvasElement) {
     for (const mesh of meteors.values()) scene.remove(mesh);
     meteors.clear();
   }
-  function clear() {
+  function clearTerrain() {
     for (const mesh of arenaObjects) {
       scene.remove(mesh);
       mesh.geometry.dispose();
@@ -221,6 +219,9 @@ export function createWorld(canvas: HTMLCanvasElement) {
     arenaObjects.length = 0;
     terrainMeshes.length = 0;
     arenaSeed = null;
+  }
+  function clear() {
+    clearTerrain();
     clearObservedEntities();
     boundary.visible = false;
     followId = null;
@@ -347,22 +348,17 @@ export function createWorld(canvas: HTMLCanvasElement) {
         observation.revision <= lastRevision
       )
         return false;
-      if (arenaSeed !== observation.state.roundId) {
-        if (arenaSeed !== null) {
-          clear();
-          snapshotClock = new SnapshotClock();
-          prediction.reset();
-        }
+      const geometryKey =
+        observation.state.roundId + JSON.stringify(observation.state.arena);
+      if (arenaSeed !== geometryKey) {
+        clearTerrain();
         const terrainColors = {
           grass: 0x486b4c,
           sand: 0xa78b58,
           snow: 0xb2c5cb,
           water: 0x416d88,
         };
-        for (const [
-          index,
-          region,
-        ] of observation.state.arena.terrain.entries()) {
+        for (const region of observation.state.arena.terrain) {
           const mesh = new THREE.Mesh(
             new THREE.PlaneGeometry(region.width, region.depth),
             new THREE.MeshStandardMaterial({
@@ -375,7 +371,7 @@ export function createWorld(canvas: HTMLCanvasElement) {
             }),
           );
           mesh.rotation.x = -Math.PI / 2;
-          mesh.position.set(region.x, -0.02 + index * 0.001, region.z);
+          mesh.position.set(region.x, -0.02, region.z);
           scene.add(mesh);
           arenaObjects.push(mesh);
           terrainMeshes.push({
@@ -393,7 +389,7 @@ export function createWorld(canvas: HTMLCanvasElement) {
           scene.add(mesh);
           arenaObjects.push(mesh);
         }
-        arenaSeed = observation.state.roundId;
+        arenaSeed = geometryKey;
       }
       const nextFollowId = observation.state.spectating ?? viewerId;
       if (followId !== nextFollowId) {
@@ -475,7 +471,9 @@ export function createWorld(canvas: HTMLCanvasElement) {
         }
         mesh.material = bot.attacking
           ? botTellMaterial
-          : bot.ownerId
+          : bot.ownerId ||
+              (bot.friendshipUntil !== null &&
+                bot.friendshipUntil > observation.state.time)
             ? botAllyMaterial
             : bot.elite
               ? botEliteMaterial
@@ -657,7 +655,7 @@ export function createWorld(canvas: HTMLCanvasElement) {
           );
           entities.set(player.id, entity);
         }
-        entity.mesh.visible = player.life.kind === 'alive';
+        entity.mesh.visible = player.life.kind === 'alive' && !player.shelter;
         entity.attackCue.visible = player.attacking;
         const worldScale = player.radius * 2;
         entity.attackCue.scale.z = player.attackReach / worldScale;
@@ -761,11 +759,6 @@ export function createWorld(canvas: HTMLCanvasElement) {
       firmwareGeometry.dispose();
       for (const material of firmwareMaterials) material.dispose();
       for (const material of Object.values(resourceMaterials))
-        material.dispose();
-      grid.geometry.dispose();
-      for (const material of Array.isArray(grid.material)
-        ? grid.material
-        : [grid.material])
         material.dispose();
       for (const mesh of occluders) mesh.material.dispose();
       occluders.clear();

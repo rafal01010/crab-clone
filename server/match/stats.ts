@@ -1,45 +1,14 @@
 import { initialStartingStats } from '../content/starting.js';
+import {
+  SOURCE_BASE_STATS,
+  SOURCE_STAT_LIMITS,
+} from '../content/source-balance.js';
 
 // Percent-valued stats retain the source's 100-based units.
 export const BASE_STATS = {
-  physical: 10,
-  ability: 10,
-  maximumHealth: 50,
-  social: 5,
-  speed: 5,
-  damage: 100,
-  cooldowns: 100,
-  attackArea: 100,
-  attackPenalty: 100,
-  size: 100,
-  regeneration: 0,
-  plating: 0,
-  damageResistance: 0,
-  poisonResistance: 0,
-  dodge: 0,
-  heatAdaptation: 0,
-  coldAdaptation: 0,
-  progress: 100,
   passiveProgress: 0,
-  salvageSpeed: 100,
-  salvageReach: 1,
-  terrainAdaptation: 0,
-  senses: 100,
   firmwareIdentification: 0,
-  sandAdaptation: 0,
-  snowAdaptation: 0,
-  waterAdaptation: 0,
-  sprintSpeed: 100,
-  sprintRecovery: 100,
-  dashCooldown: 100,
-  poisonDamage: 100,
-  shieldedResistance: 0,
-  soakAdaptation: 0,
-  stunResistance: 0,
-  stunDuration: 100,
-  cataclysmResistance: 0,
   temporaryInvulnerability: 0,
-  healthFoodMaximumHealth: 0,
   repairFoodChance: 0,
   robust: 0,
   shifty: 0,
@@ -50,11 +19,7 @@ export const BASE_STATS = {
   fishProgress: 100,
   carrionProgress: 100,
   progressRequirement: 100,
-  additionalPoisonTicks: 0,
-  poisonTickSpeed: 100,
-  alphaDamage: 100,
-  effectArea: 100,
-  statChange: 100,
+  ...SOURCE_BASE_STATS,
 } as const;
 export type Stat = keyof typeof BASE_STATS;
 export type Stats = Record<Stat, number>;
@@ -65,19 +30,10 @@ export type StatModifier = {
   multiplier: number;
 };
 
-// Caps with no pinned-version evidence are provisional balance limits.
+// Imported bounds use project percentage units. Progress requirement is the inverse reduction stat.
 const STAT_LIMITS: Partial<Record<Stat, readonly [number, number]>> = {
-  maximumHealth: [1, 999],
-  physical: [0, 999],
-  ability: [0, 999],
-  regeneration: [0, 300],
-  plating: [0, 999],
-  size: [0, 300],
-  dodge: [0, 75],
-  damageResistance: [-100, 100],
-  poisonResistance: [0, 100],
-  salvageSpeed: [0, 500],
-  senses: [0, 500],
+  ...SOURCE_STAT_LIMITS,
+  progressRequirement: [25, 100],
 };
 
 export function deriveStats(

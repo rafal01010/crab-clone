@@ -1,7 +1,9 @@
+import { SOURCE_GAMEPLAY } from './source-gameplay.js';
 import { createRegistry, type ContentDefinition } from './registry.js';
 import { startingDefinitions, startingEffectIds } from './starting.js';
 import { upgradeEffectIds } from '../match/upgrade-effects.js';
 import { researchGraph } from './research-graph.js';
+import { applySourceDefinition } from './source-tuning.js';
 
 const fixed = { fixed: [1] };
 function entry(
@@ -58,6 +60,8 @@ function entry(
     tentacles: 'Increases speed and ability.',
     legs: 'Increases speed and offers locomotion specializations.',
     tail: 'Increases ability and social.',
+    'tail-wag':
+      'Automatically attempts to charm nearby animals every 5 seconds.',
     'prehensile-tail':
       'Increases salvage reach and offers tail specializations.',
     'more-legs': 'Increases speed and adds personal risk.',
@@ -911,12 +915,15 @@ const playableDefinitions: readonly ContentDefinition[] = [
       'horns',
       'Horns',
       'ordinary',
-      {
-        rare: [1.2, 1.4, 1.6, 1.85, 2.1],
-        epic: [1.3, 1.5, 1.75, 1.95, 2.2],
-        legendary: [1.5, 1.7, 1.95, 2.15, 2.4],
-      },
-      'Charge for {value} times physical damage, bypassing plating.',
+      Object.fromEntries(
+        Object.entries(SOURCE_GAMEPLAY.horns.damageRanges)
+          .filter(([rarity]) => rarity !== 'common')
+          .map(([rarity, rows]) => [
+            rarity,
+            rows.map(({ x, y }) => Math.round((x + y) * 50) / 100),
+          ]),
+      ),
+      'Strike with horns for {value} times physical damage, bypassing plating.',
       ['antlers'],
     ),
     icon: 'attack',
@@ -1065,7 +1072,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
         epic: [0.55, 0.65, 0.75, 0.85, 0.95],
         legendary: [0.65, 0.75, 0.85, 0.95, 1.05],
       },
-      'Automatically follow your attacks for {value} times physical damage.',
+      'Strike for {value} times physical damage. While equipped, also follows your other attack automatically, even while Spur is on cooldown.',
     ),
     icon: 'attack',
     affinities: ['Predator'],
@@ -1238,6 +1245,17 @@ const playableDefinitions: readonly ContentDefinition[] = [
   },
   {
     ...entry(
+      'tail-wag',
+      'Tail Wag',
+      'ordinary',
+      SOURCE_GAMEPLAY.tailWag.multipliers,
+      'Automatically attempt to charm nearby animals every 5 seconds with a {value}x charm chance multiplier. Requires a free ally slot.',
+    ),
+    requirement: { kind: 'rank', id: 'tail', minimum: 1 },
+    affinities: ['Gregarious'],
+  },
+  {
+    ...entry(
       'prehensile-tail',
       'Prehensile Tail',
       'ordinary',
@@ -1354,7 +1372,7 @@ const playableIds = new Set(
   playableDefinitions.map((definition) => definition.id),
 );
 export const starterDefinitions: readonly ContentDefinition[] = [
-  ...playableDefinitions,
+  ...playableDefinitions.map(applySourceDefinition),
   ...researchGraph.filter(
     (definition) =>
       !playableIds.has(definition.id) && definition.id !== 'body-slam-tail',

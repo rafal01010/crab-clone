@@ -54,7 +54,10 @@ export interface PlayerView {
   }[];
 }
 export type MatchResult = {
-  outcome: { kind: 'winner'; playerId: string } | { kind: 'draw' };
+  outcome:
+    | { kind: 'winner'; playerId: string }
+    | { kind: 'draw' }
+    | { kind: 'run-ended' };
   durationMs: number;
   eliminationGroups: string[][];
   players: {
@@ -102,11 +105,13 @@ export interface MatchView {
     health: number;
     maxHealth: number;
     attacking: boolean;
+    friendshipUntil: number | null;
   }[];
   shelters: {
     id: string;
     position: { x: number; z: number };
     occupied: boolean;
+    remainingFraction: number;
   }[];
   firmwareSensory: { distortion: boolean; deafened: boolean };
   nestDefenses: { siteId: string; endsAt: number; health: number }[];
@@ -115,6 +120,7 @@ export interface MatchView {
   firmware: {
     id: string;
     appearance: string;
+    stage: number;
     position: { x: number; z: number };
     knowledge:
       | { kind: 'unknown' }

@@ -405,7 +405,7 @@ test('meteor warns inside the boundary before impact and applies catastrophe res
   }
 });
 
-test('last human wins regardless of living bots', () => {
+test('last human can finish as winner regardless of living bots', () => {
   const match = setup();
   try {
     assert.ok(match.view('a').bots.length);
@@ -415,6 +415,8 @@ test('last human wins regardless of living bots', () => {
       hit('d', 'a', 1000),
     ]);
     match.advance(16);
+    assert.equal(match.view('a').phase, 'running');
+    assert.ok(match.accept({ kind: 'finish-survivor', playerId: 'a' }));
     assert.deepEqual(match.view('a').result.outcome, {
       kind: 'winner',
       playerId: 'a',

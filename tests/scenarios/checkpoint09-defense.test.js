@@ -93,6 +93,7 @@ test('Impervious splits incoming damage once and delayed lethal damage credits o
       match.accept({ kind: 'eliminate', playerId: 'd', ownerId: null }),
     );
     advance(match, 1);
+    assert.ok(match.accept({ kind: 'finish-survivor', playerId: 'b' }));
     const winnerStats = match
       .view('b')
       .result.players.find((p) => p.id === 'b');

@@ -35,8 +35,7 @@
         status === 'Connected' &&
           observation?.state.phase === 'running' &&
           player?.life.kind === 'alive' &&
-          player.life.activity === 'playing' &&
-          !player.shelter,
+          player.life.activity === 'playing',
       );
     }
     connection = connectSession(
@@ -97,7 +96,7 @@
 <svelte:head
   ><title>You Can Crab Everything</title><meta
     name="description"
-    content="A hovercraft survival game for four players on a local network."
+    content="A hovercraft survival game for one to four players on a local network."
   /></svelte:head
 >
 <main>
@@ -137,10 +136,15 @@
       {#if observation.state.result}
         {@const result = observation.state.result}
         <h3>
-          {result.outcome.kind === 'draw'
-            ? 'Draw'
-            : `${result.players.find((player) => result.outcome.kind === 'winner' && player.id === result.outcome.playerId)?.name ?? 'Player'} wins`}
+          {result.outcome.kind === 'run-ended'
+            ? 'Run ended'
+            : result.outcome.kind === 'draw'
+              ? 'Draw'
+              : `${result.players.find((player) => result.outcome.kind === 'winner' && player.id === result.outcome.playerId)?.name ?? 'Player'} wins`}
         </h3>
+        {#if result.outcome.kind === 'run-ended'}<p>
+            Your hull reached zero.
+          </p>{/if}
         <p>
           Match time {Math.floor(result.durationMs / 60000)}m {Math.floor(
             result.durationMs / 1000,
@@ -204,7 +208,7 @@
           >{me?.ready ? 'Unready' : 'Ready'}</button
         >
         {#if me?.host}<button
-            disabled={observation.state.players.length !== 4 ||
+            disabled={observation.state.players.length === 0 ||
               observation.state.players.some(
                 (player) => !player.ready || !player.connected,
               )}
@@ -228,6 +232,12 @@
     </section>
   {/if}
   {#if observation?.state.phase === 'running'}
+    {#if observation.state.players.length > 1 && observation.state.players.filter((player) => player.life.kind === 'alive').length === 1 && observation.state.players.some((player) => player.id === session?.playerId && player.life.kind === 'alive')}
+      <section aria-label="Last survivor">
+        <p>You can keep playing or finish the match.</p>
+        <button onclick={() => connection.finishMatch()}>Finish match</button>
+      </section>
+    {/if}
     {#if observation.state.players.find((player) => player.id === session?.playerId)?.life.kind === 'eliminated'}
       <section aria-label="Spectating">
         <h2>Eliminated</h2>
@@ -275,17 +285,6 @@
           0,
           (offer.deadline ?? observation.state.time) - observation.state.time,
         )}
-        mapPoints={observation.state.players.map((player) => ({
-          id: player.id,
-          x: ((player.position.x + 32) * 100) / 64,
-          y: ((player.position.z + 32) * 100) / 64,
-          self: player.id === session?.playerId,
-        }))}
-        boundary={{
-          x: 50,
-          y: 50,
-          radius: (observation.state.boundary.radius * 100) / 64,
-        }}
         warning={offer.protected === false
           ? 'You are vulnerable while choosing at this site.'
           : observation.state.meteors.length
@@ -326,7 +325,6 @@
         state={observation.state}
         playerId={session.playerId}
         oninteract={(id) => connection.interact(id)}
-        onscan={(id) => connection.scan(id)}
         onuse={(id) => connection.useFirmware(id)}
         onshelter={(id) => connection.shelter(id)}
         oncharm={(id) => connection.charm(id)}

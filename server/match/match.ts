@@ -1,5 +1,6 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import {
+  MAP_RULES,
   arenaPointClear,
   createArena,
   nextArenaWaypoint,
@@ -15,6 +16,10 @@ import type {
 } from '../../shared/match.js';
 import { CONTROL_BUTTON, type Intent } from '../../shared/protocol/index.js';
 import RAPIER, { type World } from '@dimforge/rapier3d-compat';
+import { SOURCE_GAMEPLAY } from '../content/source-gameplay.js';
+import { SOURCE_ACTIONS } from '../content/source-balance.js';
+import { sourceRange } from '../content/source-tuning.js';
+import { sourceCurve } from '../content/source-curve.js';
 import { initialStartingStats } from '../content/starting.js';
 import { createStarterRegistry } from '../content/starter.js';
 import type { ContentDefinition } from '../content/registry.js';
@@ -43,12 +48,14 @@ import {
   type StatusKind,
 } from './combat.js';
 import {
+  acquisitionSlot,
   availableAmmunition,
   ammunitionView,
   equip,
   initialEquipment,
   isAbilitySlot,
   validAbility,
+  rollAbilityDamage,
   type Ability,
   type AbilitySlot,
   type Equipment,
@@ -57,6 +64,8 @@ import {
   ALLY_LIMITS,
   BOT_RULES,
   BOT_STAGES,
+  sourceEnemyProfile,
+  enemyLoot,
   type AllyKind,
   type Bot,
   type BotRole,
@@ -97,6 +106,8 @@ import {
   MAX_RESOURCES,
   RESOURCE_TOTAL,
   STAGE_WEIGHT,
+  foodHealing,
+  healingFood,
   levelRequirement,
   transact,
   type CollectionEvent,
@@ -128,6 +139,7 @@ type MatchCommand =
   | { kind: 'loading-failed'; playerId: string; revision: number }
   | { kind: 'leave'; playerId: string }
   | { kind: 'finish' }
+  | { kind: 'finish-survivor'; playerId: string }
   | { kind: 'abort' };
 
 type Player = {
@@ -155,14 +167,17 @@ type Player = {
   attack: {
     abilityId: string;
     hitAt: number;
-    readyAt: number;
     aim: number;
     damage: number;
     hits?: number;
     range?: number;
     bypassPlating?: boolean;
   } | null;
+  interactHeld: boolean;
   attackReadyAt: number;
+  lastManualAttackAt: number;
+  lastFriendshipAt: number;
+  nextFriendshipAt: number;
   throwCharge: { abilityId: string; button: number; startedAt: number } | null;
   leapCharge: number | null;
   leapRepeatUntil: number;
@@ -224,7 +239,6 @@ type Player = {
     | { kind: 'identified'; effect: FirmwareEffect }
   >;
   shelter: { id: string; until: number } | null;
-  shelterReadyAt: number;
   firmwareSpawnBonus: number;
   firmwareHealUntil: number;
   firmwareSpeedUntil: number;
@@ -381,12 +395,18 @@ export class Match {
     { ownerId: string; siteId: string; endsAt: number; health: number }
   >();
   #nextBotId = 0;
-  #nextBotSpawn = 15000;
+  #nextBotSpawn = 0;
   readonly #resources = new Map<string, Resource>();
-  #nextResourceSpawn = 20_000;
+  #nextResourceSpawn = 5_000;
   #nextFirmwareSpawn = 30_000;
   #firmwareSite = 0;
+  readonly #shelterDecay = new Map<string, number>();
+  readonly #firmwareConsumers = new Map<
+    string,
+    { playerId: string; elapsed: number }
+  >();
   #resourceSite = 0;
+  readonly #providerSpawned = new Map<string, number>();
   readonly #collections: CollectionEvent[] = [];
   #resourceId = 0;
   #projectileId = 0;
@@ -419,13 +439,21 @@ export class Match {
       terrainSeed,
     );
     this.#firmware = new FirmwareField(
-      [...this.#arena.shelters, ...this.#arena.eliteSites].filter(
-        (point) => terrainAt(this.#arena, point.x, point.z) !== 'water',
-      ),
+      this.#arena.spawns
+        .map((spawn) => ({ x: spawn.x + 5, z: spawn.z + 8 }))
+        .filter(
+          (point) =>
+            arenaPointClear(this.#arena.obstacles, point) &&
+            terrainAt(this.#arena, point.x, point.z) !== 'water',
+        ),
     );
     this.#world.gravity = { x: 0, y: -9.81, z: 0 };
     this.#world.createCollider(
-      RAPIER.ColliderDesc.cuboid(64, 0.25, 64)
+      RAPIER.ColliderDesc.cuboid(
+        MAP_RULES.halfExtent + 2,
+        0.25,
+        MAP_RULES.halfExtent + 2,
+      )
         .setTranslation(0, -0.25, 0)
         .setFriction(0)
         .setCollisionGroups(COLLISION.terrain),
@@ -437,7 +465,14 @@ export class Match {
           .setCollisionGroups(COLLISION.terrain),
       );
     }
-    for (const position of this.#arena.resources) {
+    const startingResources = this.#arena.spawns.flatMap((spawn) =>
+      this.#arena.resources
+        .filter(
+          (point) => Math.hypot(point.x - spawn.x, point.z - spawn.z) < 12,
+        )
+        .slice(0, 4),
+    );
+    for (const position of startingResources) {
       this.#createResource({
         position,
         source:
@@ -450,22 +485,15 @@ export class Match {
         killerKind: null,
         repair: false,
       });
-      this.#createResource({
-        position: { x: position.x + 1.5, z: position.z },
-        source: 'vegetation',
-        rarity: 'common',
-        killerId: null,
-        ownerId: null,
-        killerKind: null,
-        repair: true,
-      });
+      this.#providerSpawned.set(`${position.x},${position.z}`, 1);
     }
-    const positions = [
-      { x: 0, z: -22 },
-      { x: 22, z: 0 },
-      { x: 0, z: 22 },
-      { x: -22, z: 0 },
-    ];
+    const positions = this.#arena.spawns.map((spawn) =>
+      [
+        { x: spawn.x + 12, z: spawn.z + 8 },
+        { x: spawn.x - 12, z: spawn.z - 8 },
+        { x: spawn.x, z: spawn.z + 12 },
+      ].find((point) => arenaPointClear(this.#arena.obstacles, point)),
+    );
     for (let index = 0; index < BOT_RULES.count; index++) {
       const position = positions[index];
       if (!position) continue;
@@ -513,7 +541,11 @@ export class Match {
         throwCharge: null,
         leapCharge: null,
         leapRepeatUntil: 0,
+        interactHeld: false,
         attackReadyAt: 0,
+        lastManualAttackAt: 0,
+        lastFriendshipAt: 0,
+        nextFriendshipAt: 3000,
         hitCueUntil: 0,
         guard: null,
         invulnerableUntil: 0,
@@ -547,7 +579,6 @@ export class Match {
         firmwareDeafUntil: 0,
         lastCharm: null,
         shelter: null,
-        shelterReadyAt: 0,
         activeReward: null,
         dash: null,
         progression: { progress: 0, pending: [], depletedRewards: 0 },
@@ -567,7 +598,7 @@ export class Match {
     if (command.kind === 'start') {
       if (
         this.#phase !== 'lobby' ||
-        this.#players.size !== 4 ||
+        this.#players.size === 0 ||
         [...this.#players.values()].some(
           (player) => !player.connected || !player.ready,
         )
@@ -584,6 +615,20 @@ export class Match {
       if (this.#phase !== 'running') return false;
       this.#phase = 'finished';
       this.#clearCombat();
+      return true;
+    }
+    if (command.kind === 'finish-survivor') {
+      const survivors = [...this.#players].filter(
+        ([, player]) => player.life.kind === 'alive',
+      );
+      if (
+        this.#phase !== 'running' ||
+        this.#players.size < 2 ||
+        survivors.length !== 1 ||
+        survivors[0]?.[0] !== command.playerId
+      )
+        return false;
+      this.#resolveOutcome(true);
       return true;
     }
     if (command.kind === 'abort') {
@@ -836,29 +881,43 @@ export class Match {
 
   #spawnBot(position: Point, tier: number, elite = false): Bot {
     const id = `bot-${++this.#nextBotId}`;
-    const roles: BotRole[] = ['forager', 'hunter', 'scavenger'];
+    const roles: BotRole[] = ['hunter', 'forager', 'hunter', 'scavenger'];
     const role = roles[(this.#nextBotId - 1) % roles.length] ?? 'forager';
-    const health = BOT_RULES.health * tier * (elite ? 2 : 1);
+    const biome = terrainAt(this.#arena, position.x, position.z);
+    const profile = sourceEnemyProfile(
+      biome,
+      role,
+      tier,
+      elite,
+      this.#nextBotId,
+    );
+    const health = profile.health;
     const bot: Bot = {
       id,
       kind: 'wild',
       expiresAt: null,
-      damage: BOT_RULES.damage * tier * (elite ? 1.5 : 1),
+      damage: profile.physical,
       speedFactor: 1,
       tier,
       role,
       elite,
-      biome: terrainAt(this.#arena, position.x, position.z),
+      biome,
       ownerId: null,
       health,
       statuses: [],
       maxHealth: health,
+      plating: profile.plating,
+      archetype: profile.archetype,
+      loot: profile.loot,
       craft: createCraft(this.#world, { ...position, y: 0.25 }),
       targetId: null,
       hostileToBots: role === 'hunter',
       windupUntil: null,
       readyAt: 0,
       charmReadyAt: 0,
+      home: { ...position },
+      friendship: null,
+      friendshipReadyAt: 0,
       forageAt: this.#time + BOT_RULES.forageInterval,
       waypoint: null,
       waypointTarget: null,
@@ -910,8 +969,15 @@ export class Match {
     return owner
       ? Math.max(
           0,
-          Math.min(12, Math.floor(owner.stats.social / 5)) +
-            owner.firmwareAllySlots,
+          Math.min(
+            SOURCE_GAMEPLAY.passiveCharm.maximumCapacity,
+            Math.floor(
+              sourceCurve(
+                SOURCE_GAMEPLAY.passiveCharm.capacity,
+                owner.stats.social,
+              ),
+            ),
+          ) + owner.firmwareAllySlots,
         )
       : 0;
   }
@@ -1136,6 +1202,9 @@ export class Match {
       bot.kind = item.kind;
       bot.health = item.health;
       bot.maxHealth = item.health;
+      bot.plating = 0;
+      bot.archetype = null;
+      bot.loot = null;
       bot.damage = item.damage;
       bot.speedFactor = item.speedFactor;
       bot.craft.collider.setRadius(item.radius);
@@ -1373,84 +1442,104 @@ export class Match {
 
   #replenishBots(): void {
     if (this.#time < this.#nextBotSpawn) return;
-    this.#nextBotSpawn = this.#time + 3000;
+    this.#nextBotSpawn = this.#time + BOT_RULES.spawnInterval;
+    const centers = [...this.#players.values()]
+      .filter((player) => player.life.kind === 'alive')
+      .map((player) => player.craft.body.translation());
+    if (!centers.length) return;
+    for (const [id, bot] of this.#bots) {
+      const point = bot.craft.body.translation();
+      if (
+        bot.kind === 'wild' &&
+        centers.every(
+          (center) => Math.hypot(center.x - point.x, center.z - point.z) > 42,
+        )
+      ) {
+        this.#world.removeRigidBody(bot.craft.body);
+        this.#bots.delete(id);
+        this.#provoked.delete(id);
+        for (const tracked of this.#signalTargets.values()) tracked.delete(id);
+      }
+    }
     const stage =
       BOT_STAGES.findLast((item) => this.#wallTime >= item.at) ?? BOT_STAGES[0];
-    if (
-      this.#bots.size + this.#pendingAllies.length + this.#nestDefenses.size >=
-        ALLY_LIMITS.total ||
-      [...this.#bots.values()].filter((bot) => bot.kind === 'wild').length >=
-        Math.min(BOT_RULES.maxCount, stage.population)
-    )
-      return;
-    const radius = Math.min(
-      26,
-      Math.max(0, boundaryRadius(this.#wallTime, this.#finale) - 2),
+    const source = SOURCE_GAMEPLAY.enemyPopulation.findLast(
+      (item) => this.#wallTime >= item.atMs,
+    );
+    // Three nearby region equivalents; the scale and multiplayer cap are adaptation estimates.
+    const target = source
+      ? Math.min(
+          24,
+          Math.ceil(
+            ((3 * (source.minimum + source.maximum)) / 2) * source.density,
+          ),
+        )
+      : 10;
+    const radius = Math.max(
+      0,
+      boundaryRadius(this.#wallTime, this.#finale) - 2,
     );
     if (radius < 2) return;
-    const candidates: Point[] = [];
-    for (let ring = 0; ring < 3; ring++) {
-      for (let index = 0; index < 16; index++) {
-        const angle = ((index + this.#nextBotId * 0.618) * Math.PI * 2) / 16;
-        const distance = radius * (1 - ring * 0.25);
+    const wild = [...this.#bots.values()].filter((bot) => bot.kind === 'wild');
+    const population = (center: Point) =>
+      wild.filter((bot) => {
+        const point = bot.craft.body.translation();
+        return Math.hypot(center.x - point.x, center.z - point.z) < 32;
+      }).length;
+    for (let attempt = 0; attempt < centers.length * 3; attempt++) {
+      if (
+        wild.length >= BOT_RULES.maxCount ||
+        this.#bots.size +
+          this.#pendingAllies.length +
+          this.#nestDefenses.size >=
+          ALLY_LIMITS.total
+      )
+        break;
+      centers.sort((a, b) => population(a) - population(b));
+      const center = centers[0];
+      if (!center || population(center) >= target) break;
+      let position: Point | null = null;
+      for (let candidate = 0; candidate < 48; candidate++) {
+        const angle =
+          ((candidate + this.#nextBotId * 0.618) * Math.PI * 2) / 16;
+        const distance = Math.min(
+          14 + Math.floor(candidate / 16) * 4,
+          radius * 0.6,
+        );
         const point = {
-          x: Math.cos(angle) * distance,
-          z: Math.sin(angle) * distance,
+          x: center.x + Math.cos(angle) * distance,
+          z: center.z + Math.sin(angle) * distance,
         };
         if (
-          !arenaPointClear(this.#arena.obstacles, point) ||
-          !nextArenaWaypoint(
-            this.#arena.obstacles,
-            point,
-            { x: 0, z: 0 },
-            radius,
+          Math.hypot(point.x, point.z) > radius ||
+          !arenaPointClear(this.#arena.obstacles, point)
+        )
+          continue;
+        if (
+          centers.some(
+            (other) =>
+              Math.hypot(other.x - point.x, other.z - point.z) <
+              Math.min(8, radius * 0.2),
           )
         )
           continue;
-        const nearestPlayer = Math.min(
-          Infinity,
-          ...[...this.#players.values()]
-            .filter((player) => player.life.kind === 'alive')
-            .map((player) => {
-              const p = player.craft.body.translation();
-              return Math.hypot(p.x - point.x, p.z - point.z);
-            }),
-        );
-        const nearestBot = Math.min(
-          Infinity,
-          ...[...this.#bots.values()].map((bot) => {
-            const p = bot.craft.body.translation();
-            return Math.hypot(p.x - point.x, p.z - point.z);
-          }),
-        );
         if (
-          nearestPlayer >= Math.min(8, Math.max(3, radius * 0.6)) &&
-          nearestBot >= 3
+          [...this.#bots.values()].some((bot) => {
+            const other = bot.craft.body.translation();
+            return Math.hypot(other.x - point.x, other.z - point.z) < 3;
+          })
         )
-          candidates.push(point);
+          continue;
+        position = point;
+        break;
       }
+      if (!position) break;
+      const elite =
+        this.#wallTime >= 180_000 &&
+        (this.#nextBotId + 1) % 5 === 0 &&
+        wild.filter((bot) => bot.elite).length < BOT_RULES.maxElites;
+      wild.push(this.#spawnBot(position, stage.tier, elite));
     }
-    const elite =
-      this.#wallTime >= 180_000 &&
-      (this.#nextBotId + 1) % 5 === 0 &&
-      [...this.#bots.values()].filter((bot) => bot.elite).length <
-        BOT_RULES.maxElites;
-    if (elite)
-      candidates.sort((a, b) => {
-        const closest = (point: Point) =>
-          Math.min(
-            ...this.#arena.eliteSites.map((site) =>
-              Math.hypot(site.x - point.x, site.z - point.z),
-            ),
-          );
-        return closest(a) - closest(b);
-      });
-    const point = elite
-      ? candidates[0]
-      : candidates[this.#nextBotId % candidates.length];
-    if (!point) return;
-    this.#spawnBot(point, stage.tier, elite);
-    this.#nextBotSpawn = this.#time + BOT_RULES.spawnInterval;
   }
 
   #trailSlow(targetId: string, position: Point): number {
@@ -1795,6 +1884,8 @@ export class Match {
       for (const [id, player] of this.#players) {
         if (
           id === bot.ownerId ||
+          (bot.friendship?.playerId === id &&
+            bot.friendship.until > this.#time) ||
           player.shelter !== null ||
           player.life.kind !== 'alive' ||
           (player.life.activity !== 'playing' && isSelectionProtected(player))
@@ -1851,9 +1942,9 @@ export class Match {
         const dx = position.x - target.position.x;
         const dz = position.z - target.position.z;
         const distance = Math.hypot(dx, dz) || 1;
-        const radius = Math.min(
-          27,
-          Math.max(0, boundaryRadius(this.#wallTime, this.#finale) - 2),
+        const radius = Math.max(
+          0,
+          boundaryRadius(this.#wallTime, this.#finale) - 2,
         );
         const destination = {
           x: position.x + (dx / distance) * 6,
@@ -1974,13 +2065,22 @@ export class Match {
       } else {
         const angle =
           Math.floor(this.#time / 8000) * 1.7 + Number(bot.id.slice(4)) * 2;
-        const radius = Math.min(
-          20,
-          Math.max(0, boundaryRadius(this.#wallTime, this.#finale) - 2),
+        const radius = Math.max(
+          0,
+          boundaryRadius(this.#wallTime, this.#finale) - 2,
         );
+        const destination = {
+          x: bot.home.x + Math.cos(angle) * 6,
+          z: bot.home.z + Math.sin(angle) * 6,
+        };
+        const length = Math.hypot(destination.x, destination.z);
+        if (length > radius && length > 0) {
+          destination.x *= radius / length;
+          destination.z *= radius / length;
+        }
         this.#steerBot(
           bot,
-          { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius },
+          destination,
           'wander',
           deltaMs,
           BOT_RULES.speed * 0.45,
@@ -2054,7 +2154,11 @@ export class Match {
           (resource.collectors.get(playerId) ?? 0) +
           (deltaMs * player.stats.salvageSpeed) / 100;
         resource.collectors.set(playerId, elapsed);
-        if (resource.stage > 0 && elapsed < 1000) continue;
+        if (
+          resource.stage > 0 &&
+          elapsed < SOURCE_GAMEPLAY.food.subsequentBiteMs
+        )
+          continue;
         const weight = STAGE_WEIGHT[resource.stage];
         if (weight === undefined) continue;
         const provenance =
@@ -2096,15 +2200,17 @@ export class Match {
         const progress = player.runtimeEffects.storeProgress(earnedProgress);
         let repairFood = resource.claimantRepair.get(playerId);
         if (repairFood === undefined) {
-          repairFood =
-            resource.repair ||
-            Math.random() < player.stats.repairFoodChance / 100;
+          repairFood = healingFood(
+            resource,
+            rarity,
+            player.stats.repairFoodChance,
+          );
           resource.claimantRepair.set(playerId, repairFood);
         }
         const healing = repairFood
           ? this.repairPlayer(
               playerId,
-              player.stats.maximumHealth * 0.02 * weight,
+              foodHealing(player.stats.maximumHealth, resource.stage),
               true,
             )
           : null;
@@ -2178,6 +2284,7 @@ export class Match {
       );
       for (const kind of ['heat', 'cold'] as const) {
         const exposed =
+          !player.shelter &&
           !player.statusImmunities.has(kind) &&
           (kind === 'heat'
             ? active?.kind === 'heatwave'
@@ -2186,7 +2293,10 @@ export class Match {
         if (!exposed || !active) {
           player.thermal[kind] = Math.max(
             0,
-            before - THERMAL_RULES.recoveryPerSecond * seconds,
+            before -
+              THERMAL_RULES.recoveryPerSecond *
+                seconds *
+                (player.shelter ? 3 : 1),
           );
           continue;
         }
@@ -2219,50 +2329,64 @@ export class Match {
 
   #replenishResources(): void {
     if (this.#time < this.#nextResourceSpawn) return;
-    this.#nextResourceSpawn = this.#time + 20_000;
-    const sites = [
-      ...this.#arena.resources,
-      { x: 0, z: 0 },
-      { x: 2, z: 0 },
-      { x: -2, z: 0 },
-      { x: 0, z: 2 },
-      { x: 0, z: -2 },
-    ];
+    this.#nextResourceSpawn = this.#time + 5_000;
     const radius = Math.max(
       0,
       boundaryRadius(this.#wallTime, this.#finale) - 1,
     );
-    for (let offset = 0; offset < sites.length; offset++) {
-      const index = (this.#resourceSite + offset) % sites.length;
-      const point = sites[index];
-      if (
-        !point ||
-        Math.hypot(point.x, point.z) > radius ||
-        !arenaPointClear(this.#arena.obstacles, point) ||
-        [...this.#resources.values()].some(
-          (resource) =>
-            Math.hypot(
-              resource.position.x - point.x,
-              resource.position.z - point.z,
-            ) < 2,
+    for (const player of this.#players.values()) {
+      if (player.life.kind !== 'alive') continue;
+      const origin = player.craft.body.translation();
+      const sites = this.#arena.resources.filter(
+        (point) => Math.hypot(point.x - origin.x, point.z - origin.z) < 24,
+      );
+      const existing = [...this.#resources.values()].filter(
+        (food) =>
+          food.killerKind === null &&
+          food.storedBy === null &&
+          Math.hypot(food.position.x - origin.x, food.position.z - origin.z) <
+            24,
+      ).length;
+      let spawned = 0;
+      for (
+        let offset = 0;
+        offset < sites.length && spawned < Math.min(2, 4 - existing);
+        offset++
+      ) {
+        const point = sites[(this.#resourceSite + offset) % sites.length];
+        if (
+          !point ||
+          (this.#providerSpawned.get(`${point.x},${point.z}`) ?? 0) >= 3 ||
+          Math.hypot(point.x, point.z) > radius ||
+          [...this.#resources.values()].some(
+            (resource) =>
+              Math.hypot(
+                resource.position.x - point.x,
+                resource.position.z - point.z,
+              ) < 2,
+          )
         )
-      )
-        continue;
-      this.#resourceSite = (index + 1) % sites.length;
-      this.#createResource({
-        position: point,
-        source:
-          terrainAt(this.#arena, point.x, point.z) === 'water'
-            ? 'aquatic'
-            : 'vegetation',
-        rarity: 'common',
-        killerId: null,
-        ownerId: null,
-        killerKind: null,
-        repair: false,
-      });
-      return;
+          continue;
+        this.#createResource({
+          position: point,
+          source:
+            terrainAt(this.#arena, point.x, point.z) === 'water'
+              ? 'aquatic'
+              : 'vegetation',
+          rarity: 'common',
+          killerId: null,
+          ownerId: null,
+          killerKind: null,
+          repair: false,
+        });
+        this.#providerSpawned.set(
+          `${point.x},${point.z}`,
+          (this.#providerSpawned.get(`${point.x},${point.z}`) ?? 0) + 1,
+        );
+        spawned++;
+      }
     }
+    this.#resourceSite++;
   }
 
   #createResource(
@@ -2295,6 +2419,7 @@ export class Match {
       position: { ...input.position },
       id,
       stage: 0,
+      healingRoll: Math.random(),
       expiresAt: this.#time + 180000,
       collectors: new Map(),
       claimantRarities: new Map(),
@@ -2451,14 +2576,20 @@ export class Match {
       ? deriveStats([...allModifiers, ...sizeHealth], level)
       : base;
     if (stats.shifty > 0) {
-      const bonus = Math.max(0, 100 - stats.size) / 2;
-      stats.dodge = Math.min(75, stats.dodge + bonus);
-      stats.damage += bonus;
+      const deficit = Math.max(0, 100 - stats.size);
+      stats.dodge = Math.min(
+        75,
+        stats.dodge + deficit * SOURCE_ACTIONS.shifty._dodgeMultiplierPerLevel,
+      );
+      stats.damage += deficit * SOURCE_ACTIONS.shifty._damageMultiplierPerLevel;
     }
     if (stats.robust > 0)
       stats.maximumHealth = Math.min(
         999,
-        stats.maximumHealth * Math.max(1, stats.size / 100),
+        stats.maximumHealth *
+          (1 +
+            Math.max(0, stats.size / 100 - 1) *
+              SOURCE_ACTIONS.robust.sizeToHealth),
       );
     return stats;
   }
@@ -2577,6 +2708,21 @@ export class Match {
     );
     if (!effect) return false;
     if (
+      id === 'tail-wag' &&
+      !player.runtimeEffects.configure(
+        {
+          kind: 'charm-aura',
+          id: 'upgrade:tail-wag',
+          trigger: 'interval',
+          intervalMs: SOURCE_GAMEPLAY.tailWag.intervalMs,
+          range: 6,
+          chanceMultiplier: value,
+        },
+        this.#time,
+      )
+    )
+      return false;
+    if (
       id === 'ruminant' &&
       !player.runtimeEffects.configure(
         {
@@ -2609,7 +2755,7 @@ export class Match {
         {
           kind: 'healing-growth',
           id: 'upgrade:fibroblasts',
-          healingRequired: 50,
+          healingRequired: details.healingInterval ?? 50,
           healthPerThreshold: value,
         },
         this.#time,
@@ -2967,13 +3113,24 @@ export class Match {
       });
   }
 
-  #triggerSpur(ownerId: string, player: Player, attacks: DamageEvent[]): void {
+  #triggerSpur(
+    ownerId: string,
+    player: Player,
+    attacks: DamageEvent[],
+    triggeringAbility: string,
+  ): void {
+    if (
+      triggeringAbility === 'spur' ||
+      ![
+        player.equipment.slots.primary,
+        player.equipment.slots.secondary,
+      ].includes('spur')
+    )
+      return;
     const rank = player.ranks.get('spur');
     const rarity = player.rarities.get('spur');
-    const value =
-      rank &&
-      rarity &&
-      this.#content.definition('spur')?.values[rarity]?.[rank - 1];
+    const learned = player.equipment.learned.get('spur');
+    const value = rank && rarity && learned && rollAbilityDamage(learned);
     if (!value) return;
     const origin = player.craft.body.translation();
     const hit = this.#world.castRay(
@@ -3038,11 +3195,17 @@ export class Match {
       );
     }
     if (event.abilityId === 'projectile-tongue') {
+      const rarity = owner.rarities.get('projectile-tongue') ?? '';
+      const rank = owner.ranks.get('projectile-tongue') ?? 1;
+      const stun =
+        this.#content.definition('projectile-tongue')?.detailValues?.stun?.[
+          rarity
+        ]?.[rank - 1] ?? 2;
       this.applyStatus(event.targetId, {
         kind: 'stun',
         ownerId: event.ownerId,
         magnitude: 0,
-        duration: 2000,
+        duration: stun * 1000,
       });
       if (owner.specializations.has('projectile-tongue-sticky'))
         this.startPull(event.ownerId, event.targetId, 1000, 12);
@@ -3312,14 +3475,15 @@ export class Match {
             (!Number.isFinite(event.vulnerability) || event.vulnerability < 0))
         )
           throw new Error('Invalid damage amount');
-        const hull = Math.min(
-          bot.health,
-          event.amount * (event.vulnerability ?? 1),
-        );
-        bot.health -= hull;
+        const health = { hull: bot.health, plating: bot.plating, level: 1 };
+        const result = applyDamage(health, { ...BASE_STATS }, event, false, 1);
+        const hull = result.hull;
+        const actual = hull + result.plating;
+        bot.health = health.hull;
+        bot.plating = health.plating;
         const attacker = event.ownerId && this.#players.get(event.ownerId);
         if (
-          hull > 0 &&
+          actual > 0 &&
           bot.health > 0 &&
           bot.kind === 'wild' &&
           event.origin === 'manual' &&
@@ -3338,16 +3502,10 @@ export class Match {
           const credited = this.#killCredit(event.ownerId).ownerId;
           const owner = credited && this.#players.get(credited);
           if (owner && credited !== event.targetId)
-            owner.matchStats.damageDealt += hull;
+            owner.matchStats.damageDealt += actual;
         }
-        const result = {
-          attempted: event.amount,
-          hull,
-          plating: 0,
-          dodged: false,
-        };
         if (
-          hull > 0 &&
+          actual > 0 &&
           event.abilityId === 'spur' &&
           event.ownerId &&
           this.#players.get(event.ownerId)?.specializations.has('spur-marking')
@@ -3357,8 +3515,8 @@ export class Match {
           tracked.add(event.targetId);
           this.#signalTargets.set(event.ownerId, tracked);
         }
-        this.#manualHitBenefits(event, hull, queue, events.length + 512);
-        if (bot.health > 0) this.#statusFromManualHit(event, hull);
+        this.#manualHitBenefits(event, actual, queue, events.length + 512);
+        if (bot.health > 0) this.#statusFromManualHit(event, actual);
         this.#damageLedger.push({ event: { ...event }, result });
         if (this.#damageLedger.length > 1024) this.#damageLedger.shift();
         if (event.impulse && hull > 0) {
@@ -3654,16 +3812,12 @@ export class Match {
         ownerId: null,
         kind: 'third-party' as const,
       };
-      if (bot.kind !== 'decoy')
+      const loot = enemyLoot(bot.loot);
+      for (const rarity of loot.rarities)
         this.#createResource({
           position,
-          source: 'meat',
-          rarity:
-            bot.elite || bot.tier >= 3
-              ? 'epic'
-              : bot.tier > 1
-                ? 'rare'
-                : 'common',
+          source: bot.biome === 'water' ? 'aquatic' : 'meat',
+          rarity,
           killerId: ownerId,
           ownerId: credit.ownerId,
           killerKind: credit.kind,
@@ -3696,13 +3850,8 @@ export class Match {
         this.#applyKillGrowth(credit.ownerId);
       if (owner && credit.ownerId && bot.kind !== 'decoy')
         this.#applyStonerGrowth(credit.ownerId, killingBlow);
-      if (owner && bot.kind !== 'decoy')
-        transact(
-          owner.wallet,
-          `bot:${botId}`,
-          'grant',
-          bot.tier * (bot.elite ? 2 : 1),
-        );
+      if (owner && loot.currency > 0)
+        transact(owner.wallet, `bot:${botId}`, 'grant', loot.currency);
       this.#deaths.push({ playerId: botId, ownerId });
       for (const other of this.#players.values())
         other.statuses = other.statuses.filter(
@@ -3922,6 +4071,48 @@ export class Match {
     return this.#damageLedger.splice(0);
   }
 
+  #describeAcquisition(player: Player, choice: OfferChoice) {
+    const description = this.#content.describe(
+      choice.id,
+      choice.rarity,
+      choice.rank,
+    );
+    const definition = this.#content.definition(choice.id);
+    const value = definition?.values[choice.rarity]?.[choice.rank - 1];
+    if (
+      !description ||
+      !definition ||
+      value === undefined ||
+      player.equipment.learned.has(choice.id)
+    )
+      return description;
+    const details: Record<string, number> = {};
+    for (const [name, tables] of Object.entries(
+      definition.detailValues ?? {},
+    )) {
+      const detail = tables[choice.rarity]?.[choice.rank - 1];
+      if (detail !== undefined) details[name] = detail;
+    }
+    const ability = upgradeEffect(
+      choice.id,
+      definition.effect,
+      choice.rarity,
+      choice.rank,
+      value,
+      details,
+    )?.ability;
+    if (!ability) return description;
+    const slot = acquisitionSlot(player.equipment, ability);
+    const current = player.equipment.slots[slot];
+    const previous = current
+      ? (this.#content.definition(current)?.name ?? current)
+      : null;
+    return {
+      ...description,
+      description: `${description.description} Equips in ${slot}${previous ? `, replacing ${previous}` : ''}.`,
+    };
+  }
+
   learnAbility(playerId: string, ability: Ability): boolean {
     const player = this.#players.get(playerId);
     if (
@@ -3932,36 +4123,11 @@ export class Match {
     )
       return false;
     player.equipment.learned.set(ability.id, { ...ability });
-    const slots: AbilitySlot[] =
-      ability.slotType === 'attack'
-        ? ['primary', 'secondary']
-        : [ability.slotType];
-    const empty = slots.find((slot) => player.equipment.slots[slot] === null);
-    if (empty) equip(player.equipment, empty, ability.id);
-    else if (this.#phase === 'running') {
-      const first = slots[0];
-      if (first)
-        player.selection.enqueue(
-          {
-            kind: 'equipment',
-            id: `choice-${++this.#promptId}`,
-            revision: 0,
-            abilityId: ability.id,
-            options: [
-              {
-                id: first,
-                label: `Equip in ${first}, replacing ${player.equipment.slots[first] ?? 'empty slot'}`,
-              },
-              ...slots.slice(1).map((slot) => ({
-                id: slot,
-                label: `Equip in ${slot}, replacing ${player.equipment.slots[slot] ?? 'empty slot'}`,
-              })),
-              { id: 'keep', label: 'Keep current equipment' },
-            ],
-          },
-          this.#time,
-        );
-    }
+    equip(
+      player.equipment,
+      acquisitionSlot(player.equipment, ability),
+      ability.id,
+    );
     return true;
   }
 
@@ -4135,23 +4301,112 @@ export class Match {
     return this.#players.get(playerId)?.runtimeEffects.storedProgress() ?? null;
   }
 
-  #attemptCharm(ownerId: string, bot: Bot, chanceOverride?: number): void {
+  #recordManualAttack(playerId: string, player: Player): void {
+    player.lastManualAttackAt = this.#time;
+    for (const bot of this.#bots.values()) {
+      if (bot.friendship?.playerId === playerId) bot.friendship = null;
+    }
+  }
+
+  #advanceFriendships(): void {
+    const tuning = SOURCE_GAMEPLAY.passiveCharm;
+    for (const bot of this.#bots.values()) {
+      if (
+        bot.friendship &&
+        (bot.friendship.until <= this.#time ||
+          this.#players.get(bot.friendship.playerId)?.life.kind !== 'alive')
+      )
+        bot.friendship = null;
+    }
+    for (const [id, player] of this.#players) {
+      if (this.#time < player.nextFriendshipAt) continue;
+      player.nextFriendshipAt =
+        this.#time +
+        tuning.reevaluateMs.x +
+        Math.random() * (tuning.reevaluateMs.y - tuning.reevaluateMs.x);
+      const allies = this.#ownedCount(id, 'charmed');
+      if (
+        !player.connected ||
+        player.life.kind !== 'alive' ||
+        player.life.activity !== 'playing' ||
+        player.shelter ||
+        allies >= this.#charmCapacity(id) ||
+        [...this.#bots.values()].some((bot) => bot.friendship?.playerId === id)
+      )
+        continue;
+      const position = player.craft.body.translation();
+      const candidates = [...this.#bots.values()].filter(
+        (bot) =>
+          bot.kind === 'wild' &&
+          !bot.friendship &&
+          bot.health > 0 &&
+          bot.friendshipReadyAt <= this.#time,
+      );
+      const start = Math.floor(Math.random() * candidates.length);
+      for (let index = 0; index < candidates.length; index++) {
+        const bot = candidates[(start + index) % candidates.length];
+        if (!bot) continue;
+        const point = bot.craft.body.translation();
+        const distance = Math.hypot(point.x - position.x, point.z - position.z);
+        if (distance > 20) continue;
+        // Curves are extracted; multiplying them is an estimated reconstruction.
+        const chance = Math.min(
+          1,
+          Math.max(
+            tuning.minimumChance,
+            sourceCurve(tuning.social, player.stats.social) *
+              sourceCurve(tuning.distance, distance) *
+              sourceCurve(
+                tuning.pacifism,
+                (this.#time - player.lastManualAttackAt) / 1000,
+              ) *
+              sourceCurve(tuning.allies, allies) *
+              sourceCurve(
+                tuning.pity,
+                (this.#time - player.lastFriendshipAt) / 1000,
+              ) *
+              (bot.elite ? tuning.alphaMultiplier : 1),
+          ),
+        );
+        if (Math.random() >= chance) continue;
+        bot.friendship = {
+          playerId: id,
+          until: this.#time + tuning.durationMs,
+        };
+        bot.friendshipReadyAt = this.#time + tuning.reofferMs;
+        player.lastFriendshipAt = this.#time;
+        if (bot.targetId === id) {
+          bot.targetId = null;
+          bot.windupUntil = null;
+        }
+        break;
+      }
+    }
+  }
+
+  #attemptCharm(
+    ownerId: string,
+    bot: Bot,
+    chanceOverride?: number,
+    acceptedFriendship = false,
+  ): void {
     const owner = this.#players.get(ownerId);
     if (!owner) return;
     bot.charmReadyAt = this.#time + 5000;
     const chance =
-      (chanceOverride ??
-        Math.min(0.9, Math.max(0.05, owner.stats.social / 10))) *
-      (bot.elite ? 0.5 : 1) *
+      (chanceOverride ?? this.#evolutionCharmChance(owner)) *
+      (bot.elite ? SOURCE_GAMEPLAY.evolutionCharm.alphaMultiplier : 1) *
       (owner.specializations.has('spur-marking') &&
       this.#signalTargets.get(ownerId)?.has(bot.id)
         ? 2
         : 1);
-    const success = randomInt(1_000_000) / 1_000_000 < chance;
+    const success =
+      acceptedFriendship || randomInt(1_000_000) / 1_000_000 < chance;
     owner.lastCharm = { success, at: this.#time };
     if (!success) return;
     bot.ownerId = ownerId;
     bot.kind = 'charmed';
+    bot.friendship = null;
     this.#provoked.delete(bot.id);
     for (const target of this.#players.values())
       target.statuses = target.statuses.filter(
@@ -4219,7 +4474,7 @@ export class Match {
     if (!owner) return;
     const enabled =
       owner.life.kind === 'alive' && this.canUseOwnedOffense(ownerId);
-    for (const range of owner.runtimeEffects.charmAuras(
+    for (const effect of owner.runtimeEffects.charmAuras(
       now,
       trigger,
       enabled,
@@ -4233,7 +4488,7 @@ export class Match {
       )
         break;
       const origin = owner.craft.body.translation();
-      const target = [...this.#bots.values()]
+      const targets = [...this.#bots.values()]
         .filter(
           (bot) =>
             bot.health > 0 &&
@@ -4243,7 +4498,8 @@ export class Match {
             Math.hypot(
               bot.craft.body.translation().x - origin.x,
               bot.craft.body.translation().z - origin.z,
-            ) <= range,
+            ) <=
+              effect.range * (1 + owner.stats.attackArea / 100),
         )
         .sort((a, b) => {
           const distance = (bot: Bot) =>
@@ -4252,9 +4508,32 @@ export class Match {
               bot.craft.body.translation().z - origin.z,
             );
           return distance(a) - distance(b) || a.id.localeCompare(b.id);
-        })[0];
-      if (target) this.#attemptCharm(ownerId, target);
+        });
+      for (const target of targets) {
+        if (
+          this.#ownedCount(ownerId, 'charmed') + reserved >=
+          this.#charmCapacity(ownerId)
+        )
+          break;
+        this.#attemptCharm(
+          ownerId,
+          target,
+          this.#evolutionCharmChance(owner) * (effect.chanceMultiplier ?? 1),
+        );
+      }
     }
+  }
+
+  #evolutionCharmChance(owner: Player): number {
+    const tuning = SOURCE_GAMEPLAY.evolutionCharm;
+    return Math.min(
+      1,
+      Math.max(
+        0,
+        tuning.initialChance *
+          (1 + sourceCurve(tuning.socialImpact, owner.stats.social)),
+      ),
+    );
   }
 
   #periodicOffense(now: number): DamageEvent[] {
@@ -4836,6 +5115,7 @@ export class Match {
             player.affinities,
             player.rarities,
             Math.random,
+            reward.level,
           );
           const first = choices[0];
           if (first) {
@@ -5017,7 +5297,6 @@ export class Match {
       );
     if (this.#shelterEvents.length > 4096) this.#shelterEvents.shift();
     player.shelter = null;
-    player.shelterReadyAt = this.#time + 15000;
     player.craft.collider.setCollisionGroups(COLLISION.craft);
     if (
       playerId &&
@@ -5044,8 +5323,7 @@ export class Match {
     if (player.life.kind !== 'alive') return false;
     if (intent.kind === 'ready') return this.#phase === 'lobby';
     if (this.#phase !== 'running') return false;
-    if (intent.kind === 'control')
-      return player.life.activity === 'playing' && !player.shelter;
+    if (intent.kind === 'control') return player.life.activity === 'playing';
     if (intent.kind === 'shelter') {
       if (player.shelter) return player.shelter.id === intent.targetId;
       const index = Number(intent.targetId.replace(/^shelter-/, ''));
@@ -5059,7 +5337,6 @@ export class Match {
       return (
         player.life.activity === 'playing' &&
         !this.#hasActiveStatus(player.statuses, 'stun') &&
-        this.#time >= player.shelterReadyAt &&
         !!site &&
         Math.hypot(site.x - pos.x, site.z - pos.z) <= 3 &&
         ![...this.#players.values()].some(
@@ -5071,18 +5348,16 @@ export class Match {
       const bot = this.#bots.get(intent.targetId);
       const pos = player.craft.body.translation();
       const target = bot?.craft.body.translation();
-      const capacity = Math.max(
-        0,
-        Math.min(12, Math.floor(player.stats.social / 5)) +
-          player.firmwareAllySlots,
-      );
+      const capacity = this.#charmCapacity(intent.playerId);
       return (
         player.life.activity === 'playing' &&
         !player.shelter &&
         !this.#hasActiveStatus(player.statuses, 'stun') &&
         !!bot &&
         bot.health > 0 &&
-        (bot.kind === 'wild' || bot.kind === 'charmed') &&
+        bot.kind === 'wild' &&
+        bot.friendship?.playerId === intent.playerId &&
+        bot.friendship.until > this.#time &&
         this.#time >= bot.charmReadyAt &&
         bot.ownerId !== intent.playerId &&
         !!target &&
@@ -5176,6 +5451,147 @@ export class Match {
     return false;
   }
 
+  #finishFirmware(playerId: string, targetId: string): boolean {
+    const player = this.#players.get(playerId);
+    const item = this.#firmware.take(targetId);
+    if (!player || !item) return false;
+    player.firmwareKnowledge.set(item.module.appearance, {
+      kind: 'identified',
+      effect: item.effect,
+    });
+    player.lastFirmware = { effect: item.effect, at: this.#time };
+    if (item.effect === 'yummy' || item.effect === 'delicious')
+      this.grantProgress(
+        playerId,
+        levelRequirement(
+          player.health.level,
+          player.stats.progressRequirement,
+        ) * (item.effect === 'yummy' ? 0.1 : 0.3),
+      );
+    if (item.effect === 'medicinal')
+      player.firmwareHealUntil = this.#time + 4000;
+    else if (item.effect === 'entertaining' || item.effect === 'amusing')
+      player.firmwareAllySlots++;
+    else if (item.effect === 'prolific') player.firmwareSpawnBonus += 10;
+    else if (item.effect === 'hallucinogenic')
+      player.firmwareDistortionUntil = this.#time + 10000;
+    else if (item.effect === 'deafening')
+      player.firmwareDeafUntil = this.#time + 10000;
+    else if (item.effect === 'mystic') {
+      const stat = RANDOM_POI_STATS[randomInt(RANDOM_POI_STATS.length)];
+      if (stat)
+        this.setModifiers(playerId, [
+          ...player.modifiers,
+          {
+            id: `firmware:${item.module.id}`,
+            stat,
+            add: Math.max(0.5, player.stats[stat] * 0.1),
+            multiplier: 1,
+          },
+        ]);
+    } else if (item.effect === 'spicy') {
+      player.thermal.heat = Math.min(100, player.thermal.heat + 30);
+      player.firmwareSpeedUntil = this.#time + 5000;
+    } else if (item.effect === 'refreshing') {
+      player.thermal.cold = Math.min(100, player.thermal.cold + 30);
+      for (const [id, ready] of player.equipment.readyAt)
+        player.equipment.readyAt.set(id, Math.max(this.#time, ready - 3000));
+    } else if (
+      item.effect === 'stinging' ||
+      item.effect === 'poisonous' ||
+      item.effect === 'lethal'
+    ) {
+      this.applyStatus(playerId, {
+        kind: 'corrosion',
+        ownerId: playerId,
+        magnitude:
+          item.effect === 'stinging'
+            ? 2
+            : item.effect === 'poisonous'
+              ? 5
+              : player.stats.maximumHealth * 0.2,
+        duration: 4000,
+      });
+    }
+    return true;
+  }
+
+  #advanceFirmware(deltaMs: number): void {
+    for (const player of this.#players.values()) {
+      if (player.life.kind !== 'alive' || player.shelter) continue;
+      const position = player.craft.body.translation();
+      for (const module of this.#firmware.visible()) {
+        if (
+          Math.hypot(
+            module.position.x - position.x,
+            module.position.z - position.z,
+          ) > FIRMWARE_SCAN_RANGE
+        )
+          continue;
+        const previous = player.firmwareKnowledge.get(module.appearance);
+        if (previous?.kind === 'identified') continue;
+        const effect = this.#firmware.effectFor(module.id);
+        const roll = previous?.roll ?? Math.random();
+        if (effect)
+          player.firmwareKnowledge.set(
+            module.appearance,
+            roll <
+              identificationChance(
+                player.stats.senses,
+                player.stats.firmwareIdentification,
+              )
+              ? { kind: 'identified', effect }
+              : { kind: 'failed', roll },
+          );
+      }
+    }
+    for (const [id, consumer] of this.#firmwareConsumers) {
+      const player = this.#players.get(consumer.playerId);
+      const module = this.#firmware.find(id);
+      const position = player?.craft.body.translation();
+      if (
+        !player ||
+        !module ||
+        !position ||
+        !player.connected ||
+        player.life.kind !== 'alive' ||
+        player.life.activity !== 'playing' ||
+        player.shelter ||
+        this.#hasActiveStatus(player.statuses, 'stun') ||
+        Math.hypot(
+          module.position.x - position.x,
+          module.position.z - position.z,
+        ) > FIRMWARE_SCAN_RANGE
+      ) {
+        this.#firmwareConsumers.delete(id);
+        continue;
+      }
+      consumer.elapsed += (deltaMs * player.stats.salvageSpeed) / 100;
+      if (
+        module.stage > 0 &&
+        consumer.elapsed < SOURCE_GAMEPLAY.mushroom.biteMs
+      )
+        continue;
+      consumer.elapsed = 0;
+      module.stage++;
+      this.grantProgress(
+        consumer.playerId,
+        SOURCE_GAMEPLAY.mushroom.staticXp +
+          (levelRequirement(
+            player.health.level,
+            player.stats.progressRequirement,
+          ) *
+            SOURCE_GAMEPLAY.mushroom.dynamicXp *
+            player.stats.vegetationProgress) /
+            100,
+      );
+      if (module.stage >= SOURCE_GAMEPLAY.mushroom.bites) {
+        this.#firmwareConsumers.delete(id);
+        this.#finishFirmware(consumer.playerId, id);
+      }
+    }
+  }
+
   consume(intent: Intent): boolean {
     if (!this.authorize(intent)) return false;
     if (intent.kind === 'spectate') {
@@ -5192,15 +5608,26 @@ export class Match {
       if (!player) return false;
       if (player.shelter) this.#leaveShelter(player);
       else {
+        const tuning = SOURCE_GAMEPLAY.burrow;
+        let decay = this.#shelterDecay.get(intent.targetId) ?? 0;
+        if (decay < tuning.maximumEntryPenaltyDecay)
+          decay = Math.min(1, decay + tuning.entryPenalty);
+        this.#shelterDecay.set(intent.targetId, decay);
         player.shelter = {
           id: intent.targetId,
           until:
             this.#time +
-            Math.max(
-              3000,
-              Math.min(15000, 500000 / Math.max(25, player.stats.size)),
-            ),
+            ((1 - decay) * tuning.lifetimeMs) /
+              Math.max(
+                0.01,
+                sourceCurve(tuning.sizeContribution, player.stats.size / 100),
+              ),
         };
+        const site =
+          this.#arena.shelters[
+            Number(intent.targetId.slice('shelter-'.length))
+          ];
+        if (site) player.craft.body.setTranslation({ ...site, y: 0.25 }, true);
         player.attack = null;
         player.dash = null;
         player.channel = null;
@@ -5225,7 +5652,7 @@ export class Match {
     if (intent.kind === 'charm') {
       const bot = this.#bots.get(intent.targetId);
       if (!bot) return false;
-      this.#attemptCharm(intent.playerId, bot);
+      this.#attemptCharm(intent.playerId, bot, 1, true);
       return true;
     }
     if (intent.kind === 'scan') {
@@ -5250,71 +5677,15 @@ export class Match {
     }
 
     if (intent.kind === 'use-firmware') {
-      const player = this.#players.get(intent.playerId);
-      const item = this.#firmware.take(intent.targetId);
-      if (!player || !item) return false;
-      player.firmwareKnowledge.set(item.module.appearance, {
-        kind: 'identified',
-        effect: item.effect,
+      const existing = this.#firmwareConsumers.get(intent.targetId);
+      if (existing) return existing.playerId === intent.playerId;
+      for (const [id, consumer] of this.#firmwareConsumers)
+        if (consumer.playerId === intent.playerId)
+          this.#firmwareConsumers.delete(id);
+      this.#firmwareConsumers.set(intent.targetId, {
+        playerId: intent.playerId,
+        elapsed: 0,
       });
-      player.lastFirmware = { effect: item.effect, at: this.#time };
-      this.grantProgress(
-        intent.playerId,
-        levelRequirement(
-          player.health.level,
-          player.stats.progressRequirement,
-        ) *
-          (item.effect === 'yummy'
-            ? 0.2
-            : item.effect === 'delicious'
-              ? 0.4
-              : 0.1),
-      );
-      if (item.effect === 'medicinal')
-        player.firmwareHealUntil = this.#time + 4000;
-      else if (item.effect === 'entertaining' || item.effect === 'amusing')
-        player.firmwareAllySlots++;
-      else if (item.effect === 'prolific') player.firmwareSpawnBonus += 10;
-      else if (item.effect === 'hallucinogenic')
-        player.firmwareDistortionUntil = this.#time + 10000;
-      else if (item.effect === 'deafening')
-        player.firmwareDeafUntil = this.#time + 10000;
-      else if (item.effect === 'mystic') {
-        const stat = RANDOM_POI_STATS[randomInt(RANDOM_POI_STATS.length)];
-        if (stat)
-          this.setModifiers(intent.playerId, [
-            ...player.modifiers,
-            {
-              id: `firmware:${item.module.id}`,
-              stat,
-              add: Math.max(0.5, player.stats[stat] * 0.1),
-              multiplier: 1,
-            },
-          ]);
-      } else if (item.effect === 'spicy') {
-        player.thermal.heat = Math.min(100, player.thermal.heat + 30);
-        player.firmwareSpeedUntil = this.#time + 5000;
-      } else if (item.effect === 'refreshing') {
-        player.thermal.cold = Math.min(100, player.thermal.cold + 30);
-        for (const [id, ready] of player.equipment.readyAt)
-          player.equipment.readyAt.set(id, Math.max(this.#time, ready - 3000));
-      } else if (
-        item.effect === 'stinging' ||
-        item.effect === 'poisonous' ||
-        item.effect === 'lethal'
-      ) {
-        this.applyStatus(intent.playerId, {
-          kind: 'corrosion',
-          ownerId: intent.playerId,
-          magnitude:
-            item.effect === 'stinging'
-              ? 2
-              : item.effect === 'poisonous'
-                ? 5
-                : player.stats.maximumHealth * 0.2,
-          duration: 4000,
-        });
-      }
       return true;
     }
 
@@ -5363,6 +5734,7 @@ export class Match {
         player.affinities,
         player.rarities,
         Math.random,
+        player.activeReward?.level ?? player.health.level,
       );
       const first = choices[0];
       if (!first) return false;
@@ -5498,44 +5870,88 @@ export class Match {
   ): void {
     const player = this.#players.get(playerId);
     if (
-      this.#phase === 'running' &&
-      player?.connected &&
-      player.life.kind === 'alive' &&
-      player.life.activity === 'playing' &&
-      !player.shelter
-    ) {
-      const pressedInteract =
-        (intent.buttons & CONTROL_BUTTON.interact) !== 0 &&
-        ((player.control?.intent.buttons ?? 0) & CONTROL_BUTTON.interact) === 0;
-      player.control = { intent, expiresAt: this.#time + CONTROL_EXPIRY_MS };
-      player.aim = intent.aim;
-      if (pressedInteract) {
-        const position = player.craft.body.translation();
-        const nearest = this.#pointsOfInterest
-          .filter(
-            (point) =>
-              point.claim.kind === 'available' &&
-              poiDistance(point, position) <= POI_INTERACTION_RANGE,
-          )
-          .sort(
-            (a, b) => poiDistance(a, position) - poiDistance(b, position),
-          )[0];
-        if (nearest) this.#openPointOfInterest(playerId, nearest.id);
-      }
+      this.#phase !== 'running' ||
+      !player?.connected ||
+      player.life.kind !== 'alive' ||
+      player.life.activity !== 'playing'
+    )
+      return;
+    const held = (intent.buttons & CONTROL_BUTTON.interact) !== 0;
+    const pressedInteract = held && !player.interactHeld;
+    player.interactHeld = held;
+    if (player.shelter) {
+      if (pressedInteract) this.#leaveShelter(player);
+      return;
+    }
+    player.control = { intent, expiresAt: this.#time + CONTROL_EXPIRY_MS };
+    player.aim = intent.aim;
+    if (!pressedInteract) return;
+    const position = player.craft.body.translation();
+    const candidates: {
+      kind: 'shelter' | 'charm' | 'use-firmware' | 'interaction';
+      targetId: string;
+      distance: number;
+    }[] = [];
+    for (const [index, point] of this.#arena.shelters.entries())
+      candidates.push({
+        kind: 'shelter',
+        targetId: `shelter-${index}`,
+        distance: Math.hypot(point.x - position.x, point.z - position.z),
+      });
+    for (const point of this.#pointsOfInterest)
+      candidates.push({
+        kind: 'interaction',
+        targetId: point.id,
+        distance: poiDistance(point, position),
+      });
+    for (const point of this.#firmware.visible())
+      candidates.push({
+        kind: 'use-firmware',
+        targetId: point.id,
+        distance: Math.hypot(
+          point.position.x - position.x,
+          point.position.z - position.z,
+        ),
+      });
+    for (const bot of this.#bots.values()) {
+      if (bot.friendship?.playerId !== playerId) continue;
+      const point = bot.craft.body.translation();
+      candidates.push({
+        kind: 'charm',
+        targetId: bot.id,
+        distance: Math.hypot(point.x - position.x, point.z - position.z),
+      });
+    }
+    for (const candidate of candidates.sort(
+      (a, b) => a.distance - b.distance,
+    )) {
+      if (candidate.distance > Math.max(3, FIRMWARE_SCAN_RANGE)) break;
+      const interaction = {
+        ...intent,
+        kind: candidate.kind,
+        targetId: candidate.targetId,
+      };
+      if (this.consume(interaction)) break;
     }
   }
 
-  #resolveOutcome(): void {
+  #resolveOutcome(finishSurvivor = false): void {
     if (this.#phase !== 'running' || this.#result) return;
     const survivors = [...this.#players].filter(
       ([, player]) => player.life.kind === 'alive',
     );
-    if (survivors.length > 1) return;
-    const winner = survivors[0];
+    if (survivors.length > 1 || (survivors.length === 1 && !finishSurvivor))
+      return;
+    const lastGroup = this.#eliminationGroups.at(-1);
+    const winnerId =
+      survivors[0]?.[0] ?? (lastGroup?.length === 1 ? lastGroup[0] : undefined);
     this.#result = {
-      outcome: winner
-        ? { kind: 'winner', playerId: winner[0] }
-        : { kind: 'draw' },
+      outcome:
+        this.#players.size === 1
+          ? { kind: 'run-ended' }
+          : winnerId
+            ? { kind: 'winner', playerId: winnerId }
+            : { kind: 'draw' },
       durationMs: this.#wallTime,
       eliminationGroups: this.#eliminationGroups.map((group) => [...group]),
       players: [...this.#players].map(([id, player]) => ({
@@ -5576,9 +5992,13 @@ export class Match {
           targetId: id,
           ownerId: null,
           channel: 'boundary',
-          amount: collapsed
-            ? player.health.hull
-            : (config.boundaryDamagePerSecond * deltaMs) / 1000,
+          amount:
+            (config.boundaryDamagePerSecond *
+              (collapsed
+                ? 1 + (this.#wallTime - config.collapseAtMs) / 30_000
+                : 1) *
+              deltaMs) /
+            1000,
           depth: 0,
         });
     }
@@ -5603,8 +6023,16 @@ export class Match {
           const candidates: Point[] = [];
           if (arenaPointClear(this.#arena.obstacles, projected, 0.6))
             candidates.push(projected);
-          for (let x = -28; x <= 28; x += 2)
-            for (let z = -28; z <= 28; z += 2)
+          for (
+            let x = Math.max(-MAP_RULES.halfExtent + 2, projected.x - 12);
+            x <= Math.min(MAP_RULES.halfExtent - 2, projected.x + 12);
+            x += 2
+          )
+            for (
+              let z = Math.max(-MAP_RULES.halfExtent + 2, projected.z - 12);
+              z <= Math.min(MAP_RULES.halfExtent - 2, projected.z + 12);
+              z += 2
+            )
               if (
                 Math.hypot(x, z) <= limit &&
                 arenaPointClear(this.#arena.obstacles, { x, z })
@@ -5684,7 +6112,8 @@ export class Match {
       }
     }
     if (!collapsed && this.#wallTime >= this.#nextMeteorAt) {
-      const distance = Math.sqrt(Math.random()) * Math.min(30, radius);
+      const distance =
+        Math.sqrt(Math.random()) * Math.max(0, radius - config.meteorRadius);
       const angle = Math.random() * Math.PI * 2;
       this.#meteors.push({
         id: ++this.#meteorId,
@@ -5723,14 +6152,29 @@ export class Match {
     this.#advanceTrails(this.#time);
     for (const [id, player] of this.#players) {
       if (!player.shelter || player.life.kind !== 'alive') continue;
-      const shelteredMs = Math.max(
-        0,
-        Math.min(deltaMs, player.shelter.until - this.#time),
+      const tuning = SOURCE_GAMEPLAY.burrow;
+      const contribution = Math.max(
+        0.01,
+        sourceCurve(tuning.sizeContribution, player.stats.size / 100),
       );
+      const previousDecay = this.#shelterDecay.get(player.shelter.id) ?? 0;
+      const remainingMs =
+        ((1 - previousDecay) * tuning.lifetimeMs) / contribution;
+      player.shelter.until = this.#time + remainingMs;
+      const shelteredMs = Math.max(0, Math.min(deltaMs, remainingMs));
+      const decay = Math.min(
+        1,
+        previousDecay + (shelteredMs / tuning.lifetimeMs) * contribution,
+      );
+      this.#shelterDecay.set(player.shelter.id, decay);
       const progress = player.runtimeEffects.shelterProgress(shelteredMs);
       if (progress > 0) this.grantProgress(id, progress);
-      if (this.#time + deltaMs >= player.shelter.until)
+      if (this.#time + deltaMs >= player.shelter.until) {
+        this.#closedShelters.add(
+          Number(player.shelter.id.slice('shelter-'.length)),
+        );
         this.#leaveShelter(player);
+      }
     }
     if (this.#wallAnchor === null) this.#wallTime += deltaMs;
     if (
@@ -5746,13 +6190,21 @@ export class Match {
       if (player.life.kind === 'alive') this.#resizeCraft(player);
     this.#advanceOwnedEntities(deltaMs);
     this.#replenishBots();
+    this.#advanceFriendships();
+    this.#advanceFirmware(deltaMs);
     if (this.#time >= this.#nextFirmwareSpawn) {
       const bonus = [...this.#players.values()]
         .filter((player) => player.life.kind === 'alive')
         .reduce((sum, player) => sum + player.firmwareSpawnBonus, 0);
       this.#nextFirmwareSpawn = this.#time + 30_000 / (1 + bonus / 100);
-      const positions = this.#arena.shelters.filter(
-        (_, index) => !this.#closedShelters.has(index),
+      const positions = this.#arena.resources.filter((site) =>
+        [...this.#players.values()].some((player) => {
+          const point = player.craft.body.translation();
+          return (
+            player.life.kind === 'alive' &&
+            Math.hypot(point.x - site.x, point.z - site.z) < 32
+          );
+        }),
       );
       const site = positions[this.#firmwareSite++ % positions.length];
       if (
@@ -5958,9 +6410,36 @@ export class Match {
             1,
             Math.max(0, (this.#time - charge.startedAt) / ability.chargeMs),
           );
+          const rarity = player.rarities.get(ability.id) ?? 'common';
+          const rank = player.ranks.get(ability.id) ?? 1;
+          const multiplier = sourceRange(
+            SOURCE_GAMEPLAY.stoner.multipliers,
+            rarity,
+            rank,
+          );
+          const distance = sourceRange(
+            SOURCE_GAMEPLAY.stoner.distances,
+            rarity,
+            rank,
+          );
+          const sourceThrow =
+            ability.id === 'stoner' && multiplier && distance
+              ? { multiplier, distance }
+              : null;
+          const coefficient = sourceThrow
+            ? rollAbilityDamage(ability) *
+              (sourceThrow.multiplier.x +
+                (sourceThrow.multiplier.y - sourceThrow.multiplier.x) *
+                  sourceCurve(SOURCE_GAMEPLAY.stoner.damageCharge, fraction))
+            : ability.damage +
+              (ability.chargedDamage - ability.damage) * fraction;
+          const travelDistance = sourceThrow
+            ? sourceThrow.distance.x +
+              (sourceThrow.distance.y - sourceThrow.distance.x) *
+                sourceCurve(SOURCE_GAMEPLAY.stoner.distanceCharge, fraction)
+            : 8 + 20.8 * fraction;
           const damage =
-            ((ability.damage +
-              (ability.chargedDamage - ability.damage) * fraction) *
+            (coefficient *
               Math.min(player.stats.physical, player.stats.ability) *
               player.stats.damage) /
             100;
@@ -5970,7 +6449,7 @@ export class Match {
               id,
               player.aim,
               16,
-              500 + 1300 * fraction,
+              (travelDistance / 16) * 1000,
               damage,
               3,
               ability.id,
@@ -5983,12 +6462,13 @@ export class Match {
                 ammo.nextAt = this.#time + ability.ammunition.reloadMs;
               ammo.charges--;
             }
-            this.#triggerSpur(id, player, attacks);
+            this.#recordManualAttack(id, player);
+            this.#triggerSpur(id, player, attacks, ability.id);
             player.equipment.readyAt.set(
               ability.id,
               this.#time + (ability.cooldown * player.stats.cooldowns) / 100,
             );
-            player.attackReadyAt = this.#time + 200;
+            player.attackReadyAt = this.#time + (ability.recoveryMs ?? 200);
           }
           player.throwCharge = null;
         }
@@ -6037,6 +6517,7 @@ export class Match {
                 ? 0.5
                 : 1),
           );
+          const attackDamage = rollAbilityDamage(ability);
           if (
             ability.action === 'strike' ||
             ability.action === 'physical-strike' ||
@@ -6048,7 +6529,6 @@ export class Match {
             player.attack = {
               abilityId: ability.id,
               hitAt: this.#time + 200,
-              readyAt: this.#time + Math.max(200, cooldown),
               aim: player.aim,
               bypassPlating:
                 ability.bypassPlating ||
@@ -6058,14 +6538,18 @@ export class Match {
               range: ability.range,
               damage:
                 ability.action === 'body-slam'
-                  ? ((ability.damage * player.stats.physical +
+                  ? ((attackDamage * player.stats.physical +
                       (ability.healthScale ?? 0) * player.stats.maximumHealth) *
                       player.stats.damage) /
                     100
                   : ability.action === 'physical-strike'
-                    ? (ability.damage *
+                    ? (attackDamage *
                         player.stats.physical *
                         player.stats.damage *
+                        (ability.id === 'spur' &&
+                        player.specializations.has('spur-primal')
+                          ? 1 + player.wallet.balance / 100
+                          : 1) *
                         (ability.id === 'jaws' &&
                         player.specializations.has('jaws-neck-bite')
                           ? 0.5
@@ -6077,26 +6561,26 @@ export class Match {
                           : 1)) /
                       100
                     : ability.action === 'ability-strike'
-                      ? (ability.damage *
+                      ? (attackDamage *
                           player.stats.ability *
                           player.stats.damage) /
                         100
                       : ability.action === 'social-strike'
-                        ? (ability.damage *
+                        ? (attackDamage *
                             player.stats.social *
                             player.stats.damage) /
                           100
                         : ability.action === 'hybrid-strike'
-                          ? (ability.damage *
+                          ? (attackDamage *
                               Math.min(
                                 player.stats.physical,
                                 player.stats.ability,
                               ) *
                               player.stats.damage) /
                             100
-                          : ability.damage,
+                          : attackDamage,
             };
-            player.attackReadyAt = player.attack.readyAt;
+            player.attackReadyAt = this.#time + (ability.recoveryMs ?? 200);
           } else if (ability.action === 'projectile') {
             const ammunition = availableAmmunition(
               player.equipment,
@@ -6105,6 +6589,7 @@ export class Match {
             );
             if (ammunition && ammunition.charges === 0) continue;
             if (ability.chargeMs !== undefined) {
+              this.#recordManualAttack(id, player);
               player.throwCharge = {
                 abilityId: ability.id,
                 button,
@@ -6129,12 +6614,12 @@ export class Match {
                         : 16)) *
                       1000,
                 ability.damageBasis === 'hybrid'
-                  ? (ability.damage *
+                  ? (attackDamage *
                       Math.min(player.stats.physical, player.stats.ability) *
                       player.stats.damage) /
                       100
                   : ability.damageBasis === 'physical'
-                    ? ((ability.damage *
+                    ? ((attackDamage *
                         player.stats.physical *
                         player.stats.damage) /
                         100) *
@@ -6143,11 +6628,11 @@ export class Match {
                         ? player.stats.salvageSpeed / 100
                         : 1)
                     : ability.damageBasis === 'ability'
-                      ? (ability.damage *
+                      ? (attackDamage *
                           player.stats.ability *
                           player.stats.damage) /
                         100
-                      : ability.damage,
+                      : attackDamage,
                 3,
                 ability.id,
                 ability.bypassPlating,
@@ -6160,7 +6645,7 @@ export class Match {
                 ammunition.nextAt = this.#time + ability.ammunition.reloadMs;
               ammunition.charges--;
             }
-            player.attackReadyAt = this.#time + 200;
+            player.attackReadyAt = this.#time + (ability.recoveryMs ?? 200);
           } else if (ability.action === 'guard') {
             player.guard = {
               until: this.#time + ability.durationMs,
@@ -6343,7 +6828,10 @@ export class Match {
                   x: start.x + (direction.x * distance * step) / 40,
                   z: start.z + (direction.z * distance * step) / 40,
                 };
-                if (Math.abs(candidate.x) >= 29 || Math.abs(candidate.z) >= 29)
+                if (
+                  Math.abs(candidate.x) >= MAP_RULES.halfExtent - 1 ||
+                  Math.abs(candidate.z) >= MAP_RULES.halfExtent - 1
+                )
                   break;
                 if (
                   arenaPointClear(
@@ -6396,8 +6884,10 @@ export class Match {
               this.#time + (ability.invulnerabilityMs ?? 0);
             player.attackReadyAt = this.#time + 200;
           }
-          if (slot === 'primary' || slot === 'secondary')
-            this.#triggerSpur(id, player, attacks);
+          if (slot === 'primary' || slot === 'secondary') {
+            this.#recordManualAttack(id, player);
+            this.#triggerSpur(id, player, attacks, ability.id);
+          }
           player.equipment.readyAt.set(ability.id, this.#time + cooldown);
           break;
         }
@@ -6405,19 +6895,34 @@ export class Match {
         !stunned &&
         !player.attack &&
         !player.equipment.slots.primary &&
+        this.#time >= (player.equipment.readyAt.get('bop') ?? 0) &&
         this.#time >= player.attackReadyAt &&
         ((player.control?.intent.buttons ?? 0) & CONTROL_BUTTON.primary) !== 0
       ) {
         player.attack = {
           abilityId: 'bop',
           hitAt: this.#time + 200,
-          readyAt:
-            this.#time + Math.max(200, (800 * player.stats.cooldowns) / 100),
           aim: player.aim,
-          damage: (0.7 * player.stats.physical * player.stats.damage) / 100,
+          damage:
+            ((SOURCE_ACTIONS.bop.damageRange.x +
+              Math.random() *
+                (SOURCE_ACTIONS.bop.damageRange.y -
+                  SOURCE_ACTIONS.bop.damageRange.x)) *
+              player.stats.physical *
+              player.stats.damage) /
+            100,
         };
-        player.attackReadyAt = player.attack.readyAt;
-        this.#triggerSpur(id, player, attacks);
+        player.attackReadyAt = this.#time + 200;
+        player.equipment.readyAt.set(
+          'bop',
+          this.#time +
+            Math.max(
+              SOURCE_ACTIONS.bop.recoveryMs,
+              (SOURCE_ACTIONS.bop.cooldownMs * player.stats.cooldowns) / 100,
+            ),
+        );
+        this.#recordManualAttack(id, player);
+        this.#triggerSpur(id, player, attacks, 'bop');
       }
       if (player.dash?.charge && this.#time < player.dash.until) {
         const origin = player.craft.body.translation();
@@ -6803,6 +7308,16 @@ export class Match {
       ? this.#players.get(projectionId)
       : undefined;
     const origin = projection?.craft.body.translation();
+    const terrainCenter = origin
+      ? {
+          x:
+            Math.round(origin.x / MAP_RULES.regionWidth) *
+            MAP_RULES.regionWidth,
+          z:
+            Math.round(origin.z / MAP_RULES.regionDepth) *
+            MAP_RULES.regionDepth,
+        }
+      : null;
     const clock = this.#worldClock.view();
     const weather = regionalWeather(this.#time, clock);
     const localWeather = origin
@@ -6862,7 +7377,26 @@ export class Match {
       roundId: this.#roundId,
       phase: this.#phase,
       result: this.#result ? structuredClone(this.#result) : null,
-      arena: { terrain: this.#arena.terrain, obstacles: this.#arena.obstacles },
+      arena: {
+        terrain: terrainCenter
+          ? this.#arena.terrain.filter(
+              (region) =>
+                Math.abs(region.x - terrainCenter.x) <=
+                  region.width / 2 + MAP_RULES.viewDistance &&
+                Math.abs(region.z - terrainCenter.z) <=
+                  region.depth / 2 + MAP_RULES.viewDistance,
+            )
+          : [],
+        obstacles: terrainCenter
+          ? this.#arena.obstacles.filter(
+              (box) =>
+                Math.abs(box.x - terrainCenter.x) <=
+                  box.width / 2 + MAP_RULES.viewDistance &&
+                Math.abs(box.z - terrainCenter.z) <=
+                  box.depth / 2 + MAP_RULES.viewDistance,
+            )
+          : [],
+      },
       worldClock: clock,
       weather,
       thermal: projection ? { ...projection.thermal } : null,
@@ -6898,7 +7432,7 @@ export class Match {
       loadingError: this.#loadingError,
       loadingRevision: this.#loadingRevision,
       equipment: {
-        basicReadyAt: viewer.attackReadyAt,
+        basicReadyAt: viewer.equipment.readyAt.get('bop') ?? 0,
         slots: { ...viewer.equipment.slots },
         learned: [...viewer.equipment.learned.values()].map((ability) => {
           const ammo =
@@ -6980,11 +7514,17 @@ export class Match {
           health: bot.health,
           maxHealth: bot.maxHealth,
           attacking: bot.windupUntil !== null,
+          friendshipUntil:
+            bot.friendship?.playerId === viewerId ? bot.friendship.until : null,
         })),
       shelters: this.#arena.shelters
         .map((position, index) => ({
           id: `shelter-${index}`,
           position,
+          remainingFraction: Math.max(
+            0,
+            1 - (this.#shelterDecay.get(`shelter-${index}`) ?? 0),
+          ),
           occupied: [...this.#players.values()].some(
             (player) => player.shelter?.id === `shelter-${index}`,
           ),
@@ -7037,13 +7577,17 @@ export class Match {
           (resource) =>
             resource.storedBy === null && visibleAt(resource.position),
         )
-        .map(({ id, position, source, rarity, stage, repair }) => ({
-          id,
-          position: { ...position },
-          source,
-          rarity,
-          stage,
-          repair,
+        .map((resource) => ({
+          id: resource.id,
+          position: { ...resource.position },
+          source: resource.source,
+          rarity: resource.rarity,
+          stage: resource.stage,
+          repair: healingFood(
+            resource,
+            resource.rarity,
+            viewer.stats.repairFoodChance,
+          ),
         })),
       projectiles: this.#projectiles
         .filter(
@@ -7074,19 +7618,14 @@ export class Match {
           state.kind === 'protected' && state.prompt.kind === 'poi'
             ? [...viewer.poiChoices].flatMap(([id, choice]) => {
                 if (!choice.upgrade) return [];
-                const description = this.#content.describe(
-                  choice.upgrade.id,
-                  choice.upgrade.rarity,
-                  choice.upgrade.rank,
+                const description = this.#describeAcquisition(
+                  viewer,
+                  choice.upgrade,
                 );
                 return description ? [{ ...description, id }] : [];
               })
             : viewer.generatedChoices.flatMap((choice) => {
-                const description = this.#content.describe(
-                  choice.id,
-                  choice.rarity,
-                  choice.rank,
-                );
+                const description = this.#describeAcquisition(viewer, choice);
                 return description ? [description] : [];
               });
         return {

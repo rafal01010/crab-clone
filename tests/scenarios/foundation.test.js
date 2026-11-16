@@ -18,6 +18,52 @@ function startMatch(match, ids) {
   assert.equal(match.advance(3000), true);
 }
 
+test('one to four ready players can start, and solo play continues until elimination', () => {
+  for (let count = 1; count <= 4; count++) {
+    const match = new Match(
+      `lobby-${count}`,
+      new RAPIER.World({ x: 0, y: 0, z: 0 }),
+    );
+    try {
+      assert.equal(match.accept({ kind: 'start' }), false);
+      const ids = Array.from({ length: count }, (_, index) => `p${index}`);
+      for (const playerId of ids)
+        assert.ok(match.accept({ kind: 'join', playerId }));
+      assert.equal(match.accept({ kind: 'start' }), false);
+      startMatch(match, ids);
+      assert.equal(match.view(ids[0]).phase, 'running');
+      assert.ok(match.advance(100));
+      assert.equal(match.view(ids[0]).phase, 'running');
+      if (count > 1)
+        assert.equal(
+          match.accept({ kind: 'finish-survivor', playerId: ids[0] }),
+          false,
+        );
+      if (count === 1) {
+        assert.ok(match.accept({ kind: 'eliminate', playerId: ids[0] }));
+        assert.ok(match.advance(100));
+        assert.equal(match.view(ids[0]).phase, 'finished');
+      } else {
+        for (const playerId of ids.slice(1))
+          assert.ok(match.accept({ kind: 'eliminate', playerId }));
+        assert.ok(match.advance(100));
+        assert.equal(match.view(ids[0]).phase, 'running');
+        assert.equal(
+          match.accept({ kind: 'finish-survivor', playerId: ids[1] }),
+          false,
+        );
+        assert.ok(match.accept({ kind: 'finish-survivor', playerId: ids[0] }));
+        assert.deepEqual(match.view(ids[0]).result.outcome, {
+          kind: 'winner',
+          playerId: ids[0],
+        });
+      }
+    } finally {
+      match.dispose();
+    }
+  }
+});
+
 test('lifecycle rejects invalid transitions and preserves connection separately from life', () => {
   const match = new Match('seed-1', new RAPIER.World({ x: 0, y: 0, z: 0 }));
   try {

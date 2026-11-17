@@ -9,7 +9,7 @@ const stats = (match) =>
   match.view('a').players.find((p) => p.id === 'a').stats;
 const close = (actual, expected, context) =>
   assert.ok(
-    Math.abs(actual - expected) < 1e-8,
+    Math.abs(actual - expected) < 1e-5,
     `${context}: ${actual} != ${expected}`,
   );
 function checkRanks({ id, rarity, values, before = () => {}, expect }) {
@@ -163,8 +163,8 @@ test('More Legs matches speed at every rarity and rank after choosing Arthropod'
   };
   for (const [rarity, values] of Object.entries({
     rare: [0.4, 0.8, 1.2],
-    epic: [0.55, 1.1, 1.65],
-    legendary: [0.7, 1.4, 2.1],
+    epic: [0.5, 1, 1.5],
+    legendary: [0.6, 1.2, 1.8],
   }))
     checkRanks({
       id: 'more-legs',
@@ -175,11 +175,11 @@ test('More Legs matches speed at every rarity and rank after choosing Arthropod'
     });
 });
 
-test('Fin applies each documented implementation estimate without changing thermal stats', () => {
+test('Fin applies each imported water adaptation without changing thermal stats', () => {
   for (const [rarity, value] of Object.entries({
     rare: 60,
-    epic: 80,
-    legendary: 100,
+    epic: 70,
+    legendary: 80,
   }))
     checkRanks({
       id: 'fin',

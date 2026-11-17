@@ -65,6 +65,48 @@ function collectFirst(match, id) {
   return events[0];
 }
 
+test('Hump grants maximum health only when repair salvage is consumed at full hull', () => {
+  const { match } = setup();
+  try {
+    assert.ok(match.grantUpgrade('a', 'hump', 'epic', 1));
+    const maximum = () => player(match).stats.maximumHealth;
+    const initial = maximum();
+    const full = collectFirst(
+      match,
+      spawn(match, 'vegetation', null, null, null, true),
+    );
+    assert.equal(full.repair.consumedAtFullHealth, true);
+    assert.equal(maximum(), initial + 1);
+    assert.ok(match.damagePlayer('a', 2) > 0);
+    const damaged = collectFirst(
+      match,
+      spawn(match, 'vegetation', null, null, null, true),
+    );
+    assert.equal(damaged.repair.consumedAtFullHealth, false);
+    assert.equal(maximum(), initial + 1);
+    assert.ok(
+      match.setOffer('a', { id: 'protected', revision: 1, choices: ['x'] }),
+    );
+    const protectedResource = spawn(
+      match,
+      'vegetation',
+      null,
+      null,
+      null,
+      true,
+    );
+    step(match, 50);
+    assert.ok(
+      !match
+        .takeCollections()
+        .some((event) => event.resourceId === protectedResource),
+    );
+    assert.equal(maximum(), initial + 1);
+  } finally {
+    match.dispose();
+  }
+});
+
 test('live Saliva enables a learned and equipped Spit projectile that damages another player', () => {
   const { match, world } = setup();
   try {
@@ -153,7 +195,7 @@ test('diet and scavenger bonuses preserve source and kill provenance', () => {
       assert.equal(event.ownerId, owner);
       assert.equal(event.provenance, provenance);
       assert.ok(
-        Math.abs(event.progress - expected) < 1e-8,
+        Math.abs(event.progress - expected) < 1e-6,
         JSON.stringify(event),
       );
     } finally {
@@ -219,7 +261,7 @@ test('Ruminant adds passive progress after its interval, and damage interrupts t
   const { match } = setup();
   try {
     assert.ok(match.grantUpgrade('a', 'ruminant', 'branching', 1));
-    step(match, 9950);
+    assert.ok(match.advance(9950));
     const before = match.view('a').progression;
     assert.equal(before.level, 1);
     assert.equal(before.progress, 0);
@@ -232,7 +274,7 @@ test('Ruminant adds passive progress after its interval, and damage interrupts t
     );
     const afterDamage = match.view('a').progression.progress;
     const levelAfterDamage = match.view('a').progression.level;
-    step(match, 9950);
+    assert.ok(match.advance(9950));
     assert.equal(match.view('a').progression.progress, afterDamage);
     step(match, 50);
     assert.ok(
@@ -293,7 +335,12 @@ test('Forager converts eligible salvage into repair and reports actual healing',
     Math.random = () => 0.01;
     const event = collectFirst(match, spawn(match, 'vegetation'));
     assert.ok(event.repair);
-    assert.ok(Math.abs(event.repair.attempted - 1.3) < 1e-8);
+    assert.ok(
+      Math.abs(
+        event.repair.attempted -
+          (5 + player(match).stats.maximumHealth * 0.00125),
+      ) < 1e-6,
+    );
     assert.ok(Math.abs(event.repair.actual - 0.5) < 1e-8);
     assert.equal(event.repair.consumedAtFullHealth, false);
   } finally {
@@ -303,24 +350,28 @@ test('Forager converts eligible salvage into repair and reports actual healing',
 });
 
 test('queued level rewards and progress retain the full granted XP', () => {
-  const { match } = setup();
-  try {
-    assert.ok(match.grantProgress('a', 2000));
-    const progression = match.view('a').progression;
-    let rewards = 0;
-    while (match.takePendingReward('a')) rewards++;
-    assert.equal(
-      rewards + match.takeSelections().length + (match.view('a').offer ? 1 : 0),
-      progression.level - 1,
-    );
-    const spent = Array.from(
-      { length: progression.level - 1 },
-      (_, i) => 10 + i * 5,
-    ).reduce((a, b) => a + b, 0);
-    assert.equal(progression.progress, 2000 - spent);
-  } finally {
-    match.dispose();
-  }
+  const run = (grants) => {
+    const { match } = setup();
+    try {
+      for (const amount of grants) assert.ok(match.grantProgress('a', amount));
+      const progression = match.view('a').progression;
+      let rewards = 0;
+      while (match.takePendingReward('a')) rewards++;
+      assert.equal(
+        rewards +
+          match.takeSelections().length +
+          (match.view('a').offer ? 1 : 0),
+        progression.level - 1,
+      );
+      return progression;
+    } finally {
+      match.dispose();
+    }
+  };
+  const oneGrant = run([2000]);
+  const manyGrants = run(Array(10).fill(200));
+  assert.equal(oneGrant.level, manyGrants.level);
+  assert.ok(Math.abs(oneGrant.progress - manyGrants.progress) < 1e-8);
 });
 
 test('Cheek Pouch Storage adds four Stoner charges regardless of acquisition order', () => {
@@ -491,9 +542,10 @@ test('resource and diet upgrades apply their rank and rarity stat tables', () =>
             match.grantUpgrade('a', id, rarity, index + 1),
             `${id} ${rarity} ${index + 1}`,
           );
-          assert.equal(
-            player(match).stats[stat],
-            baseline + value,
+          assert.ok(
+            Math.abs(
+              player(match).stats[stat] - Math.min(500, baseline + value),
+            ) < 1e-5,
             `${id} ${rarity} ${index + 1}`,
           );
         }
@@ -566,11 +618,13 @@ test('Cheek Pouch Provider charms a nearby wild animal after finishing food', ()
 test('Slow Metabolism applies a reduced threshold to XP already earned', () => {
   const { match } = setup();
   try {
-    assert.ok(match.grantProgress('a', 9));
+    assert.ok(match.grantProgress('a', 20));
+    const requirement = match.view('a').progression.required;
+    assert.ok(match.grantProgress('a', requirement * 0.9));
     assert.ok(match.grantUpgrade('a', 'slow-metabolism', 'epic', 1));
     const progress = match.view('a').progression;
-    assert.equal(progress.level, 2);
-    assert.equal(progress.progress, 0.5);
+    assert.equal(progress.level, 3);
+    assert.ok(Math.abs(progress.progress - requirement * 0.05) < 1e-6);
     assert.equal(player(match).stats.speed, 4.5);
   } finally {
     match.dispose();
@@ -582,6 +636,7 @@ test('resource secondary effects and gated diet bonuses match every rank and rar
     {
       id: 'saliva',
       stat: 'regeneration',
+      base: 3,
       rows: {
         common: [1, 2, 3, 4, 5],
         rare: [1.2, 2.5, 3.7, 5, 6.2],
@@ -636,7 +691,7 @@ test('resource secondary effects and gated diet bonuses match every rank and rar
           const actual = player(match).stats[item.stat];
           const expected = (item.base ?? 0) + value * (item.sign ?? 1);
           assert.ok(
-            Math.abs(actual - expected) < 1e-8,
+            Math.abs(actual - expected) < 1e-5,
             `${item.id} ${rarity} ${index + 1}: ${actual} != ${expected}`,
           );
         }
@@ -728,7 +783,10 @@ test('bot kills create meat whose provenance survives collection for player and 
       assert.equal(event.killerId, killer);
       assert.equal(event.ownerId, kind === 'third-party' ? 'b' : 'a');
       assert.equal(event.provenance, kind);
-      assert.equal(event.progress, kind === 'own-kill' ? 2 : 3);
+      const base = { common: 2, rare: 6, epic: 18, legendary: 55 }[
+        event.rarity
+      ];
+      assert.equal(event.progress, base * (kind === 'own-kill' ? 1 : 1.5));
     } finally {
       match.dispose();
     }

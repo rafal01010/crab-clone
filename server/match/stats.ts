@@ -13,6 +13,7 @@ export const BASE_STATS = {
   robust: 0,
   shifty: 0,
   spines: 0,
+  trackerFood: 0,
   platingHitFactor: 0,
   vegetationProgress: 100,
   meatProgress: 100,

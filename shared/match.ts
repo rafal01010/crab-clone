@@ -2,7 +2,7 @@ import type { Arena } from './arena.js';
 import type { RegionalWeather, ThermalExposure } from './weather.js';
 
 export type RadarHint = {
-  kind: 'elite' | 'poi';
+  kind: 'elite' | 'poi' | 'firmware';
   direction: 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
   distance: 'near' | 'mid' | 'far';
 };
@@ -38,6 +38,10 @@ export interface PlayerView {
   shelter: { id: string; until: number } | null;
   modules: {
     kind:
+      | 'more-eyes'
+      | 'antennae'
+      | 'snout'
+      | 'fungoid'
       | 'arms'
       | 'tentacles'
       | 'legs'

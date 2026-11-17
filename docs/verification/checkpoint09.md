@@ -1,5 +1,7 @@
 # YCCE-TEST-09 source comparison
 
+The table below records an earlier web comparison. Later local configuration imports supersede its Shell, Fibroblasts, and Immune System numbers: Shell's rare resistance is 8/16/25; Fibroblasts uses epic and legendary growth of 1/1.5/2 per 30 and 20 actual hull healed respectively; Immune System resistance is rare 15/30/45, epic 20/40/60, and legendary 25/50/75. The local configuration's game version remains unverified. The current defense scenarios exercise these imported values.
+
 This source comparison covers YCCE-058 through YCCE-061M. The available wiki and trait-index excerpts are not pinned to game version 1.2.1. Direct requests returned 403 during the recorded research. The [content guide](../content/README.md#evidence-limits) records the source selection and implementation estimates. Where the wiki and the trait index conflict, the user selected the wiki value. That decision does not prove either source matches the pinned version.
 
 The comparison below pairs the recorded source mechanics with the current implementation. Rank and rarity tables live in `server/content/starter.ts`; the linked sources and the [source catalogue](../content/source-catalogue.json) retain the evidence and unresolved identity questions. A source comparison is not a runtime result. The tests and recordings listed separately in the checkpoint record provide behavioral evidence.

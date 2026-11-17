@@ -50,6 +50,8 @@ export function generateOffer(
   ownedRarities: ReadonlyMap<string, string>,
   random: () => number,
   level = 1,
+  carcinisation = 0,
+  carcinisationWeight = 0,
 ): OfferChoice[] {
   const table =
     SOURCE_GAMEPLAY.offerRarities.find(
@@ -77,7 +79,10 @@ export function generateOffer(
                 : Math.max(0, affinities.get(affinity) ?? 0) * 0.1),
             0,
           )) *
-        (1 + (ranks.get(item.id) ?? 0) * 0.25),
+        (1 + (ranks.get(item.id) ?? 0) * 0.25) *
+        (item.affinities.includes('Carcinisation')
+          ? 1 + carcinisation * carcinisationWeight
+          : 1),
       random,
     );
     if (!entry) break;

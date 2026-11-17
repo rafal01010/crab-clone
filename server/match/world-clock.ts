@@ -43,29 +43,32 @@ export class WorldClock {
       entries.set(phase, milliseconds);
       this.#adjustments.set(source, entries);
     }
+    this.#nextTransitionAt = this.#phaseStartedAt + this.#duration(this.#phase);
     return true;
+  }
+
+  #duration(phase: LightPhase): number {
+    let adjustment = 0;
+    for (const item of this.#adjustments.values())
+      adjustment += item.get(phase) ?? 0;
+    return Math.max(
+      MIN_PHASE_MS,
+      Math.min(MAX_PHASE_MS, BASE_PHASE_MS[phase] + adjustment),
+    );
   }
 
   advance(now: number): void {
     if (!Number.isFinite(now) || now < this.#nextTransitionAt) return;
-    const duration = (phase: LightPhase) => {
-      let adjustment = 0;
-      for (const item of this.#adjustments.values())
-        adjustment += item.get(phase) ?? 0;
-      return Math.max(
-        MIN_PHASE_MS,
-        Math.min(MAX_PHASE_MS, BASE_PHASE_MS[phase] + adjustment),
-      );
-    };
-    const cycle = duration('day') + duration('night');
+    const cycle = this.#duration('day') + this.#duration('night');
     const cycles = Math.floor((now - this.#nextTransitionAt) / cycle);
     this.#nextTransitionAt += cycles * cycle;
     if (cycles > 0)
-      this.#phaseStartedAt = this.#nextTransitionAt - duration(this.#phase);
+      this.#phaseStartedAt =
+        this.#nextTransitionAt - this.#duration(this.#phase);
     while (now >= this.#nextTransitionAt) {
       this.#phaseStartedAt = this.#nextTransitionAt;
       this.#phase = this.#phase === 'day' ? 'night' : 'day';
-      this.#nextTransitionAt += duration(this.#phase);
+      this.#nextTransitionAt += this.#duration(this.#phase);
     }
   }
 

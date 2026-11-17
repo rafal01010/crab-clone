@@ -369,6 +369,7 @@ test('meteor warns inside the boundary before impact and applies catastrophe res
     collapseAtMs: 200000,
     meteorIntervalMs: 500,
     meteorWarningMs: 100,
+    meteorRadius: 200,
   });
   const random = Math.random;
   try {

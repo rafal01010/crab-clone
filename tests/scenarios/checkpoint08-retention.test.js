@@ -23,7 +23,7 @@ test('weapon salvage bonuses persist after unequipping', () => {
       );
       const learned = stats()[stat];
       assert.ok(learned > baseline);
-      assert.ok(match.grantProgress('a', 15));
+      assert.ok(match.grantProgress('a', 20));
       assert.ok(match.advance(20));
       const offer = match.view('a').offer;
       assert.ok(offer);

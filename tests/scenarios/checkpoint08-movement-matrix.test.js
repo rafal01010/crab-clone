@@ -7,22 +7,9 @@ function setup(id, rarity, rank) {
   for (let current = 1; current <= rank; current++)
     assert.ok(match.grantUpgrade('a', id, rarity, current));
   assert.ok(match.advance(20));
-  let offer = match.view('a').offer;
-  assert.equal(offer.kind, 'equipment');
-  assert.ok(
-    match.consume({
-      kind: 'choice',
-      matchId: 'movement-matrix',
-      playerId: 'a',
-      sequence: 1,
-      offerId: offer.id,
-      revision: offer.revision,
-      choiceId: 'movement',
-    }),
-  );
+  assert.equal(match.view('a').equipment.slots.movement, id);
   if (id === 'leap' && rank === 3) {
-    for (let i = 0; i < 21; i++) assert.ok(match.advance(100));
-    offer = match.view('a').offer;
+    const offer = match.view('a').offer;
     assert.equal(offer.kind, 'specialization');
     assert.ok(
       match.consume({

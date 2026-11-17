@@ -17,6 +17,7 @@ export type Bot = {
   expiresAt: number | null;
   damage: number;
   speedFactor: number;
+  terrainAdaptation: number;
   tier: number;
   role: BotRole;
   biome: Terrain;
@@ -124,7 +125,7 @@ export const BOT_STAGES = [
 export const ALLY_LIMITS = {
   total: 96,
   summoned: 4,
-  offspring: 8,
+  offspring: 10,
   decoy: 2,
   pending: 16,
 } as const;

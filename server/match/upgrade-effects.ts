@@ -12,6 +12,9 @@ type UpgradeEffect =
       details: readonly { name: string; stat: Stat; sign: 1 | -1 }[];
     }
   | { kind: 'slow-metabolism' }
+  | { kind: 'cooldown-reduction' }
+  | { kind: 'courting' }
+  | { kind: 'spinnerets' }
   | { kind: 'saliva' }
   | { kind: 'forager' }
   | { kind: 'ruminant' }
@@ -35,6 +38,13 @@ type UpgradeEffect =
   | { kind: 'stinger' }
   | { kind: 'spur' }
   | { kind: 'slide' }
+  | { kind: 'jet' }
+  | { kind: 'sharpen' }
+  | { kind: 'pistol-pincer' }
+  | { kind: 'constriction' }
+  | { kind: 'moulting' }
+  | { kind: 'burrower' }
+  | { kind: 'lick-wounds' }
   | { kind: 'sprint' }
   | { kind: 'leap' }
   | { kind: 'scuttle' }
@@ -45,6 +55,70 @@ const effects: ReadonlyMap<string, UpgradeEffect> = new Map<
   UpgradeEffect
 >([
   ['muscular-tissue', { kind: 'stats', stats: ['physical'] }],
+  [
+    'more-eyes',
+    {
+      kind: 'multi-stats',
+      primary: 'dodge',
+      details: [{ name: 'senses', stat: 'senses', sign: 1 }],
+    },
+  ],
+  [
+    'antennae',
+    {
+      kind: 'multi-stats',
+      primary: 'social',
+      details: [{ name: 'senses', stat: 'senses', sign: 1 }],
+    },
+  ],
+  ['cortex', { kind: 'stats', stats: ['ability'] }],
+  ['snout', { kind: 'stats', stats: ['senses'] }],
+  ['nomadic', { kind: 'stats', stats: [] }],
+  ['hibernation', { kind: 'stats', stats: [] }],
+  ['pollinator', { kind: 'stats', stats: [] }],
+  ['outlier', { kind: 'stats', stats: [] }],
+  ['convergent-evolution', { kind: 'stats', stats: [] }],
+  ['aggressive', { kind: 'stats', stats: ['physical'] }],
+  ['cunning', { kind: 'stats', stats: ['ability'] }],
+  ['sturdy', { kind: 'stats', stats: ['maximumHealth'] }],
+  ['commanding', { kind: 'stats', stats: [] }],
+  [
+    'resourceful',
+    {
+      kind: 'stats',
+      stats: ['vegetationProgress', 'meatProgress', 'fishProgress'],
+    },
+  ],
+  ['extremophile', { kind: 'stats', stats: ['cataclysmResistance'] }],
+  ['strength-in-numbers', { kind: 'stats', stats: [] }],
+  ['diurnal', { kind: 'stats', stats: [] }],
+  ['nocturnal', { kind: 'stats', stats: [] }],
+  ['tracker', { kind: 'stats', stats: ['trackerFood'] }],
+  ['ambush', { kind: 'stats', stats: [] }],
+  ['detachable-tail', { kind: 'stats', stats: [] }],
+  ['fungoid', { kind: 'stats', stats: [] }],
+  ['poisonous-saliva', { kind: 'stats', stats: [] }],
+  ['revenge', { kind: 'stats', stats: [] }],
+  ['poisonous-spores', { kind: 'stats', stats: [] }],
+  ['virulent', { kind: 'stats', stats: ['poisonDamage'] }],
+  ['pedal-glands', { kind: 'stats', stats: [] }],
+  [
+    'alpha',
+    {
+      kind: 'multi-stats',
+      primary: 'size',
+      details: [
+        { name: 'social', stat: 'social', sign: 1 },
+        { name: 'health', stat: 'maximumHealth', sign: 1 },
+      ],
+    },
+  ],
+  ['pack', { kind: 'stats', stats: [] }],
+  ['whining', { kind: 'stats', stats: [] }],
+  ['courting-display', { kind: 'courting' }],
+  ['spinnerets', { kind: 'spinnerets' }],
+  ['hump', { kind: 'stats', stats: [] }],
+  ['synapse', { kind: 'cooldown-reduction' }],
   ['stomach', { kind: 'stats', stats: ['salvageSpeed'] }],
   ['slow-metabolism', { kind: 'slow-metabolism' }],
   ['saliva', { kind: 'saliva' }],
@@ -124,6 +198,25 @@ const effects: ReadonlyMap<string, UpgradeEffect> = new Map<
     },
   ],
   [
+    'subcutaneous-fat',
+    {
+      kind: 'multi-stats',
+      primary: 'maximumHealth',
+      details: [
+        { name: 'thermal', stat: 'heatAdaptation', sign: 1 },
+        { name: 'thermal', stat: 'coldAdaptation', sign: 1 },
+      ],
+    },
+  ],
+  [
+    'fur',
+    {
+      kind: 'multi-stats',
+      primary: 'damageResistance',
+      details: [{ name: 'cold', stat: 'coldAdaptation', sign: 1 }],
+    },
+  ],
+  [
     'carapace',
     {
       kind: 'multi-stats',
@@ -189,6 +282,13 @@ const effects: ReadonlyMap<string, UpgradeEffect> = new Map<
       'stinger',
       'spur',
       'slide',
+      'jet',
+      'sharpen',
+      'pistol-pincer',
+      'constriction',
+      'moulting',
+      'burrower',
+      'lick-wounds',
       'sprint',
       'leap',
       'scuttle',
@@ -235,6 +335,111 @@ function baseUpgradeEffect(
     multiplier: 1,
   });
   switch (effect.kind) {
+    case 'lick-wounds':
+      return {
+        modifiers: [],
+        ability: {
+          id,
+          slotType: 'ultimate',
+          action: 'repair',
+          cooldown: 25000,
+          damage: 0,
+          repairAmount: value,
+        },
+      };
+    case 'burrower':
+      return {
+        modifiers: [],
+        ability: {
+          id,
+          slotType: 'ultimate',
+          action: 'create-shelter',
+          cooldown: value * 1000,
+          damage: 0,
+        },
+      };
+    case 'moulting':
+      return {
+        modifiers: [],
+        ability: {
+          id,
+          slotType: 'ultimate',
+          action: 'moult',
+          cooldown: value * 1000,
+          damage: 0,
+          stunMs: 3000,
+        },
+      };
+    case 'constriction':
+      return {
+        modifiers: [],
+        ability: {
+          id,
+          slotType: 'ultimate',
+          action: 'stationary-channel',
+          cooldown: 20000,
+          damage: value,
+          damageRange: { x: value, y: details.maximum ?? value },
+          radius: 4,
+          durationMs: (details.duration ?? 3) * 1000,
+          intervalMs: 1000,
+          stunMs: 1100,
+        },
+      };
+    case 'pistol-pincer':
+      return {
+        modifiers: [],
+        ability: {
+          id,
+          slotType: 'ultimate',
+          action: 'hybrid-strike',
+          cooldown: 10000,
+          damage: value,
+          damageRange: { x: value, y: details.maximum ?? value },
+          range: 2.5,
+        },
+      };
+    case 'sharpen':
+      return {
+        modifiers: [],
+        ability: {
+          id,
+          slotType: 'ultimate',
+          action: 'contact-boost',
+          cooldown: (details.cooldown ?? 20) * 1000,
+          damage: 0,
+          durationMs: 10000,
+          perAffinity: value,
+        },
+      };
+    case 'courting':
+      return {
+        modifiers: [],
+        ability: {
+          id,
+          slotType: 'ultimate',
+          action: 'capture',
+          cooldown: value * 1000,
+          damage: 0,
+          range: 3,
+        },
+      };
+    case 'spinnerets':
+      return {
+        modifiers: [],
+        ability: {
+          id,
+          slotType: 'ultimate',
+          action: 'slow-field',
+          cooldown: value * 1000,
+          damage: 0,
+          radius: 4,
+          slowPercent: 66,
+          durationMs: 7000,
+        },
+      };
+    case 'cooldown-reduction':
+      return { modifiers: [modifier('cooldowns', -value)], ability: null };
     case 'multi-stats': {
       const modifiers = [modifier(effect.primary, value)];
       for (const detail of effect.details) {
@@ -493,6 +698,7 @@ function baseUpgradeEffect(
         },
       };
     case 'slide':
+    case 'jet':
       if (details.distance === undefined || details.duration === undefined)
         return null;
       return {

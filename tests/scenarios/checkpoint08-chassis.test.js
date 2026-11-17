@@ -44,7 +44,7 @@ test('Wings improve movement over terrain while craft remain blocked by the same
       const before = match.terrainMovementFactor('a', 'water', 2);
       if (wings) {
         assert.ok(match.grantUpgrade('a', 'wings', 'branching', 1));
-        assert.equal(player().stats.speed, 5.5);
+        assert.equal(player().stats.speed, 6);
         assert.ok(match.terrainMovementFactor('a', 'water', 2) > before);
       }
       const box = createArena(42).obstacles[4];
@@ -77,7 +77,7 @@ test('Fin improves shallow and deep water movement without changing thermal adap
       sand: match.terrainMovementFactor('a', 'sand'),
     };
     assert.ok(match.grantUpgrade('a', 'fin', 'rare', 1));
-    assert.equal(player().stats.waterAdaptation, 60);
+    assert.ok(Math.abs(player().stats.waterAdaptation - 60) < 0.00001);
     assert.ok(match.terrainMovementFactor('a', 'water', 1) > before.shallow);
     assert.ok(match.terrainMovementFactor('a', 'water', 2) > before.deep);
     assert.equal(player().stats.heatAdaptation, before.heat);

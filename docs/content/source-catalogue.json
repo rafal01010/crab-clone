@@ -1662,7 +1662,7 @@
           "owner": "YCCE-053D"
         }
       ],
-      "identityDecision": "Retain the candidate until its ID and behavior are compared with learned Body Slam. Do not add a duplicate selectable ability or silently omit it.",
+      "identityDecision": "Provisionally map this legacy label to learned Body Slam (ability 241); do not add a duplicate. The 1.2.1 identity remains unverified.",
       "localConfiguration": {
         "build": "1.2__9606",
         "file": "local-game-configuration.json",

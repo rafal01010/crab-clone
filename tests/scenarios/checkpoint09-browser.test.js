@@ -143,6 +143,25 @@ test(
         states[1].players.some((player) => player.id === sessions[0].playerId),
         'another player observes the build',
       );
+      await waitFor(
+        () => states[0]?.offer?.kind === 'upgrade',
+        'food-earned upgrade offer',
+      );
+      const chosenId = states[0].offer.choices[0];
+      const previousRank =
+        states[0].progression.upgrades.find(
+          (upgrade) => upgrade.id === chosenId,
+        )?.rank ?? 0;
+      await page.getByRole('dialog', { name: 'Choose an upgrade' }).waitFor();
+      await page.keyboard.press('1');
+      await page.keyboard.press('Enter');
+      await waitFor(
+        () =>
+          (states[0]?.progression.upgrades.find(
+            (upgrade) => upgrade.id === chosenId,
+          )?.rank ?? 0) > previousRank,
+        'food-earned upgrade acquisition',
+      );
       const canvas = page.getByLabel('Match world');
       const bounds = await canvas.boundingBox();
       assert.ok(bounds);
@@ -165,25 +184,6 @@ test(
       await page.mouse.up();
       await page.getByText('Your upgrades', { exact: true }).click();
       await page.getByText('Carapace', { exact: false }).first().waitFor();
-      await waitFor(
-        () => states[0]?.offer?.kind === 'upgrade',
-        'food-earned upgrade offer',
-      );
-      const chosenId = states[0].offer.choices[0];
-      const previousRank =
-        states[0].progression.upgrades.find(
-          (upgrade) => upgrade.id === chosenId,
-        )?.rank ?? 0;
-      await page.getByRole('dialog', { name: 'Choose an upgrade' }).waitFor();
-      await page.keyboard.press('1');
-      await page.keyboard.press('Enter');
-      await waitFor(
-        () =>
-          (states[0]?.progression.upgrades.find(
-            (upgrade) => upgrade.id === chosenId,
-          )?.rank ?? 0) > previousRank,
-        'food-earned upgrade acquisition',
-      );
       await delay(1000);
       await page.screenshot({
         path: 'test-results/checkpoint09/combined-build.png',

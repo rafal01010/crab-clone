@@ -48,6 +48,10 @@ export type Ability = {
   | { action: 'guard'; durationMs: number; stunMs: number }
   | { action: 'repair'; repairAmount: number; scalesWithSalvageSpeed?: boolean }
   | { action: 'speed-boost'; durationMs: number; speedMultiplier: number }
+  | { action: 'contact-boost'; durationMs: number; perAffinity: number }
+  | { action: 'moult'; stunMs: number }
+  | { action: 'create-shelter' }
+  | { action: 'capture'; range: number }
   | {
       action: 'slow-field';
       radius: number;
@@ -95,6 +99,10 @@ export function validAbility(ability: Ability): boolean {
       'guard',
       'repair',
       'speed-boost',
+      'contact-boost',
+      'moult',
+      'create-shelter',
+      'capture',
       'slow-field',
       'delayed-boost',
       'area-status',
@@ -136,6 +144,10 @@ export function validAbility(ability: Ability): boolean {
     (ability.action === 'guard' ||
       ability.action === 'repair' ||
       ability.action === 'speed-boost' ||
+      ability.action === 'contact-boost' ||
+      ability.action === 'moult' ||
+      ability.action === 'create-shelter' ||
+      ability.action === 'capture' ||
       ability.action === 'slow-field' ||
       ability.action === 'delayed-boost' ||
       ability.action === 'area-status' ||
@@ -146,6 +158,10 @@ export function validAbility(ability: Ability): boolean {
     (ability.action === 'guard' ||
       ability.action === 'repair' ||
       ability.action === 'speed-boost' ||
+      ability.action === 'contact-boost' ||
+      ability.action === 'moult' ||
+      ability.action === 'create-shelter' ||
+      ability.action === 'capture' ||
       ability.action === 'slow-field' ||
       ability.action === 'delayed-boost' ||
       ability.action === 'area-status' ||
@@ -206,6 +222,17 @@ export function validAbility(ability: Ability): boolean {
         Number.isFinite(ability.speedMultiplier) &&
         ability.speedMultiplier > 1 &&
         ability.speedMultiplier <= 10)) &&
+    (ability.action !== 'contact-boost' ||
+      (Number.isFinite(ability.durationMs) &&
+        ability.durationMs > 0 &&
+        ability.durationMs <= 300_000 &&
+        Number.isFinite(ability.perAffinity) &&
+        ability.perAffinity > 0 &&
+        ability.perAffinity <= 100)) &&
+    (ability.action !== 'moult' ||
+      (Number.isFinite(ability.stunMs) &&
+        ability.stunMs > 0 &&
+        ability.stunMs <= 300_000)) &&
     (ability.action !== 'slow-field' ||
       (Number.isFinite(ability.radius) &&
         ability.radius > 0 &&

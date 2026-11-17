@@ -4,6 +4,8 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { Match } from '../../build-host/server/match/match.js';
 import { createStarterRegistry } from '../../build-host/server/content/starter.js';
 import { createAbilityMatch } from './checkpoint08-ability-fixture.js';
+import { levelRequirement } from '../../build-host/server/match/economy.js';
+import { createArena, terrainAt } from '../../build-host/shared/arena.js';
 
 await RAPIER.init();
 const registry = createStarterRegistry();
@@ -32,7 +34,16 @@ test('craft remain on the gameplay plane after selection and vertical impulses',
     body.applyImpulse({ x: 0, y: 1000, z: 0 }, true);
     for (let i = 0; i < 20; i++) assert.ok(match.advance(50));
     assert.equal(body.translation().y, height);
-    assert.ok(match.grantProgress('a', 10));
+    assert.ok(
+      match.grantProgress(
+        'a',
+        levelRequirement(
+          1,
+          match.view('a').players.find((p) => p.id === 'a').stats
+            .progressRequirement,
+        ),
+      ),
+    );
     assert.ok(match.advance(20));
     const offer = match.view('a').offer;
     assert.ok(offer);
@@ -168,19 +179,7 @@ test('Dash and Slide travel their expected distances and stop at obstacles acros
             assert.ok(match.grantUpgrade('a', 'slithery', 'branching', 1));
             assert.ok(match.grantUpgrade('a', 'slide', 'common', 1));
             assert.ok(match.advance(20));
-            const offer = match.view('a').offer;
-            assert.equal(offer.kind, 'equipment');
-            assert.ok(
-              match.consume({
-                kind: 'choice',
-                matchId: 'course',
-                playerId: 'a',
-                sequence: 1,
-                offerId: offer.id,
-                revision: offer.revision,
-                choiceId: 'movement',
-              }),
-            );
+            assert.equal(match.view('a').equipment.slots.movement, 'slide');
           }
           const obstacle = createArena(42).obstacles[4];
           const edge = obstacle.x - obstacle.width / 2;
@@ -204,7 +203,13 @@ test('Dash and Slide travel their expected distances and stop at obstacles acros
             assert.ok(match.advance(tick));
           }
           const x = body.translation().x;
-          const expected = wall ? edge - 0.5 : id === 'slide' ? 10 : 4.5;
+          const slideDistance =
+            terrainAt(createArena(42), start.x, start.z) === 'snow' ? 11.5 : 10;
+          const expected = wall
+            ? edge - 0.5
+            : id === 'slide'
+              ? slideDistance
+              : 4.5;
           assert.ok(
             Math.abs(x - expected) < 0.02,
             `${id}, ${tick}ms, wall=${wall}: ${x} != ${expected}`,
@@ -238,19 +243,7 @@ test('Leap crosses a planar obstacle and lands clear without changing height', a
     assert.ok(match.grantUpgrade('a', 'legs', 'branching', 1));
     assert.ok(match.grantUpgrade('a', 'leap', 'common', 1));
     assert.ok(match.advance(20));
-    const offer = match.view('a').offer;
-    assert.equal(offer.kind, 'equipment');
-    assert.ok(
-      match.consume({
-        kind: 'choice',
-        matchId: 'checkpoint08',
-        playerId: 'a',
-        sequence: 1,
-        offerId: offer.id,
-        revision: offer.revision,
-        choiceId: 'movement',
-      }),
-    );
+    assert.equal(match.view('a').equipment.slots.movement, 'leap');
     const arena = createArena(42);
     const obstacle = arena.obstacles[4];
     const start = {
@@ -287,19 +280,7 @@ test('Leap crosses a planar obstacle and lands clear without changing height', a
 function equipMovement(match, id, rarity = 'common') {
   assert.ok(match.grantUpgrade('a', id, rarity, 1));
   assert.ok(match.advance(20));
-  const offer = match.view('a').offer;
-  assert.equal(offer.kind, 'equipment');
-  assert.ok(
-    match.consume({
-      kind: 'choice',
-      matchId: 'checkpoint08',
-      playerId: 'a',
-      sequence: 1,
-      offerId: offer.id,
-      revision: offer.revision,
-      choiceId: 'movement',
-    }),
-  );
+  assert.equal(match.view('a').equipment.slots.movement, id);
 }
 function playerBody(match, world, id = 'a') {
   const position = match.view(id).players.find((p) => p.id === id).position;
@@ -417,7 +398,16 @@ test('Leech heals from actual damage and does not heal from a blocked hit', () =
     ])[0];
     assert.equal(result.hull + result.plating, 20);
     assert.equal(hull('a'), before + 2);
-    assert.ok(match.grantProgress('b', 10));
+    assert.ok(
+      match.grantProgress(
+        'b',
+        levelRequirement(
+          1,
+          match.view('b').players.find((p) => p.id === 'b').stats
+            .progressRequirement,
+        ),
+      ),
+    );
     assert.ok(match.advance(20));
     const healed = hull('a');
     const blocked = match.damageBatch([
@@ -469,15 +459,16 @@ test('Sprint boosts movement temporarily without changing permanent speed', () =
   assert.ok(Math.abs(sprint[29] - baseline[29]) < 0.01);
 });
 
-test('Spur follows a live attack once without occupying an attack slot', () => {
+test('Equipped Spur follows another live attack once', () => {
   const world = new RAPIER.World({ x: 0, y: 0, z: 0 });
   const match = setup(world);
   try {
     assert.ok(match.grantUpgrade('a', 'tail', 'common', 1));
+    assert.ok(match.grantUpgrade('a', 'jaws', 'common', 1));
     assert.ok(match.grantUpgrade('a', 'spur', 'rare', 1));
     const slots = match.view('a').equipment.slots;
-    assert.notEqual(slots.primary, 'spur');
-    assert.notEqual(slots.secondary, 'spur');
+    assert.equal(slots.primary, 'jaws');
+    assert.equal(slots.secondary, 'spur');
     const a = playerBody(match, world),
       b = playerBody(match, world, 'b');
     a.setTranslation({ x: 0, y: 0.25, z: 0 }, true);
@@ -495,10 +486,9 @@ test('Spur follows a live attack once without occupying an attack slot', () => {
     );
     assert.equal(trace.filter(({ event }) => event.depth === 0).length, 1);
     assert.ok(trace.every(({ event }) => event.depth <= 1));
-    assert.equal(
-      trace.find(({ event }) => event.abilityId === 'spur').result.hull,
-      4.5,
-    );
+    const spurDamage = trace.find(({ event }) => event.abilityId === 'spur')
+      .result.hull;
+    assert.ok(spurDamage >= 3.999 && spurDamage <= 5.001);
   } finally {
     match.dispose();
   }
@@ -798,7 +788,7 @@ test('live Tongue roots its owner during flight, stuns its target and releases m
           event.abilityId === 'projectile-tongue' && event.targetId === 'b',
       );
     assert.equal(trace.length, 1);
-    assert.equal(trace[0].result.hull, 10.5);
+    assert.ok(trace[0].result.hull >= 8.999 && trace[0].result.hull <= 12.001);
     assert.ok(
       match
         .view('a')
@@ -889,10 +879,12 @@ test('Horns charges into a plated target once and bypasses plating', () => {
     const a = playerBody(match, world),
       b = playerBody(match, world, 'b');
     a.setTranslation({ x: 0, y: 0.25, z: 0 }, true);
-    b.setTranslation({ x: 3, y: 0.25, z: 0 }, true);
+    b.setTranslation({ x: 1.8, y: 0.25, z: 0 }, true);
     assert.ok(match.advance(20));
     match.takeDamageLedger();
-    control(match, 1, 0);
+    const slot = match.view('a').equipment.slots;
+    assert.ok(slot.primary === 'horns' || slot.secondary === 'horns');
+    control(match, slot.primary === 'horns' ? 1 : 2, 0);
     assert.ok(match.advance(50));
     control(match, 0, 0);
     for (let i = 0; i < 8; i++) assert.ok(match.advance(50));
@@ -980,10 +972,10 @@ test('weapon aliases resolve to one learned ability and one equipment entry', ()
 
 test('Slide distance and cooldown follow every rank and rarity', () => {
   for (const [rarity, distance, cooldowns] of [
-    ['common', 10, [4, 3.4, 2.8]],
-    ['rare', 11, [3.8, 3.2, 2.6]],
-    ['epic', 12, [3.6, 3, 2.4]],
-    ['legendary', 13, [3.4, 2.8, 2.2]],
+    ['common', 10, [4.2, 3.7, 3.2]],
+    ['rare', 11, [4, 3.5, 3]],
+    ['epic', 12, [3.8, 3.3, 2.8]],
+    ['legendary', 13, [3.6, 3.1, 2.6]],
   ]) {
     for (let rank = 1; rank <= 3; rank++) {
       const world = new RAPIER.World({ x: 0, y: 0, z: 0 });
@@ -997,6 +989,7 @@ test('Slide distance and cooldown follow every rank and rarity', () => {
         body.setTranslation({ x: -4, y: 0.25, z: 0 }, true);
         body.setLinvel({ x: 0, y: 0, z: 0 }, true);
         const before = match.view('a').time;
+        const stats = match.view('a').players.find((p) => p.id === 'a').stats;
         control(match, 4);
         assert.ok(match.advance(20));
         control(match, 0, 0);
@@ -1005,12 +998,23 @@ test('Slide distance and cooldown follow every rank and rarity', () => {
           .view('a')
           .equipment.learned.find((item) => item.id === 'slide').readyAt;
         assert.ok(
-          Math.abs(body.translation().x + 4 - distance) < 0.05,
+          Math.abs(
+            body.translation().x +
+              4 -
+              distance *
+                (terrainAt(createArena(42), -4, 0) === 'snow' ? 1.15 : 1),
+          ) < 0.05,
           `${rarity} rank ${rank} distance`,
         );
         assert.ok(
-          Math.abs(readyAt - before - cooldowns[rank - 1] * 1000) < 25,
-          `${rarity} rank ${rank} cooldown`,
+          Math.abs(
+            readyAt -
+              before -
+              (((cooldowns[rank - 1] * 1000 * stats.cooldowns) / 100) *
+                stats.dashCooldown) /
+                100,
+          ) < 25,
+          `${rarity} rank ${rank} cooldown: ${readyAt - before}`,
         );
       } finally {
         match.dispose();

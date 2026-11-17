@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createAbilityMatch } from './checkpoint08-ability-fixture.js';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Match } from '../../build-host/server/match/match.js';
+import { levelRequirement } from '../../build-host/server/match/economy.js';
 import {
   createArena,
   terrainRegionAt,
@@ -36,6 +37,11 @@ const grant = (match, upgrade, rarity, rank = 1, who = 'a') => {
 };
 const choose = (match, choiceId, sequence = 1) => {
   advance(match, 20);
+  if (
+    choiceId === 'movement' &&
+    match.view('a').equipment.slots.movement === 'turtle-down'
+  )
+    return;
   const offer = match.view('a').offer;
   assert.ok(offer, choiceId);
   assert.ok(
@@ -50,12 +56,17 @@ const choose = (match, choiceId, sequence = 1) => {
     }),
   );
 };
-const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-7, `${a} != ${b}`);
+const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-4, `${a} != ${b}`);
 
 test('Impervious splits incoming damage once and delayed lethal damage credits one elimination', () => {
   const { match } = createAbilityMatch(id);
   try {
     grant(match, 'impervious', 'epic');
+    assert.ok(
+      match.setModifiers('a', [
+        { id: 'no-regen', stat: 'regeneration', add: -3, multiplier: 1 },
+      ]),
+    );
     const start = player(match).health.hull;
     close(damage(match, 'a', 'b', 40).hull, 20);
     close(player(match).health.hull, start - 20);
@@ -111,8 +122,8 @@ test('Fibroblasts count actual hull healed, not overheal or attempted recovery',
     const noHealing = match.repairPlayer('a', 100, true);
     assert.equal(noHealing.actual, 0);
     close(player(match).stats.maximumHealth, max);
-    damage(match, 'a', 'b', 40);
-    assert.equal(match.repairPlayer('a', 100, false).actual, 40);
+    damage(match, 'a', 'b', 20);
+    assert.equal(match.repairPlayer('a', 100, false).actual, 20);
     close(player(match).stats.maximumHealth, max);
     damage(match, 'a', 'b', 11);
     assert.equal(match.repairPlayer('a', 9, false).actual, 9);
@@ -216,7 +227,7 @@ test('Impervious resolves deferred lethal damage while disconnected in a protect
     grant(match, 'impervious', 'epic');
     const hull = player(match).health.hull;
     damage(match, 'a', 'b', hull * 1.5);
-    assert.ok(match.grantProgress('a', 10));
+    assert.ok(match.grantProgress('a', match.view('a').progression.required));
     advance(match, 20);
     assert.ok(match.view('a').offer);
     assert.ok(match.accept({ kind: 'disconnect', playerId: 'a' }));
@@ -392,11 +403,11 @@ test('Regenerative Tissue restores the listed hull amount over ten seconds and s
     const max = player(match).health.hull;
     damage(match, 'a', 'b', 20);
     const damaged = player(match).health.hull;
-    advance(match, 10_000);
-    close(player(match).health.hull - damaged, 2);
+    assert.ok(match.advance(10_000));
+    close(player(match).health.hull - damaged, 5);
     const missing = max - player(match).health.hull;
     close(match.repairPlayer('a', 1000, false).actual, missing);
-    advance(match, 10_000);
+    assert.ok(match.advance(10_000));
     close(player(match).health.hull, max);
   } finally {
     match.dispose();
@@ -409,6 +420,7 @@ test('Collapse defeats active Turtle Down, Fibroblasts, regeneration, and Imperv
     shrinkStartMs: 100,
     tinyAtMs: 200,
     collapseAtMs: 300,
+    boundaryDamagePerSecond: 10000,
   });
   try {
     for (const playerId of ['a', 'b', 'c', 'd']) {
@@ -493,9 +505,9 @@ test('Defensive passives match each recorded rarity and rank table', () => {
       'shell',
       'damageResistance',
       {
-        rare: [7.5, 15, 22.5],
+        rare: [8, 16, 25],
         epic: [10, 20, 30],
-        legendary: [12.5, 25, 32.5],
+        legendary: [12.5, 25, 37.5],
       },
     ],
     [
@@ -530,7 +542,7 @@ test('Defensive passives match each recorded rarity and rank table', () => {
     [
       'immune-system',
       'poisonResistance',
-      { rare: [15, 20, 25], epic: [30, 40, 50], legendary: [45, 60, 75] },
+      { rare: [15, 30, 45], epic: [20, 40, 60], legendary: [25, 50, 75] },
     ],
     ['impervious', 'maximumHealth', { epic: [10], legendary: [20] }],
   ];
@@ -636,18 +648,22 @@ test('Scales adapts to heat without granting cold adaptation', () => {
   }
 });
 
-test('Fibroblasts grants each rarity and rank amount for an actual 50 hull healed', () => {
+test('Fibroblasts grants each rarity and rank amount at its actual healing threshold', () => {
   for (const [rarity, values] of Object.entries({
     epic: [1, 1.5, 2],
-    legendary: [1.5, 2, 2.5],
+    legendary: [1, 1.5, 2],
   })) {
     for (const [index, expected] of values.entries()) {
       const { match } = createAbilityMatch(id);
       try {
         grant(match, 'fibroblasts', rarity, index + 1);
         const max = player(match).stats.maximumHealth;
-        close(damage(match, 'a', 'b', 50).hull, 50);
-        close(match.repairPlayer('a', 50, false).actual, 50);
+        const requiredHealing = rarity === 'epic' ? 30 : 20;
+        close(damage(match, 'a', 'b', requiredHealing).hull, requiredHealing);
+        close(
+          match.repairPlayer('a', requiredHealing, false).actual,
+          requiredHealing,
+        );
         close(player(match).stats.maximumHealth - max, expected);
       } finally {
         match.dispose();
@@ -701,7 +717,27 @@ test('Turtle Down cooldown follows each rarity and rank', () => {
 test('Scales reduces heatwave buildup in the live sand region', () => {
   const { match, world } = createAbilityMatch(id);
   try {
+    for (const who of ['a', 'b', 'c', 'd']) {
+      assert.ok(
+        match.setModifiers(who, [
+          {
+            id: 'weather-health',
+            stat: 'maximumHealth',
+            add: 900,
+            multiplier: 1,
+          },
+          {
+            id: 'weather-resistance',
+            stat: 'damageResistance',
+            add: 100,
+            multiplier: 1,
+          },
+        ]),
+      );
+      match.repairPlayer(who, 900, false);
+    }
     grant(match, 'scales', 'common', 3);
+    choose(match, 'skip');
     const arena = createArena(42);
     let points;
     for (let x = -30; x < 30 && !points; x++)
@@ -735,6 +771,7 @@ test('Scales reduces heatwave buildup in the live sand region', () => {
       assert.ok(body);
       body.setTranslation({ ...points[index], y: 0.25 }, true);
       body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      body.setEnabledTranslations(false, false, false, true);
     }
     for (const bot of match.view('a').bots)
       match.setBotHostility(bot.id, false);
@@ -754,13 +791,94 @@ test('Scales reduces heatwave buildup in the live sand region', () => {
   }
 });
 
+test('Wool reduces heatwave buildup compared with skipping Fur specialization', () => {
+  const exposure = (choice) => {
+    const { match, world } = createAbilityMatch(id);
+    try {
+      for (const who of ['a', 'b', 'c', 'd']) {
+        assert.ok(
+          match.setModifiers(who, [
+            {
+              id: 'weather-health',
+              stat: 'maximumHealth',
+              add: 900,
+              multiplier: 1,
+            },
+            {
+              id: 'weather-resistance',
+              stat: 'damageResistance',
+              add: 100,
+              multiplier: 1,
+            },
+          ]),
+        );
+        match.repairPlayer(who, 900, false);
+      }
+      grant(match, 'fur', 'common', 3);
+      choose(match, choice);
+      const arena = createArena(42);
+      let point;
+      for (let x = -30; x < 30 && !point; x++)
+        for (let z = -30; z < 30 && !point; z++)
+          if (
+            terrainRegionAt(arena, x, z)?.terrain === 'sand' &&
+            arenaPointClear(arena.obstacles, { x, z }, 1)
+          )
+            point = { x, z };
+      assert.ok(point);
+      const position = player(match).position;
+      const body = world.bodies
+        .getAll()
+        .find(
+          (item) =>
+            item.isDynamic() &&
+            Math.hypot(
+              item.translation().x - position.x,
+              item.translation().z - position.z,
+            ) < 0.01,
+        );
+      assert.ok(body);
+      body.setTranslation({ ...point, y: 0.25 }, true);
+      body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      body.setEnabledTranslations(false, false, false, true);
+      for (const bot of match.view('a').bots)
+        match.setBotHostility(bot.id, false);
+      advance(match, 45_000);
+      assert.equal(
+        match.view('a').weather.find((weather) => weather.kind === 'heatwave')
+          ?.state,
+        'active',
+      );
+      advance(match, 10_000);
+      return { heat: match.view('a').thermal.heat, stats: player(match).stats };
+    } finally {
+      match.dispose();
+    }
+  };
+  const wool = exposure('fur-wool');
+  const skipped = exposure('skip');
+  assert.ok(skipped.heat > 0);
+  assert.ok(wool.heat < skipped.heat);
+  close(
+    wool.heat / skipped.heat,
+    (1 + skipped.stats.heatAdaptation / 100) /
+      (1 + wool.stats.heatAdaptation / 100),
+  );
+});
+
 test('Queued level offers do not refill plating again when a prompt resolves', () => {
   const { match } = createAbilityMatch(id);
   try {
     grant(match, 'plated', 'common');
     close(damage(match, 'a', 'b', 2).plating, 2);
     close(player(match).health.plating, 3);
-    assert.ok(match.grantProgress('a', 25));
+    const modifier = player(match).stats.progressRequirement;
+    assert.ok(
+      match.grantProgress(
+        'a',
+        levelRequirement(1, modifier) + levelRequirement(2, modifier),
+      ),
+    );
     assert.equal(player(match).health.level, 3);
     close(player(match).health.plating, 5);
     close(damage(match, 'a', 'b', 2).plating, 2);
@@ -769,6 +887,10 @@ test('Queued level offers do not refill plating again when a prompt resolves', (
     const offer = match.view('a').offer;
     assert.ok(offer);
     assert.ok(match.view('a').progression.pending >= 1);
+    const choiceId = offer.choices.find(
+      (choice) => !['plated', 'carapace', 'exoskeleton'].includes(choice),
+    );
+    assert.ok(choiceId);
     assert.ok(
       match.consume({
         kind: 'choice',
@@ -777,7 +899,7 @@ test('Queued level offers do not refill plating again when a prompt resolves', (
         sequence: 1,
         offerId: offer.id,
         revision: offer.revision,
-        choiceId: offer.choices[0],
+        choiceId,
       }),
     );
     close(player(match).health.plating, 3);

@@ -15,6 +15,10 @@ type Entity = {
   radius: number;
   timeline: SnapshotTimeline;
   modules: Record<
+    | 'more-eyes'
+    | 'antennae'
+    | 'snout'
+    | 'fungoid'
     | 'arms'
     | 'tentacles'
     | 'legs'
@@ -55,6 +59,10 @@ export function createWorld(canvas: HTMLCanvasElement) {
   const moduleMaterial = new THREE.MeshStandardMaterial({ color: 0xf7b16e });
   function makeModules(mesh: THREE.Mesh): Entity['modules'] {
     const modules = {
+      'more-eyes': new THREE.Group(),
+      antennae: new THREE.Group(),
+      snout: new THREE.Group(),
+      fungoid: new THREE.Group(),
       arms: new THREE.Group(),
       tentacles: new THREE.Group(),
       legs: new THREE.Group(),
@@ -83,6 +91,9 @@ export function createWorld(canvas: HTMLCanvasElement) {
       group.add(shape);
     };
     for (const side of [-1, 1]) {
+      part(modules['more-eyes'], side * 0.3, 0.42, 0.28, 0.12, 0.15, 0.12);
+      part(modules.antennae, side * 0.28, 0.55, 0.08, 0.06, 0.42, 0.06);
+      part(modules.fungoid, side * 0.25, 0.46, -0.24, 0.26, 0.14, 0.26);
       part(modules.arms, side * 0.7, 0, 0.25, 0.55, 0.18, 0.2);
       part(modules.tentacles, side * 0.72, 0, -0.05, 0.68, 0.12, 0.16);
       part(modules.tentacles, side * 0.9, 0, -0.32, 0.42, 0.12, 0.14);
@@ -93,6 +104,7 @@ export function createWorld(canvas: HTMLCanvasElement) {
       part(modules.wings, side * 0.75, 0.25, -0.15, 0.6, 0.08, 0.55);
       part(modules.spines, side * 0.35, 0.38, -0.12, 0.1, 0.45, 0.1);
     }
+    part(modules.snout, 0, 0.1, 0.63, 0.3, 0.18, 0.35);
     part(modules.tail, 0, 0, -0.75, 0.25, 0.15, 0.65);
     part(modules.fin, 0, 0.35, -0.25, 0.12, 0.45, 0.5);
     part(modules.slam, 0, 0.05, 0.6, 0.55, 0.25, 0.28);

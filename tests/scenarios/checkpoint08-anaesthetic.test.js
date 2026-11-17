@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createAbilityMatch } from './checkpoint08-ability-fixture.js';
 
-function setup(anaesthetic, role) {
+function setup(choice, role) {
   const { match, world } = createAbilityMatch('anaesthetic');
   for (let rank = 1; rank <= 3; rank++)
     assert.ok(match.grantUpgrade('a', 'leech', 'rare', rank));
@@ -17,7 +17,7 @@ function setup(anaesthetic, role) {
       sequence: 1,
       offerId: offer.id,
       revision: offer.revision,
-      choiceId: anaesthetic ? 'leech-anaesthetic' : 'leech-vasodilators',
+      choiceId: choice,
     }),
   );
   const view = match.view('a');
@@ -60,7 +60,7 @@ function hit(match, bot, abilityId = 'leech') {
       depth: 0,
     },
   ])[0];
-  assert.equal(result.hull, 1);
+  assert.equal(result.hull + result.plating, 1);
 }
 function advance(match, ms) {
   for (let elapsed = 0; elapsed < ms; elapsed += 50)
@@ -68,8 +68,8 @@ function advance(match, ms) {
 }
 
 test('Anaesthetic does not prevent naturally hostile hunters from attacking', () => {
-  for (const anaesthetic of [false, true]) {
-    const { match, bot } = setup(anaesthetic, 'hunter');
+  for (const choice of ['leech-vasodilators', 'leech-anaesthetic', 'skip']) {
+    const { match, bot } = setup(choice, 'hunter');
     try {
       hit(match, bot);
       match.takeDamageLedger();
@@ -79,10 +79,7 @@ test('Anaesthetic does not prevent naturally hostile hunters from attacking', ()
         .filter(
           ({ event }) => event.ownerId === bot.id && event.targetId === 'a',
         );
-      assert.ok(
-        attacks.length > 0,
-        `hunter attacks with anaesthetic=${anaesthetic}`,
-      );
+      assert.ok(attacks.length > 0, `hunter attacks with ${choice}`);
     } finally {
       match.dispose();
     }
@@ -90,8 +87,8 @@ test('Anaesthetic does not prevent naturally hostile hunters from attacking', ()
 });
 
 test('ordinary hits provoke foragers while Anaesthetic Leech hits do not', () => {
-  for (const anaesthetic of [false, true]) {
-    const { match, bot } = setup(anaesthetic, 'forager');
+  for (const choice of ['leech-vasodilators', 'leech-anaesthetic', 'skip']) {
+    const { match, bot } = setup(choice, 'forager');
     try {
       hit(match, bot);
       match.takeDamageLedger();
@@ -101,7 +98,7 @@ test('ordinary hits provoke foragers while Anaesthetic Leech hits do not', () =>
         .filter(
           ({ event }) => event.ownerId === bot.id && event.targetId === 'a',
         );
-      assert.equal(attacks.length > 0, !anaesthetic);
+      assert.equal(attacks.length > 0, choice !== 'leech-anaesthetic', choice);
     } finally {
       match.dispose();
     }
@@ -109,7 +106,7 @@ test('ordinary hits provoke foragers while Anaesthetic Leech hits do not', () =>
 });
 
 test('Anaesthetic does not cancel existing provocation', () => {
-  const { match, bot } = setup(true, 'forager');
+  const { match, bot } = setup('leech-anaesthetic', 'forager');
   try {
     hit(match, bot, 'body-slam');
     hit(match, bot);
@@ -128,7 +125,7 @@ test('Anaesthetic does not cancel existing provocation', () => {
 });
 
 test('forager aggression expires after five seconds', () => {
-  const { match, bot, target } = setup(true, 'forager');
+  const { match, bot, target } = setup('leech-anaesthetic', 'forager');
   try {
     hit(match, bot, 'body-slam');
     advance(match, 5100);

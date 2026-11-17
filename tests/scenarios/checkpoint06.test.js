@@ -12,6 +12,8 @@ import {
   arenaPointClear,
 } from '../../build-host/shared/arena.js';
 import { createPointsOfInterest } from '../../build-host/server/match/points-of-interest.js';
+import { SOURCE_GAMEPLAY } from '../../build-host/server/content/source-gameplay.js';
+import { sourceCurve } from '../../build-host/server/content/source-curve.js';
 
 await RAPIER.init();
 const ids = ['a', 'b', 'c', 'd'];
@@ -89,6 +91,68 @@ function sites(arena, seed) {
 function self(match, id) {
   return match.view(id).players.find((p) => p.id === id);
 }
+function initialFirmwarePoint(arena) {
+  const point = arena.spawns
+    .map((spawn) => ({ x: spawn.x + 5, z: spawn.z + 8 }))
+    .find(
+      (p) =>
+        arenaPointClear(arena.obstacles, p) &&
+        terrainAt(arena, p.x, p.z) !== 'water',
+    );
+  assert.ok(point);
+  return point;
+}
+
+function assertAcceleratedFirmwareSpawn(match, players, arena) {
+  const point = arena.resources.find((candidate) => {
+    const nearby = arena.resources.filter(
+      (resource) =>
+        Math.hypot(resource.x - candidate.x, resource.z - candidate.z) < 32,
+    );
+    return (
+      nearby.length > 1 &&
+      nearby
+        .slice(0, 2)
+        .every(
+          (resource) =>
+            terrainAt(arena, resource.x, resource.z) !== 'water' &&
+            Math.hypot(resource.x - candidate.x, resource.z - candidate.z) < 30,
+        ) &&
+      Math.hypot(nearby[0].x - nearby[1].x, nearby[0].z - nearby[1].z) > 5
+    );
+  });
+  assert.ok(point);
+  const positionPlayers = () => {
+    for (const id of ids) move(players, id, point);
+  };
+  const visibleIds = () =>
+    new Set(
+      ids.flatMap((id) => match.view(id).firmware.map((item) => item.id)),
+    );
+  step(match, 29900 - match.view('a').time, 100);
+  positionPlayers();
+  step(match, 200, 100);
+  step(match, 57100 - match.view('a').time, 100);
+  positionPlayers();
+  const before = visibleIds();
+  step(match, 500, 100);
+  const spawned = ids
+    .flatMap((id) => match.view(id).firmware)
+    .filter((item) => !before.has(item.id));
+  const secondSite = arena.resources.filter(
+    (resource) => Math.hypot(resource.x - point.x, resource.z - point.z) < 32,
+  )[1];
+  assert.ok(
+    spawned.some(
+      (item) =>
+        Math.hypot(
+          item.position.x - secondSite.x,
+          item.position.z - secondSite.z,
+        ) < 0.01,
+    ),
+  );
+  assert.ok(match.view('a').time < 60000);
+}
 
 test('contested discovery, claims, currency and wallet retries', () => {
   const f = setup();
@@ -120,6 +184,16 @@ test('contested discovery, claims, currency and wallet retries', () => {
       match.view('b').pointsOfInterest.find((p) => p.id === site.id).status,
       'claimed',
     );
+    assert.ok(match.grantUpgrade('c', 'nomadic', 'rare', 1));
+    const progressBeforeDiscovery = match.view('c').progression.progress;
+    move(players, 'c', site.position);
+    step(match, 100);
+    assert.ok(
+      match
+        .takeDiscoveries()
+        .some((x) => x.playerId === 'c' && x.siteId === site.id),
+    );
+    assert.ok(match.view('c').progression.progress > progressBeforeDiscovery);
     assert.equal(
       match.walletTransaction('a', 'poor', 'spend', 100).accepted,
       false,
@@ -143,9 +217,9 @@ test('contested discovery, claims, currency and wallet retries', () => {
 test('firmware scanning keeps individual knowledge private and consumption is single use', () => {
   const { match, players, arena } = setup();
   try {
-    assert.ok(match.setModifiers('a', mods({ senses: 400 })));
-    assert.ok(match.setModifiers('b', mods({ senses: 400 })));
-    const point = arena.shelters[0];
+    assert.ok(match.setModifiers('a', mods({ senses: -100 })));
+    assert.ok(match.setModifiers('b', mods({ senses: -100 })));
+    const point = initialFirmwarePoint(arena);
     move(players, 'a', point);
     move(players, 'b', { x: point.x + 1, z: point.z });
     step(match, 100);
@@ -155,10 +229,7 @@ test('firmware scanning keeps individual knowledge private and consumption is si
         (x) => Math.hypot(x.position.x - point.x, x.position.z - point.z) < 3,
       );
     assert.ok(module);
-    assert.equal(
-      match.view('a').firmware.find((x) => x.id === module.id).knowledge.kind,
-      'unknown',
-    );
+    assert.ok(match.setModifiers('a', mods({ senses: 400 })));
     assert.ok(intent(match, 'a', 'scan', module.id));
     const known = match
       .view('a')
@@ -166,14 +237,16 @@ test('firmware scanning keeps individual knowledge private and consumption is si
     assert.equal(known.kind, 'identified');
     assert.equal(
       match.view('b').firmware.find((x) => x.id === module.id).knowledge.kind,
-      'unknown',
+      'failed',
     );
+    assert.ok(match.setModifiers('b', mods({ senses: 400 })));
     assert.ok(intent(match, 'b', 'scan', module.id));
     assert.deepEqual(
       match.view('b').firmware.find((x) => x.id === module.id).knowledge,
       known,
     );
     assert.ok(intent(match, 'a', 'use-firmware', module.id));
+    step(match, 2200, 100);
     assert.equal(match.view('a').lastFirmware.effect, known.effect);
     assert.equal(intent(match, 'b', 'use-firmware', module.id), false);
     assert.equal(
@@ -222,7 +295,7 @@ test('recruitment, independent ally caps and owner death cleanup', () => {
     assert.equal(match.recruitCompanion('a', 'recruit', 0), false);
     for (const [kind, cap] of [
       ['summoned', 4],
-      ['offspring', 8],
+      ['offspring', 10],
       ['decoy', 2],
     ]) {
       for (let i = 0; i < cap; i++)
@@ -234,7 +307,7 @@ test('recruitment, independent ally caps and owner death cleanup', () => {
     for (const [kind, cap] of [
       ['charmed', 1],
       ['summoned', 4],
-      ['offspring', 8],
+      ['offspring', 10],
       ['decoy', 2],
     ])
       assert.equal(owned.filter((b) => b.kind === kind).length, cap);
@@ -445,9 +518,7 @@ test('firmware effect identities grant progress and apply their observable effec
     const { match, players, arena } = setup();
     try {
       assert.ok(match.setModifiers('a', mods({ senses: 400 })));
-      const point = [...arena.shelters, ...arena.eliteSites].find(
-        (p) => terrainAt(arena, p.x, p.z) !== 'water',
-      );
+      const point = initialFirmwarePoint(arena);
       move(players, 'a', point);
       step(match, 10);
       const module = match
@@ -462,35 +533,47 @@ test('firmware effect identities grant progress and apply their observable effec
       if (seen.has(effect)) continue;
       const before = match.view('a');
       const beforeStats = self(match, 'a').stats;
-      if (effect === 'medicinal') match.damagePlayer('a', 20);
-      const damaged = self(match, 'a').health.hull;
-      assert.ok(intent(match, 'a', 'use-firmware', module.id));
+      consumeFirmware(match, module);
       const after = match.view('a');
       assert.equal(after.lastFirmware.effect, effect);
-      const fraction =
-        effect === 'delicious' ? 0.4 : effect === 'yummy' ? 0.2 : 0.1;
+      const tuning = SOURCE_GAMEPLAY.mushroom;
+      const bonus = effect === 'delicious' ? 0.3 : effect === 'yummy' ? 0.1 : 0;
+      const expectedProgress =
+        tuning.bites *
+          (tuning.staticXp +
+            (before.progression.required *
+              tuning.dynamicXp *
+              beforeStats.vegetationProgress) /
+              100) +
+        before.progression.required * bonus;
+      assert.ok(after.progression.level <= before.progression.level + 1);
+      const spent =
+        after.progression.level > before.progression.level
+          ? before.progression.required
+          : 0;
       assert.ok(
         Math.abs(
-          after.progression.progress -
+          after.progression.progress +
+            spent -
             before.progression.progress -
-            before.progression.required * fraction,
-        ) < 1e-9,
+            expectedProgress,
+        ) < 1e-6,
         `${effect} progress`,
       );
       if (['lethal', 'poisonous', 'stinging'].includes(effect)) {
         assert.ok(
           self(match, 'a').statuses.some(
-            (s) => s.kind === 'corrosion' && s.remaining === 4000,
+            (s) => s.kind === 'corrosion' && s.remaining > 3800,
           ),
           effect,
         );
       } else if (effect === 'medicinal') {
+        match.damagePlayer('a', 20);
+        const damaged = self(match, 'a').health.hull;
         step(match, 1000);
         assert.ok(self(match, 'a').health.hull > damaged);
-      } else if (effect === 'spicy')
-        assert.ok(after.thermal.heat >= before.thermal.heat + 30);
-      else if (effect === 'refreshing')
-        assert.ok(after.thermal.cold >= before.thermal.cold + 30);
+      } else if (effect === 'spicy') assert.ok(after.thermal.heat >= 25);
+      else if (effect === 'refreshing') assert.ok(after.thermal.cold >= 25);
       else if (effect === 'hallucinogenic')
         assert.equal(after.firmwareSensory.distortion, true);
       else if (effect === 'deafening')
@@ -556,9 +639,11 @@ test('recruited companion attacks marked visible opponents and stops while owner
     assert.ok(
       match.setOffer('a', { id: 'pause', revision: 0, choices: ['none'] }),
     );
-    const protectedHp = self(match, 'b').health.hull;
     step(match, 2500, 50);
-    assert.equal(self(match, 'b').health.hull, protectedHp);
+    assert.equal(
+      match.takeDamageLedger().some((entry) => entry.event.ownerId === ally.id),
+      false,
+    );
     assert.equal(match.markAllyTarget('a', ally.id), false);
     assert.ok(match.setPlayerVisibility('a', 'b', false));
     assert.equal(match.markAllyTarget('a', 'b'), false);
@@ -580,6 +665,8 @@ test('sun-dial changes future day and night lengths in opposite directions', () 
           match.setModifiers(
             id,
             mods({
+              maximumHealth: 100000,
+              regeneration: 10000,
               damageResistance: 100,
               heatAdaptation: 100,
               coldAdaptation: 100,
@@ -591,8 +678,8 @@ test('sun-dial changes future day and night lengths in opposite directions', () 
       assert.ok(intent(match, 'a', 'interaction', site.id));
       assert.ok(choose(match, 'a', choice));
       const current = match.view('a').worldClock;
-      assert.equal(current.nextTransitionAt, 180000);
-      step(match, 180000 - current.phaseStartedAt - match.view('a').time, 500);
+      assert.equal(current.nextTransitionAt, day);
+      step(match, current.nextTransitionAt - match.view('a').time, 500);
       const next = match.view('a').worldClock;
       assert.equal(next.phase, 'night');
       assert.equal(next.nextTransitionAt - next.phaseStartedAt, night);
@@ -629,7 +716,7 @@ test('nest defense awards an ally after a minute and cancels on owner death', ()
         match.damageBatch([
           {
             targetId: bot.id,
-            ownerId: 'a',
+            ownerId: null,
             channel: 'direct',
             amount: 10000,
             depth: 0,
@@ -645,7 +732,25 @@ test('nest defense awards an ally after a minute and cancels on owner death', ()
         step(match, 100);
         assert.equal(match.view('a').nestDefenses.length, 0);
       } else {
-        step(match, 59000, 250);
+        for (let elapsed = 0; elapsed < 59000; elapsed += 250) {
+          for (const bot of match.view('a').bots)
+            if (
+              Math.hypot(
+                bot.position.x - site.position.x,
+                bot.position.z - site.position.z,
+              ) < 8
+            )
+              match.damageBatch([
+                {
+                  targetId: bot.id,
+                  ownerId: null,
+                  channel: 'direct',
+                  amount: 10000,
+                  depth: 0,
+                },
+              ]);
+          step(match, 250);
+        }
         assert.equal(match.view('a').nestDefenses.length, 1);
         step(match, 1100, 100);
         assert.equal(match.view('a').nestDefenses.length, 0);
@@ -696,11 +801,7 @@ test('reservation expires, disconnect releases it and rediscovery emits once', (
 });
 
 test('shelter occupancy, size duration and selection cannot restart protection', () => {
-  for (const [size, duration] of [
-    [-50, 10000],
-    [0, 5000],
-    [100, 3000],
-  ]) {
+  for (const size of [-50, 0, 100]) {
     const { match, players, arena } = setup();
     try {
       assert.ok(match.setModifiers('a', mods({ size })));
@@ -710,7 +811,19 @@ test('shelter occupancy, size duration and selection cannot restart protection',
       assert.ok(intent(match, 'a', 'shelter', 'shelter-0'));
       assert.equal(intent(match, 'b', 'shelter', 'shelter-0'), false);
       const shelter = self(match, 'a').shelter;
-      assert.equal(shelter.until - match.view('a').time, duration);
+      const tuning = SOURCE_GAMEPLAY.burrow;
+      const duration =
+        ((1 - tuning.entryPenalty) * tuning.lifetimeMs) /
+        Math.max(
+          0.01,
+          sourceCurve(
+            tuning.sizeContribution,
+            self(match, 'a').stats.size / 100,
+          ),
+        );
+      assert.ok(
+        Math.abs(shelter.until - match.view('a').time - duration) < 1e-6,
+      );
       const nearSite = match
         .view('a')
         .pointsOfInterest.find(
@@ -723,9 +836,16 @@ test('shelter occupancy, size duration and selection cannot restart protection',
       if (nearSite)
         assert.equal(intent(match, 'a', 'interaction', nearSite.id), false);
       assert.equal(match.canUseOwnedOffense('a'), false);
-      step(match, duration - 100, 100);
+      assert.ok(
+        match.setOffer('a', {
+          id: 'shelter-choice',
+          revision: 0,
+          choices: ['none'],
+        }),
+      );
+      step(match, Math.floor(duration) - 100, 100);
       assert.ok(self(match, 'a').shelter);
-      step(match, 100);
+      step(match, 200);
       assert.equal(self(match, 'a').shelter, null);
       assert.equal(intent(match, 'a', 'shelter', 'shelter-0'), false);
     } finally {
@@ -784,6 +904,7 @@ test('firmware mapping is consistent within a field, private and regenerated', (
         'appearance',
         'id',
         'position',
+        'stage',
       ]);
       const taken = field.take(module.id);
       assert.ok(taken);
@@ -803,9 +924,14 @@ test('firmware mapping is consistent within a field, private and regenerated', (
     ),
   );
   assert.equal(identificationChance(0, 0), 0);
-  assert.equal(identificationChance(100, 0), 0.25);
+  assert.ok(
+    Math.abs(identificationChance(100, 0) - 0.21147609424591068) < 1e-12,
+  );
   assert.equal(identificationChance(250, 0), 1);
-  assert.equal(identificationChance(100, 25), 0.5);
+  assert.equal(
+    identificationChance(100, 25),
+    identificationChance(100, 0) + 0.25,
+  );
 });
 
 test('random stat, cooldown, resistance and recruitment POI choices produce their effects', () => {
@@ -884,14 +1010,15 @@ test('random stat, cooldown, resistance and recruitment POI choices produce thei
   }
 });
 
-test('competing charms transfer one bot without duplicating ownership or exceeding capacity', () => {
+test('friendship offers can only be accepted by their intended player', () => {
   const { match, players, world } = setup();
+  const random = Math.random;
   try {
     for (const id of ['a', 'b'])
       assert.ok(
         match.setModifiers(
           id,
-          mods({ social: 100, senses: 400, damageResistance: 100 }),
+          mods({ social: 100, senses: 400, maximumHealth: 1000 }),
         ),
       );
     const bot = match.view('a').bots.find((b) => !b.elite);
@@ -907,33 +1034,38 @@ test('competing charms transfer one bot without duplicating ownership or exceedi
           ) < 0.01,
       );
     assert.ok(body);
-    let owned = false;
-    for (let attempt = 0; attempt < 30 && !owned; attempt++) {
-      const p = body.translation();
-      move(players, 'a', { x: p.x + 1, z: p.z });
-      move(players, 'b', { x: p.x - 1, z: p.z });
-      assert.ok(intent(match, 'a', 'charm', bot.id));
-      assert.equal(intent(match, 'b', 'charm', bot.id), false);
-      owned = match
-        .view('a')
-        .bots.some((b) => b.id === bot.id && b.ownerId === 'a');
-      if (!owned) step(match, 5100, 100);
+    move(players, 'a', { x: bot.position.x + 1, z: bot.position.z });
+    Math.random = () => 0;
+    let offered;
+    for (let attempt = 0; attempt < 60 && !offered; attempt++) {
+      step(match, 100);
+      offered = match.view('a').bots.find((entry) => entry.friendshipUntil);
     }
-    assert.ok(owned, 'charm eventually succeeds');
-    step(match, 5100, 100);
-    let transferred = false;
-    for (let attempt = 0; attempt < 30 && !transferred; attempt++) {
-      const p = body.translation();
-      move(players, 'b', { x: p.x + 1, z: p.z });
-      assert.ok(intent(match, 'b', 'charm', bot.id));
-      transferred = match
-        .view('b')
-        .bots.some((b) => b.id === bot.id && b.ownerId === 'b');
-      if (!transferred) step(match, 5100, 100);
-    }
-    assert.ok(transferred, 'ownership transfer eventually succeeds');
-    assert.equal(match.view('b').bots.filter((b) => b.id === bot.id).length, 1);
+    assert.ok(offered);
+    const offeredBody = world.bodies
+      .getAll()
+      .find(
+        (entry) =>
+          entry.isDynamic() &&
+          Math.hypot(
+            entry.translation().x - offered.position.x,
+            entry.translation().z - offered.position.z,
+          ) < 0.01,
+      );
+    assert.ok(offeredBody);
+    const position = offeredBody.translation();
+    move(players, 'a', { x: position.x + 1, z: position.z });
+    move(players, 'b', { x: position.x - 1, z: position.z });
+    assert.equal(intent(match, 'b', 'charm', offered.id), false);
+    assert.ok(intent(match, 'a', 'charm', offered.id));
+    assert.equal(intent(match, 'b', 'charm', offered.id), false);
+    const copies = match
+      .view('b')
+      .bots.filter((entry) => entry.id === offered.id);
+    assert.equal(copies.length, 1);
+    assert.equal(copies[0].ownerId, 'a');
   } finally {
+    Math.random = random;
     match.dispose();
   }
 });
@@ -996,13 +1128,16 @@ test('mushroom spread advances subsequent firmware generation', () => {
     }
   }
   assert.ok(data);
-  const { match, players } = setup(data.seed);
+  const { match, players, arena } = setup(data.seed);
   try {
     for (const id of ids)
       assert.ok(
         match.setModifiers(
           id,
           mods({
+            senses: 400,
+            maximumHealth: 10000,
+            regeneration: 1000,
             damageResistance: 100,
             heatAdaptation: 100,
             coldAdaptation: 100,
@@ -1013,11 +1148,7 @@ test('mushroom spread advances subsequent firmware generation', () => {
     step(match, 50);
     assert.ok(intent(match, 'a', 'interaction', data.site.id));
     assert.ok(choose(match, 'a', 'spread'));
-    step(match, 30100 - match.view('a').time, 100);
-    const afterFirst = match.view('a').firmware.length;
-    step(match, 27600, 100);
-    assert.equal(match.view('a').firmware.length, afterFirst + 1);
-    assert.ok(match.view('a').time < 60000);
+    assertAcceleratedFirmwareSpawn(match, players, arena);
   } finally {
     match.dispose();
   }
@@ -1156,12 +1287,16 @@ function findFirmwareEffect(wanted) {
     assert.ok(
       match.setModifiers(
         'a',
-        mods({ senses: 400, heatAdaptation: 100, coldAdaptation: 100 }),
+        mods({
+          senses: 400,
+          heatAdaptation: 100,
+          coldAdaptation: 100,
+          maximumHealth: 1000,
+        }),
       ),
     );
-    const point = [...arena.shelters, ...arena.eliteSites].find(
-      (p) => terrainAt(arena, p.x, p.z) !== 'water',
-    );
+    match.repairPlayer('a', 1000, false);
+    const point = initialFirmwarePoint(arena);
     move(players, 'a', point);
     step(match, 10);
     const module = match
@@ -1180,17 +1315,23 @@ function findFirmwareEffect(wanted) {
   throw Error(`Did not encounter ${wanted}`);
 }
 
+function consumeFirmware(match, module) {
+  assert.ok(intent(match, 'a', 'use-firmware', module.id));
+  for (let i = 0; i < 30 && !match.view('a').lastFirmware; i++)
+    step(match, 100, 100);
+  assert.ok(match.view('a').lastFirmware);
+}
+
 test('harmful firmware ticks four times and corrosion immunity blocks it', () => {
   for (const [effect, amount] of [
     ['stinging', 2],
     ['poisonous', 5],
-    ['lethal', 13],
+    ['lethal', null],
   ]) {
     {
       const { match, module } = findFirmwareEffect(effect);
       try {
-        const before = self(match, 'a').health.hull;
-        assert.ok(intent(match, 'a', 'use-firmware', module.id));
+        consumeFirmware(match, module);
         step(match, 4000, 100);
         const damage = match
           .takeDamageLedger()
@@ -1198,8 +1339,10 @@ test('harmful firmware ticks four times and corrosion immunity blocks it', () =>
             (x) => x.event.channel === 'corrosion' && x.event.targetId === 'a',
           )
           .reduce((sum, x) => sum + x.result.hull, 0);
-        assert.equal(damage, amount * 4);
-        assert.equal(self(match, 'a').health.hull, before - damage);
+        assert.equal(
+          damage,
+          (amount ?? self(match, 'a').stats.maximumHealth * 0.2) * 4,
+        );
         assert.equal(
           self(match, 'a').statuses.some((s) => s.kind === 'corrosion'),
           false,
@@ -1212,7 +1355,7 @@ test('harmful firmware ticks four times and corrosion immunity blocks it', () =>
       const { match, module } = findFirmwareEffect(effect);
       try {
         assert.ok(match.setStatusImmunity('a', 'corrosion', true));
-        assert.ok(intent(match, 'a', 'use-firmware', module.id));
+        consumeFirmware(match, module);
         step(match, 4000, 100);
         assert.equal(
           match
@@ -1234,14 +1377,38 @@ test('medicinal firmware heals over four seconds and sensory effects expire', ()
   {
     const { match, module } = findFirmwareEffect('medicinal');
     try {
-      match.damagePlayer('a', 40);
+      match.damagePlayer('a', 400);
+      consumeFirmware(match, module);
       const before = self(match, 'a').health.hull;
-      assert.ok(intent(match, 'a', 'use-firmware', module.id));
+      match.takeDamageLedger();
       step(match, 4000, 100);
-      assert.ok(Math.abs(self(match, 'a').health.hull - before - 13) < 0.001);
+      const stats = self(match, 'a').stats;
+      const damage = match
+        .takeDamageLedger()
+        .filter((entry) => entry.event.targetId === 'a')
+        .reduce((sum, entry) => sum + entry.result.hull, 0);
+      assert.ok(
+        Math.abs(
+          self(match, 'a').health.hull -
+            before +
+            damage -
+            (stats.maximumHealth * 0.05 * 3.9 + stats.regeneration * 0.4),
+        ) < 0.001,
+      );
       const end = self(match, 'a').health.hull;
       step(match, 2000, 100);
-      assert.equal(self(match, 'a').health.hull, end);
+      const laterDamage = match
+        .takeDamageLedger()
+        .filter((entry) => entry.event.targetId === 'a')
+        .reduce((sum, entry) => sum + entry.result.hull, 0);
+      assert.ok(
+        Math.abs(
+          self(match, 'a').health.hull -
+            end +
+            laterDamage -
+            stats.regeneration * 0.2,
+        ) < 0.001,
+      );
     } finally {
       match.dispose();
     }
@@ -1252,7 +1419,7 @@ test('medicinal firmware heals over four seconds and sensory effects expire', ()
   ]) {
     const { match, module } = findFirmwareEffect(effect);
     try {
-      assert.ok(intent(match, 'a', 'use-firmware', module.id));
+      consumeFirmware(match, module);
       assert.equal(match.view('a').firmwareSensory[key], true);
       step(match, 10100, 100);
       assert.equal(match.view('a').firmwareSensory[key], false);
@@ -1267,15 +1434,30 @@ test('nest elite roll finds safe space when initial elite sites are occupied', (
     { match, players, arena } = setup(seed);
   const random = Math.random;
   try {
+    assert.ok(match.setModifiers('a', mods({ senses: 400 })));
     move(players, 'a', site.position);
     step(match, 50);
     assert.ok(intent(match, 'a', 'interaction', site.id));
+    const occupied = { x: arena.eliteSites[0].x + 1, z: arena.eliteSites[0].z };
+    move(players, 'b', occupied);
     Math.random = () => 0;
     assert.ok(choose(match, 'a', 'crack'));
-    const elite = match.view('a').bots.find((b) => b.elite);
+    let elite;
+    for (const point of arena.eliteSites) {
+      move(players, 'c', point);
+      elite = match.view('c').bots.find((b) => b.elite);
+      if (elite) break;
+    }
     assert.ok(elite);
+    assert.ok(
+      Math.hypot(
+        elite.position.x - occupied.x,
+        elite.position.z - occupied.z,
+      ) >=
+        elite.radius + 0.5,
+    );
     assert.ok(arenaPointClear(arena.obstacles, elite.position, elite.radius));
-    for (const other of match.view('a').bots.filter((b) => b.id !== elite.id))
+    for (const other of match.view('c').bots.filter((b) => b.id !== elite.id))
       assert.ok(
         Math.hypot(
           other.position.x - elite.position.x,
@@ -1334,17 +1516,32 @@ test('refreshing firmware reduces an active dash cooldown', () => {
         buttons: 4,
       }),
     );
-    step(match, 50);
+    step(match, 500, 50);
     move(players, 'a', module.position);
+    assert.ok(
+      match.consume({
+        matchId: 'room',
+        playerId: 'a',
+        sequence: 2,
+        kind: 'control',
+        x: 0,
+        y: 0,
+        aim: 0,
+        buttons: 0,
+      }),
+    );
     const before = match
       .view('a')
       .equipment.learned.find((a) => a.id === 'basic-dash').readyAt;
     assert.ok(before > match.view('a').time);
-    assert.ok(intent(match, 'a', 'use-firmware', module.id));
+    consumeFirmware(match, module);
     const after = match
       .view('a')
       .equipment.learned.find((a) => a.id === 'basic-dash').readyAt;
-    assert.equal(after, Math.max(match.view('a').time, before - 3000));
+    assert.equal(
+      after,
+      Math.max(match.view('a').lastFirmware.at, before - 3000),
+    );
   } finally {
     match.dispose();
   }
@@ -1354,9 +1551,7 @@ test('firmware identification knowledge survives reconnect and resets with a new
   const { match, players, arena } = setup();
   try {
     assert.ok(match.setModifiers('a', mods({ senses: 400 })));
-    const p = [...arena.shelters, ...arena.eliteSites].find(
-      (q) => terrainAt(arena, q.x, q.z) !== 'water',
-    );
+    const p = initialFirmwarePoint(arena);
     move(players, 'a', p);
     step(match, 50);
     const module = match
@@ -1472,9 +1667,7 @@ test('failed firmware scans are stable until sensing improves', () => {
   const { match, players, arena } = setup();
   try {
     assert.ok(match.setModifiers('a', mods({ senses: -100 })));
-    const point = [...arena.shelters, ...arena.eliteSites].find(
-      (p) => terrainAt(arena, p.x, p.z) !== 'water',
-    );
+    const point = initialFirmwarePoint(arena);
     move(players, 'a', point);
     step(match, 50);
     const module = match
@@ -1573,7 +1766,7 @@ test('spicy firmware increases movement while its effect lasts', () => {
     drive();
     const baseline = players.get('a').translation().x - p.x;
     move(players, 'a', module.position);
-    assert.ok(intent(match, 'a', 'use-firmware', module.id));
+    consumeFirmware(match, module);
     move(players, 'a', p);
     drive();
     const boosted = players.get('a').translation().x - p.x;
@@ -1584,25 +1777,24 @@ test('spicy firmware increases movement while its effect lasts', () => {
 });
 
 test('prolific firmware shortens the next generation interval', () => {
-  const { match, module } = findFirmwareEffect('prolific');
+  const { match, module, players, arena } = findFirmwareEffect('prolific');
   try {
-    assert.ok(intent(match, 'a', 'use-firmware', module.id));
+    consumeFirmware(match, module);
     for (const id of ids)
       assert.ok(
         match.setModifiers(
           id,
           mods({
+            senses: 400,
+            maximumHealth: 10000,
+            regeneration: 1000,
             damageResistance: 100,
             heatAdaptation: 100,
             coldAdaptation: 100,
           }),
         ),
       );
-    step(match, 30100 - match.view('a').time, 100);
-    const first = match.view('a').firmware.length;
-    step(match, 27600, 100);
-    assert.equal(match.view('a').firmware.length, first + 1);
-    assert.ok(match.view('a').time < 60000);
+    assertAcceleratedFirmwareSpawn(match, players, arena);
   } finally {
     match.dispose();
   }

@@ -43,7 +43,9 @@ test('Signal marks belong to their owner and boost only that owner’s charmed a
     assert.ok(match.recruitCompanion('c', 'ally-c', 0));
     const bots = match.view('a').bots;
     const a = bots.find((b) => b.kind === 'charmed' && b.ownerId === 'a');
-    const c = bots.find((b) => b.kind === 'charmed' && b.ownerId === 'c');
+    const c = match
+      .view('c')
+      .bots.find((b) => b.kind === 'charmed' && b.ownerId === 'c');
     assert.ok(a && c);
     const hit = (ownerId) =>
       match.damageBatch([

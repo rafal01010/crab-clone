@@ -33,6 +33,14 @@ process.on('message', (message) => {
     for (let rank = 1; rank <= 3; rank++)
       if (!match.grantUpgrade(message.playerId, 'reach', 'legendary', rank))
         throw Error('Reach grant rejected');
+    const progression = match.view(message.playerId).progression;
+    if (
+      !match.grantProgress(
+        message.playerId,
+        Math.max(0, progression.required - progression.progress - 1),
+      )
+    )
+      throw Error('progress setup rejected');
     const player = match
       .view(message.playerId)
       .players.find((p) => p.id === message.playerId);

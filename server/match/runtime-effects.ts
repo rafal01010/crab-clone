@@ -151,6 +151,13 @@ export type RuntimeEffect =
       durationMs: number;
     }
   | {
+      kind: 'hurt-stacks';
+      id: string;
+      fraction: number;
+      maximum: number;
+      durationMs: number;
+    }
+  | {
       kind: 'slowing-trail';
       id: string;
       trigger: 'movement' | 'pursuit';
@@ -159,6 +166,8 @@ export type RuntimeEffect =
       radius: number;
       slowPercent: number;
       pursuitRange: number;
+      activationCooldownMs?: number;
+      emissionMs?: number;
       status?: FieldStatus;
     }
   | {
@@ -312,9 +321,16 @@ type EffectState =
       until: number;
     }
   | {
+      kind: 'hurt-stacks';
+      effect: Extract<RuntimeEffect, { kind: 'hurt-stacks' }>;
+      expiries: number[];
+    }
+  | {
       kind: 'slowing-trail';
       effect: Extract<RuntimeEffect, { kind: 'slowing-trail' }>;
       nextAt: number;
+      activeUntil: number;
+      readyAt: number;
     }
   | {
       kind: 'kill-growth';
@@ -529,6 +545,14 @@ export function validRuntimeEffect(effect: RuntimeEffect): boolean {
         (effect.physical > 0 || effect.ability > 0) &&
         duration(effect.durationMs)
       );
+    case 'hurt-stacks':
+      return (
+        positive(effect.fraction, 1) &&
+        Number.isSafeInteger(effect.maximum) &&
+        effect.maximum > 0 &&
+        effect.maximum <= 100 &&
+        duration(effect.durationMs)
+      );
     case 'slowing-trail':
       return (
         (effect.trigger === 'movement' || effect.trigger === 'pursuit') &&
@@ -538,6 +562,9 @@ export function validRuntimeEffect(effect: RuntimeEffect): boolean {
         positive(effect.radius, 20) &&
         positive(effect.slowPercent, 100) &&
         positive(effect.pursuitRange, 100) &&
+        (effect.activationCooldownMs === undefined ||
+          duration(effect.activationCooldownMs)) &&
+        (effect.emissionMs === undefined || duration(effect.emissionMs)) &&
         (effect.status === undefined || validFieldStatus(effect.status))
       );
     case 'kill-growth':
@@ -761,12 +788,24 @@ export class RuntimeEffects {
           until: old?.kind === effect.kind ? old.until : 0,
         });
         return true;
+      case 'hurt-stacks':
+        this.#effects.set(effect.id, {
+          kind: effect.kind,
+          effect: { ...effect },
+          expiries:
+            old?.kind === effect.kind
+              ? old.expiries.slice(-effect.maximum)
+              : [],
+        });
+        return true;
       case 'slowing-trail':
         this.#effects.set(effect.id, {
           kind: effect.kind,
           effect: { ...effect },
           nextAt:
             old?.kind === effect.kind ? old.nextAt : now + effect.intervalMs,
+          activeUntil: old?.kind === effect.kind ? old.activeUntil : 0,
+          readyAt: old?.kind === effect.kind ? old.readyAt : now,
         });
         return true;
       case 'kill-growth':
@@ -869,6 +908,16 @@ export class RuntimeEffects {
             add: state.effect.ability,
             multiplier: 1,
           });
+      } else if (state.kind === 'hurt-stacks') {
+        const stacks = state.expiries.filter((expiry) => expiry > now).length;
+        if (stacks)
+          for (const stat of ['physical', 'ability'] as const)
+            modifiers.push({
+              id: JSON.stringify(['runtime-hurt-stacks', id, stat]),
+              stat,
+              add: 0,
+              multiplier: 1 + stacks * state.effect.fraction,
+            });
       }
     return modifiers;
   }
@@ -877,9 +926,16 @@ export class RuntimeEffects {
     this.interruptProgress(now);
     let changed = false;
     for (const state of this.#effects.values()) {
-      if (state.kind !== 'hurt-boost') continue;
-      state.until = now + state.effect.durationMs;
-      changed = true;
+      if (state.kind === 'hurt-boost') {
+        state.until = now + state.effect.durationMs;
+        changed = true;
+      } else if (state.kind === 'hurt-stacks') {
+        state.expiries = state.expiries.filter((expiry) => expiry > now);
+        if (state.expiries.length >= state.effect.maximum)
+          state.expiries.shift();
+        state.expiries.push(now + state.effect.durationMs);
+        changed = true;
+      }
     }
     return changed;
   }
@@ -925,6 +981,10 @@ export class RuntimeEffects {
       ) {
         state.until = 0;
         changed = true;
+      } else if (state.kind === 'hurt-stacks') {
+        const active = state.expiries.filter((expiry) => expiry > now);
+        if (active.length !== state.expiries.length) changed = true;
+        state.expiries = active;
       }
     return changed;
   }
@@ -1252,6 +1312,12 @@ export class RuntimeEffects {
     return strongest;
   }
 
+  secretionTrail():
+    Extract<RuntimeEffect, { kind: 'slowing-trail' }> | undefined {
+    const state = this.#effects.get('upgrade:pedal-glands');
+    return state?.kind === 'slowing-trail' ? state.effect : undefined;
+  }
+
   trails(
     now: number,
     enabled: boolean,
@@ -1262,6 +1328,21 @@ export class RuntimeEffects {
     for (const state of this.#effects.values()) {
       if (state.kind !== 'slowing-trail' || state.nextAt > now) continue;
       state.nextAt = now + state.effect.intervalMs;
+      if (state.effect.activationCooldownMs !== undefined) {
+        if (
+          enabled &&
+          moving &&
+          now >= state.readyAt &&
+          pursuedWithin(state.effect.pursuitRange)
+        ) {
+          state.activeUntil =
+            now + (state.effect.emissionMs ?? state.effect.intervalMs);
+          state.readyAt = now + state.effect.activationCooldownMs;
+        }
+        if (enabled && moving && now < state.activeUntil)
+          emitted.push(state.effect);
+        continue;
+      }
       if (
         enabled &&
         moving &&

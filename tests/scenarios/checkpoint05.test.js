@@ -334,12 +334,14 @@ test('senses change night discovery and spectator requests cannot select a conce
         match.setModifiers(
           id,
           mods({
+            maximumHealth: 900,
             damageResistance: 100,
             heatAdaptation: 10000,
             coldAdaptation: 10000,
           }),
         ),
       );
+    for (const id of ids) match.repairPlayer(id, 900, false);
     step(match, 180000, 500);
     move(players, 'a', { x: -20, z: -20 });
     move(players, 'b', { x: 0, z: -20 });
@@ -370,6 +372,47 @@ test('senses change night discovery and spectator requests cannot select a conce
       }),
       false,
     );
+  } finally {
+    match.dispose();
+  }
+});
+
+test('More Eyes increases the distance at which a player can observe another', () => {
+  const { match, players } = setup();
+  try {
+    for (const id of ids) {
+      assert.ok(
+        match.setModifiers(
+          id,
+          mods({
+            maximumHealth: 900,
+            damageResistance: 100,
+            heatAdaptation: 10000,
+            coldAdaptation: 10000,
+          }),
+        ),
+      );
+      match.repairPlayer(id, 900, false);
+    }
+    step(match, 180000, 500);
+    move(players, 'a', { x: -20, z: -20 });
+    const visible = [];
+    for (let distance = 1; distance <= 30; distance++) {
+      move(players, 'b', { x: -20 + distance, z: -20 });
+      visible.push(match.view('a').players.some((p) => p.id === 'b'));
+    }
+    for (let rank = 1; rank <= 5; rank++)
+      assert.ok(match.grantUpgrade('a', 'more-eyes', 'legendary', rank));
+    let newlyVisible = false;
+    for (let distance = 1; distance <= 30; distance++) {
+      move(players, 'b', { x: -20 + distance, z: -20 });
+      if (
+        !visible[distance - 1] &&
+        match.view('a').players.some((p) => p.id === 'b')
+      )
+        newlyVisible = true;
+    }
+    assert.ok(newlyVisible);
   } finally {
     match.dispose();
   }

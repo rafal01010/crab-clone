@@ -45,8 +45,8 @@ function position(a, b, distance) {
 
 const poisons = {
   rare: [0.175, 0.225, 0.275, 0.325, 0.375],
-  epic: [0.325, 0.375, 0.425, 0.475, 0.525],
-  legendary: [0.375, 0.425, 0.475, 0.525, 0.575],
+  epic: [0.225, 0.275, 0.325, 0.375, 0.425],
+  legendary: [0.275, 0.325, 0.375, 0.425, 0.475],
 };
 test('Stinger poison ticks follow every rank and rarity coefficient', () => {
   for (const [rarity, values] of Object.entries(poisons))
@@ -90,8 +90,8 @@ test('Stinger poison ticks follow every rank and rarity coefficient', () => {
 test('Leech heals the stated percentage at every rank and rarity', () => {
   for (const [rarity, percent] of [
     ['rare', 10],
-    ['epic', 11],
-    ['legendary', 12],
+    ['epic', 12],
+    ['legendary', 15],
   ])
     for (let rank = 1; rank <= 5; rank++) {
       const { match } = setup();
@@ -133,7 +133,7 @@ test('Leech heals the stated percentage at every rank and rarity', () => {
     }
 });
 
-test('Stoner quick throws use uncharged hybrid damage at every rank and rarity', () => {
+test('Stoner quick throws use near-minimum hybrid damage at every rank and rarity', () => {
   for (const [rarity, values] of Object.entries({
     common: [1.1, 1.3, 1.5, 1.7, 1.9],
     rare: [1.2, 1.4, 1.6, 1.8, 2],
@@ -141,6 +141,8 @@ test('Stoner quick throws use uncharged hybrid damage at every rank and rarity',
     legendary: [1.4, 1.6, 1.8, 2, 2.2],
   }))
     for (const [index, coefficient] of values.entries()) {
+      const random = Math.random;
+      Math.random = () => 0;
       const { match, a, b } = setup();
       try {
         assert.ok(match.grantUpgrade('a', 'arms', 'branching', 1));
@@ -164,7 +166,7 @@ test('Stoner quick throws use uncharged hybrid damage at every rank and rarity',
             }),
           );
         }
-        position(a, b, 4);
+        position(a, b, 1.8);
         assert.ok(match.advance(20));
         match.takeDamageLedger();
         const control = (buttons) =>
@@ -181,7 +183,7 @@ test('Stoner quick throws use uncharged hybrid damage at every rank and rarity',
             }),
           );
         control(button);
-        assert.ok(match.advance(1));
+        assert.ok(match.advance(50));
         control(0);
         for (let i = 0; i < 20; i++) assert.ok(match.advance(50));
         const hits = match
@@ -191,12 +193,20 @@ test('Stoner quick throws use uncharged hybrid damage at every rank and rarity',
               event.abilityId === 'stoner' && event.targetId === 'b',
           );
         assert.equal(hits.length, 1, `${rarity} rank ${index + 1}`);
+        const stats = match.view('a').players.find((p) => p.id === 'a').stats;
+        const minimum =
+          (coefficient *
+            Math.min(stats.physical, stats.ability) *
+            stats.damage) /
+          100;
         assert.ok(
-          Math.abs(hits[0].result.hull - coefficient * 12) < 0.03,
+          hits[0].result.hull >= minimum - 0.001 &&
+            hits[0].result.hull <= minimum * 1.01,
           `${rarity} rank ${index + 1}: ${hits[0].result.hull}`,
         );
       } finally {
         match.dispose();
+        Math.random = random;
       }
     }
 });

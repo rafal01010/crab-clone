@@ -20,9 +20,13 @@ function setup() {
   assert.ok(body);
   return { match, body };
 }
-function choose(match, choiceId) {
+function choose(match, choiceId, expectedMovement) {
   assert.ok(match.advance(20));
   const offer = match.view('a').offer;
+  if (choiceId === 'movement' && !offer) {
+    assert.equal(match.view('a').equipment.slots.movement, expectedMovement);
+    return;
+  }
   assert.ok(offer);
   assert.ok(
     match.consume({
@@ -98,7 +102,7 @@ test('Slide travels farther when started on snow', () => {
     try {
       assert.ok(match.grantUpgrade('a', 'slithery', 'branching', 1));
       assert.ok(match.grantUpgrade('a', 'slide', 'common', 1));
-      choose(match, 'movement');
+      choose(match, 'movement', 'slide');
       const start = openPosition(terrain);
       body.setTranslation({ ...start, y: 0.25 }, true);
       body.setLinvel({ x: 0, y: 0, z: 0 }, true);
@@ -125,7 +129,7 @@ test('Arthropod Scuttle moves sideways and halves cooldown', () => {
     choose(match, 'legs-arthropod');
     assert.ok(match.advance(2000));
     assert.ok(match.grantUpgrade('a', 'scuttle', 'common', 1));
-    choose(match, 'movement');
+    choose(match, 'movement', 'scuttle');
     const start = openPosition('grass');
     body.setTranslation({ ...start, y: 0.25 }, true);
     body.setLinvel({ x: 0, y: 0, z: 0 }, true);

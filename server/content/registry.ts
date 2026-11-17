@@ -76,6 +76,7 @@ export interface ContentDefinition {
   rankDescription?: string;
   pool: 'ordinary' | 'branching' | 'starting' | 'finale';
   maxRank: number;
+  repeatable?: 'linear' | 'cumulative';
   rarities: readonly string[];
   values: Readonly<Record<string, readonly number[]>>;
   detailValues?: Readonly<
@@ -141,13 +142,44 @@ export interface ContentDefinition {
             | 'cheek-pouch-storage'
             | 'scales-basking'
             | 'scales-hard'
+            | 'fur-snow-dive'
+            | 'fur-wool'
             | 'spines-poisonous'
             | 'spines-detachable'
             | 'turtle-down-reinforced'
-            | 'turtle-down-spiked';
+            | 'turtle-down-spiked'
+            | 'snout-whiskers'
+            | 'snout-toxic-sequestration'
+            | 'fungoid-cordyceps'
+            | 'fungoid-ejection'
+            | 'virulent-neurotoxin'
+            | 'virulent-metabolisation'
+            | 'pedal-glands-thick'
+            | 'pedal-glands-nemertide'
+            | 'spinnerets-trap'
+            | 'spinnerets-egg-sac';
         }
       | RuntimeEffectDefinition;
   }[];
+}
+
+export function contentRankValue(
+  entry: ContentDefinition,
+  rarity: string,
+  rank: number,
+): number | undefined {
+  const values = entry.values[rarity];
+  if (!values?.length || !Number.isSafeInteger(rank) || rank < 1)
+    return undefined;
+  if (entry.repeatable === 'linear')
+    return Math.min(1_000_000, (values[0] ?? 0) * rank);
+  if (entry.repeatable === 'cumulative')
+    return Math.min(
+      1_000_000,
+      values.slice(0, rank).reduce((sum, value) => sum + value, 0) +
+        Math.max(0, rank - values.length) * (values.at(-1) ?? 0),
+    );
+  return values[rank - 1];
 }
 
 export type BuildStep = {
@@ -324,7 +356,9 @@ export function createRegistry(
         const values = entry.values[rarity];
         if (
           !values ||
-          values.length !== entry.maxRank ||
+          (entry.repeatable
+            ? values.length === 0
+            : values.length !== entry.maxRank) ||
           values.some((n) => !Number.isFinite(n))
         )
           throw new Error(`${entry.id}: invalid ${rarity} rank table`);
@@ -446,7 +480,7 @@ export function createRegistry(
         rank > entry.maxRank
       )
         return undefined;
-      const value = entry.values[rarity]?.[rank - 1];
+      const value = contentRankValue(entry, rarity, rank);
       if (value === undefined) return undefined;
       let description = (entry.rankDescription ?? entry.description).replaceAll(
         '{value}',

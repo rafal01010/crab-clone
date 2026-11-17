@@ -82,6 +82,8 @@ test('Vasodilators scales healing from actual Leech damage with salvage speed', 
 
 test('Primal Spur scales its follow-up damage with saved currency', () => {
   const run = (currency) => {
+    const originalRandom = Math.random;
+    Math.random = () => 0.5;
     const world = new RAPIER.World({ x: 0, y: 0, z: 0 });
     const match = setup(world);
     try {
@@ -134,6 +136,7 @@ test('Primal Spur scales its follow-up damage with saved currency', () => {
       return hits[0].result.hull;
     } finally {
       match.dispose();
+      Math.random = originalRandom;
     }
   };
   const base = run(0);
@@ -143,6 +146,8 @@ test('Primal Spur scales its follow-up damage with saved currency', () => {
 
 test('Whiplash Tongue scales projectile damage with salvage speed', () => {
   const run = (bonus) => {
+    const originalRandom = Math.random;
+    Math.random = () => 0.5;
     const world = new RAPIER.World({ x: 0, y: 0, z: 0 });
     const match = setup(world);
     try {
@@ -195,6 +200,7 @@ test('Whiplash Tongue scales projectile damage with salvage speed', () => {
       return hits[0].result.hull;
     } finally {
       match.dispose();
+      Math.random = originalRandom;
     }
   };
   const base = run(0);
@@ -207,24 +213,11 @@ function leapBuild(specialization) {
   const match = setup(world);
   assert.ok(match.grantUpgrade('a', 'legs', 'branching', 1));
   assert.ok(match.grantUpgrade('a', 'leap', 'common', 1));
-  assert.ok(match.advance(20));
-  let offer = match.view('a').offer;
-  assert.equal(offer.kind, 'equipment');
-  assert.ok(
-    match.consume({
-      kind: 'choice',
-      matchId: 'checkpoint08-specializations',
-      playerId: 'a',
-      sequence: 1,
-      offerId: offer.id,
-      revision: offer.revision,
-      choiceId: 'movement',
-    }),
-  );
+  assert.equal(match.view('a').equipment.slots.movement, 'leap');
   for (let rank = 2; rank <= 3; rank++)
     assert.ok(match.grantUpgrade('a', 'leap', 'common', rank));
   for (let i = 0; i < 21; i++) assert.ok(match.advance(100));
-  offer = match.view('a').offer;
+  const offer = match.view('a').offer;
   assert.equal(offer.kind, 'specialization');
   assert.ok(
     match.consume({
@@ -378,6 +371,8 @@ test('Sharp Beak bypasses plating while Long Beak does not', () => {
 
 test('Neck Bite halves Jaws damage and Stalker gains damage at night', () => {
   const run = (specialization, night = false) => {
+    const originalRandom = Math.random;
+    Math.random = () => 0.5;
     const world = new RAPIER.World({ x: 0, y: 0, z: 0 });
     const match = setup(world);
     try {
@@ -385,6 +380,9 @@ test('Neck Bite halves Jaws damage and Stalker gains damage at night', () => {
         assert.ok(match.grantUpgrade('a', 'jaws', 'common', rank));
       choose(match, specialization);
       if (night) {
+        assert.ok(
+          match.setPhaseDurationAdjustment('test-night', 'day', -170000),
+        );
         for (const bot of match.view('a').bots)
           match.setBotHostility(bot.id, false);
         for (const id of ['a', 'b', 'c', 'd']) {
@@ -400,7 +398,12 @@ test('Neck Bite halves Jaws damage and Stalker gains damage at night', () => {
           );
           match.repairPlayer(id, 10000, false);
         }
-        for (let i = 0; i < 1800; i++) assert.ok(match.advance(100));
+        for (
+          let i = 0;
+          i < 120 && match.view('a').worldClock.phase !== 'night';
+          i++
+        )
+          assert.ok(match.advance(100));
         assert.equal(match.view('a').worldClock.phase, 'night');
       }
       const body = (id) => {
@@ -446,6 +449,7 @@ test('Neck Bite halves Jaws damage and Stalker gains damage at night', () => {
       return hits[0].result.hull;
     } finally {
       match.dispose();
+      Math.random = originalRandom;
     }
   };
   const normal = run('jaws-stalker');
@@ -527,6 +531,8 @@ test('Long Beak opens an unoccupied shelter and releases food once', async () =>
 
 test('Thrower increases Stoner projectile damage by 75 percent', () => {
   const run = (specialization) => {
+    const savedRandom = Math.random;
+    Math.random = () => 0.5;
     const world = new RAPIER.World({ x: 0, y: 0, z: 0 });
     const match = setup(world);
     try {
@@ -566,9 +572,11 @@ test('Thrower increases Stoner projectile damage by 75 percent', () => {
             buttons,
           }),
         );
-      control(2, 1);
-      assert.ok(match.advance(50));
-      control(3, 0);
+      for (let i = 0; i < 10; i++) {
+        control(2 + i, 1);
+        assert.ok(match.advance(100));
+      }
+      control(12, 0);
       for (let i = 0; i < 15; i++) assert.ok(match.advance(50));
       const hits = match
         .takeDamageLedger()
@@ -582,6 +590,7 @@ test('Thrower increases Stoner projectile damage by 75 percent', () => {
       return hits[0].result.hull;
     } finally {
       match.dispose();
+      Math.random = savedRandom;
     }
   };
   const normal = run('prehensile-tail-arboreal');
@@ -677,43 +686,39 @@ test('Spur Marking makes its target available to Stoner Signal allies', () => {
 });
 
 test('Neck Bite yields an extra meat drop for a Jaws kill only', () => {
-  const match = setup();
-  try {
-    for (let rank = 1; rank <= 3; rank++)
-      assert.ok(match.grantUpgrade('a', 'jaws', 'common', rank));
-    choose(match, 'jaws-neck-bite');
-    const bots = match.view('a').bots.filter((bot) => bot.kind === 'wild');
-    assert.ok(bots.length >= 2);
-    const resources = () =>
-      match.view('a').resources.filter((r) => r.source === 'meat').length;
-    const start = resources();
-    match.damageBatch([
-      {
-        targetId: bots[0].id,
-        ownerId: 'a',
-        amount: 10000,
-        channel: 'direct',
-        origin: 'manual',
-        abilityId: 'jaws',
-        depth: 0,
-      },
-    ]);
-    assert.equal(resources() - start, 2);
-    match.damageBatch([
-      {
-        targetId: bots[1].id,
-        ownerId: 'a',
-        amount: 10000,
-        channel: 'direct',
-        origin: 'manual',
-        abilityId: 'body-slam',
-        depth: 0,
-      },
-    ]);
-    assert.equal(resources() - start, 3);
-  } finally {
-    match.dispose();
-  }
+  const run = (abilityId) => {
+    const originalRandom = Math.random;
+    Math.random = () => 0.5;
+    const match = setup();
+    try {
+      for (let rank = 1; rank <= 3; rank++)
+        assert.ok(match.grantUpgrade('a', 'jaws', 'common', rank));
+      choose(match, 'jaws-neck-bite');
+      const bots = match.view('a').bots.filter((bot) => bot.kind === 'wild');
+      assert.ok(bots.length >= 1);
+      const resources = () =>
+        match.view('a').resources.filter((r) => r.source === 'meat').length;
+      const start = resources();
+      match.damageBatch([
+        {
+          targetId: bots[0].id,
+          ownerId: 'a',
+          amount: 10000,
+          channel: 'direct',
+          origin: 'manual',
+          abilityId,
+          depth: 0,
+        },
+      ]);
+      return resources() - start;
+    } finally {
+      match.dispose();
+      Math.random = originalRandom;
+    }
+  };
+  const normal = run('body-slam');
+  assert.ok(normal > 0);
+  assert.equal(run('jaws'), normal + 1);
 });
 
 test('Arboreal speed rises near obstacles and decays after leaving', async () => {

@@ -17,11 +17,15 @@ import type {
 import { CONTROL_BUTTON, type Intent } from '../../shared/protocol/index.js';
 import RAPIER, { type World } from '@dimforge/rapier3d-compat';
 import { SOURCE_GAMEPLAY } from '../content/source-gameplay.js';
-import { SOURCE_ACTIONS } from '../content/source-balance.js';
+import {
+  SOURCE_ACTIONS,
+  SOURCE_STAT_LIMITS,
+} from '../content/source-balance.js';
 import { sourceRange } from '../content/source-tuning.js';
 import { sourceCurve } from '../content/source-curve.js';
 import { initialStartingStats } from '../content/starting.js';
 import { createStarterRegistry } from '../content/starter.js';
+import { contentRankValue } from '../content/registry.js';
 import type { ContentDefinition } from '../content/registry.js';
 import { terrainSpeedMultiplier, type Terrain } from '../../shared/movement.js';
 import { BASE_STATS, type Stat } from './stats.js';
@@ -171,6 +175,7 @@ type Player = {
     damage: number;
     hits?: number;
     range?: number;
+    impulse?: number;
     bypassPlating?: boolean;
   } | null;
   interactHeld: boolean;
@@ -199,6 +204,8 @@ type Player = {
     damage: number;
   } | null;
   speedBoost: { until: number; multiplier: number } | null;
+  contactBoost: { until: number; perAffinity: number } | null;
+  moulting: { until: number; damage: number; points: number } | null;
   delayedBoost: {
     startsAt: number;
     endsAt: number;
@@ -238,7 +245,11 @@ type Player = {
     | { kind: 'failed'; roll: number }
     | { kind: 'identified'; effect: FirmwareEffect }
   >;
+  nextFungoidAt: number;
   shelter: { id: string; until: number } | null;
+  hibernationElapsed: number;
+  pollinatorDiscoveries: number;
+  pollinatorSinceBonus: number;
   firmwareSpawnBonus: number;
   firmwareHealUntil: number;
   firmwareSpeedUntil: number;
@@ -255,6 +266,7 @@ type Player = {
     charge?: { abilityId: string; damage: number };
     speed?: number;
     leap?: boolean;
+    jetNextAt?: number;
   } | null;
   progression: Progression;
   wallet: Wallet;
@@ -362,9 +374,15 @@ export class Match {
     radius: number;
     slowPercent: number;
     until: number;
+    kind?: 'pedal' | 'web';
     status?: { effect: FieldStatus; nextAt: number };
+    trapped?: Set<string>;
   }[] = [];
   #nextTrailId = 0;
+  readonly #thickExposure = new Map<
+    string,
+    { since: number; stunned: boolean }
+  >();
   readonly #content: ReturnType<typeof createStarterRegistry>;
   readonly #worldConditions = new Set<string>();
   readonly #worldClock = new WorldClock();
@@ -389,6 +407,8 @@ export class Match {
     damage: number;
     radius: number;
     speedFactor: number;
+    terrainAdaptation: number;
+    origin?: Point;
   }[] = [];
   readonly #nestDefenses = new Map<
     string,
@@ -551,6 +571,8 @@ export class Match {
         invulnerableUntil: 0,
         channel: null,
         speedBoost: null,
+        contactBoost: null,
+        moulting: null,
         delayedBoost: null,
         equipment: initialEquipment(),
         ranks: new Map(),
@@ -570,6 +592,7 @@ export class Match {
         poiChoices: new Map(),
         temporaryPoi: new Map(),
         firmwareKnowledge: new Map(),
+        nextFungoidAt: 0,
         lastFirmware: null,
         firmwareSpawnBonus: 0,
         firmwareHealUntil: 0,
@@ -579,6 +602,9 @@ export class Match {
         firmwareDeafUntil: 0,
         lastCharm: null,
         shelter: null,
+        hibernationElapsed: 0,
+        pollinatorDiscoveries: 0,
+        pollinatorSinceBonus: 0,
         activeReward: null,
         dash: null,
         progression: { progress: 0, pending: [], depletedRewards: 0 },
@@ -898,6 +924,7 @@ export class Match {
       expiresAt: null,
       damage: profile.physical,
       speedFactor: 1,
+      terrainAdaptation: 0,
       tier,
       role,
       elite,
@@ -994,10 +1021,17 @@ export class Match {
       this.#wallTime >= this.#finale.shrinkStartMs,
     );
     const speedMultiplier = 1 + (player.obstacleSpeed?.bonus ?? 0);
-    return bonus > 0 || speedMultiplier !== 1
+    const meteorBonus =
+      (player.ranks.get('strength-in-numbers') ?? 0) *
+      this.#ownedCount(ownerId, 'charmed');
+    return bonus > 0 || meteorBonus > 0 || speedMultiplier !== 1
       ? {
           ...player.stats,
           speed: player.stats.speed * speedMultiplier,
+          cataclysmResistance: Math.min(
+            100,
+            player.stats.cataclysmResistance + meteorBonus,
+          ),
           damageResistance: Math.min(
             100,
             player.stats.damageResistance + bonus,
@@ -1115,6 +1149,7 @@ export class Match {
     kind: 'summoned' | 'offspring' | 'decoy',
     delay: number,
     duration: number,
+    origin?: Point,
   ): boolean {
     const owner = this.#players.get(ownerId);
     const cap = ALLY_LIMITS[kind];
@@ -1143,13 +1178,19 @@ export class Match {
     this.#pendingAllies.push({
       ownerId,
       kind,
+      origin,
       at: this.#time + delay,
       duration,
       health: Math.max(
         1,
         owner.stats.maximumHealth * (kind === 'decoy' ? 0.2 : 0.35),
       ),
-      damage: Math.max(0, owner.stats.physical * 0.5),
+      damage: Math.max(
+        0,
+        owner.stats.physical * (kind === 'offspring' ? 1 : 0.5),
+      ),
+      terrainAdaptation:
+        kind === 'offspring' ? owner.stats.terrainAdaptation : 0,
       radius: Math.max(
         0.25,
         Math.min(0.75, owner.craft.collider.radius() * 0.5),
@@ -1180,8 +1221,8 @@ export class Match {
     for (let i = this.#pendingAllies.length - 1; i >= 0; i--) {
       const item = this.#pendingAllies[i];
       if (!item || item.at > this.#time + deltaMs) continue;
-      this.#pendingAllies.splice(i, 1);
       const owner = this.#players.get(item.ownerId);
+      this.#pendingAllies.splice(i, 1);
       if (
         !owner?.connected ||
         owner.life.kind !== 'alive' ||
@@ -1193,7 +1234,7 @@ export class Match {
       )
         continue;
       const point = this.#safeSpawn(
-        owner.craft.body.translation(),
+        item.origin ?? owner.craft.body.translation(),
         item.radius,
       );
       if (!point) continue;
@@ -1207,6 +1248,7 @@ export class Match {
       bot.loot = null;
       bot.damage = item.damage;
       bot.speedFactor = item.speedFactor;
+      bot.terrainAdaptation = item.terrainAdaptation;
       bot.craft.collider.setRadius(item.radius);
       bot.craft.body.recomputeMassPropertiesFromColliders();
       bot.expiresAt = this.#time + deltaMs + item.duration;
@@ -1568,7 +1610,23 @@ export class Match {
           position.z - trail.position.z,
         ) <= trail.radius
       )
-        slow = Math.max(slow, trail.slowPercent / 100);
+        slow = Math.max(
+          slow,
+          (trail.slowPercent / 100) *
+            (trail.kind === 'pedal' &&
+            this.#players
+              .get(trail.ownerId)
+              ?.specializations.has('pedal-glands-thick')
+              ? 1 +
+                Math.min(
+                  1,
+                  (this.#time -
+                    (this.#thickExposure.get(`${trail.ownerId}:${targetId}`)
+                      ?.since ?? this.#time)) /
+                    3000,
+                )
+              : 1),
+        );
     }
     return slow;
   }
@@ -1576,7 +1634,94 @@ export class Match {
   #advanceTrails(now: number): void {
     for (let i = this.#trails.length - 1; i >= 0; i--)
       if ((this.#trails[i]?.until ?? 0) <= now) this.#trails.splice(i, 1);
+    const activeThick = new Set<string>();
     for (const trail of this.#trails) {
+      if (
+        trail.kind === 'pedal' &&
+        this.#players
+          .get(trail.ownerId)
+          ?.specializations.has('pedal-glands-thick') &&
+        this.canUseOwnedOffense(trail.ownerId)
+      ) {
+        const targets = [
+          ...[...this.#players]
+            .filter(
+              ([id, player]) =>
+                id !== trail.ownerId && player.life.kind === 'alive',
+            )
+            .map(([id, player]) => ({
+              id,
+              point: player.craft.body.translation(),
+            })),
+          ...[...this.#bots.values()]
+            .filter((bot) => bot.health > 0 && bot.ownerId !== trail.ownerId)
+            .map((bot) => ({
+              id: bot.id,
+              point: bot.craft.body.translation(),
+            })),
+        ];
+        for (const target of targets)
+          if (
+            Math.hypot(
+              target.point.x - trail.position.x,
+              target.point.z - trail.position.z,
+            ) <= trail.radius
+          ) {
+            const key = `${trail.ownerId}:${target.id}`;
+            activeThick.add(key);
+            const exposure = this.#thickExposure.get(key) ?? {
+              since: now,
+              stunned: false,
+            };
+            if (
+              !exposure.stunned &&
+              now - exposure.since >= 3000 &&
+              this.applyStatus(target.id, {
+                kind: 'stun',
+                ownerId: trail.ownerId,
+                magnitude: 0,
+                duration: 2000,
+              })
+            )
+              exposure.stunned = true;
+            this.#thickExposure.set(key, exposure);
+          }
+      }
+      if (trail.trapped && this.canUseOwnedOffense(trail.ownerId)) {
+        const targets = [
+          ...[...this.#players]
+            .filter(
+              ([id, player]) =>
+                id !== trail.ownerId && player.life.kind === 'alive',
+            )
+            .map(([id, player]) => ({
+              id,
+              point: player.craft.body.translation(),
+            })),
+          ...[...this.#bots.values()]
+            .filter((bot) => bot.health > 0 && bot.ownerId !== trail.ownerId)
+            .map((bot) => ({
+              id: bot.id,
+              point: bot.craft.body.translation(),
+            })),
+        ];
+        for (const target of targets)
+          if (
+            !trail.trapped.has(target.id) &&
+            Math.hypot(
+              target.point.x - trail.position.x,
+              target.point.z - trail.position.z,
+            ) <=
+              trail.radius * 0.4 &&
+            this.applyStatus(target.id, {
+              kind: 'stun',
+              ownerId: trail.ownerId,
+              magnitude: 0,
+              duration: 3000,
+            })
+          )
+            trail.trapped.add(target.id);
+      }
       const status = trail.status;
       if (!status || status.nextAt > now) continue;
       status.nextAt = now + status.effect.intervalMs;
@@ -1622,6 +1767,8 @@ export class Match {
         });
       }
     }
+    for (const key of this.#thickExposure.keys())
+      if (!activeThick.has(key)) this.#thickExposure.delete(key);
     for (const [id, player] of this.#players) {
       if (player.life.kind !== 'alive') continue;
       const position = player.craft.body.translation();
@@ -1665,11 +1812,56 @@ export class Match {
         Math.hypot(velocity.x, velocity.z) > 0.25,
         pursuedWithin,
       );
+      if (
+        player.dash?.jetNextAt !== undefined &&
+        player.dash.until > now &&
+        player.dash.jetNextAt <= now &&
+        this.canUseOwnedOffense(id)
+      ) {
+        player.dash.jetNextAt = now + 100;
+        const secretion = player.runtimeEffects.secretionTrail();
+        if (secretion) effects.push(secretion);
+        const web = player.equipment.learned.get('spinnerets');
+        if (
+          web?.action === 'slow-field' &&
+          this.#trails.length < 128 &&
+          !this.#trails.some(
+            (trail) =>
+              trail.kind === 'web' &&
+              Math.hypot(
+                trail.position.x - position.x,
+                trail.position.z - position.z,
+              ) < 2,
+          )
+        ) {
+          if (player.specializations.has('spinnerets-egg-sac'))
+            this.scheduleAlly(id, 'offspring', web.durationMs, 30000, {
+              x: position.x,
+              z: position.z,
+            });
+          this.#trails.push({
+            id: ++this.#nextTrailId,
+            ownerId: id,
+            kind: 'web',
+            position: { x: position.x, z: position.z },
+            radius: Math.min(20, (web.radius * player.stats.effectArea) / 100),
+            slowPercent: web.slowPercent,
+            until: now + web.durationMs,
+            ...(player.specializations.has('spinnerets-trap')
+              ? { trapped: new Set<string>() }
+              : {}),
+            ...(web.status
+              ? { status: { effect: { ...web.status }, nextAt: now } }
+              : {}),
+          });
+        }
+      }
       for (const effect of effects) {
         if (this.#trails.length >= 128) break;
         this.#trails.push({
           id: ++this.#nextTrailId,
           ownerId: id,
+          kind: effect.id === 'upgrade:pedal-glands' ? 'pedal' : undefined,
           position: { x: position.x, z: position.z },
           radius: Math.min(20, (effect.radius * player.stats.effectArea) / 100),
           slowPercent: effect.slowPercent,
@@ -1712,7 +1904,11 @@ export class Match {
     const terrain = region?.terrain ?? 'grass';
     const traction = terrainSpeedMultiplier(
       terrain,
-      terrain === bot.biome ? 100 : 0,
+      bot.kind === 'offspring'
+        ? bot.terrainAdaptation
+        : terrain === bot.biome
+          ? 100
+          : 0,
       0,
       region?.waterDepth,
     );
@@ -1783,6 +1979,8 @@ export class Match {
     }
     choices.sort(
       (a, b) =>
+        Number(owner.ranks.has('tracker') && !!this.#bots.get(b.id)?.elite) -
+          Number(owner.ranks.has('tracker') && !!this.#bots.get(a.id)?.elite) ||
         Number(tracked?.has(b.id) ?? false) -
           Number(tracked?.has(a.id) ?? false) ||
         Number(b.id === marked) - Number(a.id === marked) ||
@@ -1929,10 +2127,17 @@ export class Match {
           other.kind !== 'decoy' &&
           other.hostileToBots &&
           bot.role !== 'hunter';
+        const decoyAttracts = other.kind === 'decoy' && distance <= 12;
         if (
           (prey || threat) &&
-          distance < BOT_RULES.aggro &&
-          (!target || distance < target.distance)
+          (decoyAttracts || distance < BOT_RULES.aggro) &&
+          (decoyAttracts
+            ? !target ||
+              this.#bots.get(target.id)?.kind !== 'decoy' ||
+              distance < target.distance
+            : !target ||
+              (this.#bots.get(target.id)?.kind !== 'decoy' &&
+                distance < target.distance))
         )
           target = { id: other.id, position: point, distance, threat };
       }
@@ -2327,6 +2532,41 @@ export class Match {
     return events;
   }
 
+  #grantPollinatorBonus(playerId: string, player: Player): void {
+    const choices = [
+      { affinity: 'Predator', stat: 'physical', amount: 2 },
+      { affinity: 'Trickster', stat: 'ability', amount: 2 },
+      { affinity: 'Imposing', stat: 'maximumHealth', amount: 10 },
+      { affinity: 'Prey', stat: 'dodge', amount: 6 },
+      { affinity: 'Gregarious', stat: 'social', amount: 2 },
+    ] as const;
+    const weights = choices.map(
+      (choice) => 1 + Math.max(0, player.affinities.get(choice.affinity) ?? 0),
+    );
+    let roll = Math.random() * weights.reduce((sum, weight) => sum + weight, 0);
+    let selected: (typeof choices)[number] = choices[0];
+    for (let i = 0; i < choices.length; i++) {
+      roll -= weights[i] ?? 0;
+      if (roll < 0) {
+        selected = choices[i] ?? selected;
+        break;
+      }
+    }
+    const modifierId = `pollinator:${selected.stat}`;
+    const previous = player.modifiers.find(
+      (modifier) => modifier.id === modifierId,
+    );
+    this.setModifiers(playerId, [
+      ...player.modifiers.filter((modifier) => modifier.id !== modifierId),
+      {
+        id: modifierId,
+        stat: selected.stat,
+        add: Math.min(999, (previous?.add ?? 0) + selected.amount),
+        multiplier: 1,
+      },
+    ]);
+  }
+
   #replenishResources(): void {
     if (this.#time < this.#nextResourceSpawn) return;
     this.#nextResourceSpawn = this.#time + 5_000;
@@ -2350,7 +2590,15 @@ export class Match {
       let spawned = 0;
       for (
         let offset = 0;
-        offset < sites.length && spawned < Math.min(2, 4 - existing);
+        offset < sites.length &&
+        spawned <
+          Math.min(
+            2,
+            Math.min(
+              20,
+              Math.ceil(4 * (1 + player.pollinatorDiscoveries * 0.05)),
+            ) - existing,
+          );
         offset++
       ) {
         const point = sites[(this.#resourceSite + offset) % sites.length];
@@ -2575,6 +2823,13 @@ export class Match {
     const stats = sizeHealth.length
       ? deriveStats([...allModifiers, ...sizeHealth], level)
       : base;
+    if (player.specializations.has('fur-wool'))
+      stats.heatAdaptation = Math.min(
+        SOURCE_STAT_LIMITS.heatAdaptation[1],
+        stats.heatAdaptation + stats.coldAdaptation,
+      );
+    if (phase === 'night' && player.specializations.has('snout-whiskers'))
+      stats.speed *= 1 + Math.floor(stats.senses / 30) * 0.1;
     if (stats.shifty > 0) {
       const deficit = Math.max(0, 100 - stats.size);
       stats.dodge = Math.min(
@@ -2592,6 +2847,51 @@ export class Match {
               SOURCE_ACTIONS.robust.sizeToHealth),
       );
     return stats;
+  }
+
+  #configurePedalGlands(
+    player: Player,
+    rank: number,
+    rarity: string,
+    specialization?: string,
+  ): boolean {
+    const definition = this.#content.definition('pedal-glands');
+    const slow = definition?.values[rarity]?.[rank - 1];
+    const cooldown = definition?.detailValues?.cooldown?.[rarity]?.[rank - 1];
+    if (slow === undefined || cooldown === undefined) return false;
+    const thick =
+      specialization === 'pedal-glands-thick' ||
+      player.specializations.has('pedal-glands-thick');
+    const nemertide =
+      specialization === 'pedal-glands-nemertide' ||
+      player.specializations.has('pedal-glands-nemertide');
+    return player.runtimeEffects.configure(
+      {
+        kind: 'slowing-trail',
+        id: 'upgrade:pedal-glands',
+        trigger: 'pursuit',
+        intervalMs: 500,
+        durationMs: 5000,
+        radius: thick ? 2.25 : 1.5,
+        slowPercent: slow,
+        pursuitRange: 12,
+        activationCooldownMs: cooldown * 1000,
+        emissionMs: 5000,
+        ...(nemertide
+          ? {
+              status: {
+                kind: 'corrosion' as const,
+                intervalMs: 1000,
+                durationMs: 2000,
+                radiusFraction: 1,
+                magnitude: player.stats.ability * 0.275,
+                slowMultiplier: 0,
+              },
+            }
+          : {}),
+      },
+      this.#time,
+    );
   }
 
   setPhaseStatModifiers(
@@ -2688,7 +2988,7 @@ export class Match {
         .includes(id)
     )
       return false;
-    const value = definition.values[rarity]?.[rank - 1];
+    const value = contentRankValue(definition, rarity, rank);
     if (value === undefined) return false;
     const details: Record<string, number> = {};
     for (const [name, tables] of Object.entries(
@@ -2707,6 +3007,96 @@ export class Match {
       details,
     );
     if (!effect) return false;
+    if (
+      id === 'revenge' &&
+      !player.runtimeEffects.configure(
+        {
+          kind: 'hurt-stacks',
+          id: 'upgrade:revenge',
+          maximum: value,
+          fraction: (details.increase ?? 0) / 100,
+          durationMs: 4000,
+        },
+        this.#time,
+      )
+    )
+      return false;
+    if (
+      id === 'poisonous-spores' &&
+      !player.runtimeEffects.configure(
+        {
+          kind: 'hurt-status-aura',
+          id: 'upgrade:poisonous-spores',
+          status: 'corrosion',
+          magnitude: value,
+          durationMs: 5000,
+          range: 6,
+          cooldownMs: 500,
+        },
+        this.#time,
+      )
+    )
+      return false;
+    if (
+      id === 'pack' &&
+      !player.runtimeEffects.configure(
+        {
+          kind: 'ally-damage',
+          id: 'upgrade:pack',
+          perCharmedAlly: value / 100,
+          ownerBonus: true,
+          allyBonus: true,
+        },
+        this.#time,
+      )
+    )
+      return false;
+    if (
+      id === 'whining' &&
+      !player.runtimeEffects.configure(
+        {
+          kind: 'charm-aura',
+          id: 'upgrade:whining',
+          trigger: 'hurt',
+          intervalMs: 250,
+          range: 6,
+          chanceMultiplier: value,
+        },
+        this.#time,
+      )
+    )
+      return false;
+    if (
+      id === 'pedal-glands' &&
+      !this.#configurePedalGlands(player, rank, rarity)
+    )
+      return false;
+    if (
+      id === 'ambush' &&
+      !player.runtimeEffects.configure(
+        {
+          kind: 'shelter-exit-boost',
+          id: 'upgrade:ambush',
+          damageMultiplier: 1 + value / 100,
+          durationMs: 3000,
+        },
+        this.#time,
+      )
+    )
+      return false;
+    if (
+      id === 'detachable-tail' &&
+      !player.runtimeEffects.configure(
+        {
+          kind: 'decoy-on-hurt',
+          id: 'upgrade:detachable-tail',
+          durationMs: value * 1000,
+          cooldownMs: (details.cooldown ?? 14) * 1000,
+        },
+        this.#time,
+      )
+    )
+      return false;
     if (
       id === 'tail-wag' &&
       !player.runtimeEffects.configure(
@@ -2750,6 +3140,18 @@ export class Match {
     )
       return false;
     if (
+      id === 'hump' &&
+      !player.runtimeEffects.configure(
+        {
+          kind: 'full-repair-growth',
+          id: 'upgrade:hump',
+          healthPerPickup: value,
+        },
+        this.#time,
+      )
+    )
+      return false;
+    if (
       id === 'fibroblasts' &&
       !player.runtimeEffects.configure(
         {
@@ -2764,6 +3166,33 @@ export class Match {
       return false;
     const modifiers = player.modifiers.filter((m) => m.id !== `starter:${id}`);
     modifiers.push(...effect.modifiers);
+    if (id === 'diurnal' || id === 'nocturnal') {
+      const phase = id === 'diurnal' ? 'day' : 'night';
+      player.phaseModifiers.set(`upgrade:${id}`, {
+        phase,
+        modifiers: [
+          { id: `upgrade:${id}`, stat: 'damage', add: value, multiplier: 1 },
+        ],
+      });
+      if (id === 'nocturnal')
+        modifiers.push({
+          id: 'starter:nocturnal',
+          stat: 'senses',
+          add: details.senses ?? 0,
+          multiplier: 1,
+        });
+      const duration = (details.duration ?? 0) * 1000;
+      this.#worldClock.setAdjustment(
+        `upgrade:${playerId}:${id}`,
+        phase,
+        duration,
+      );
+      this.#worldClock.setAdjustment(
+        `upgrade:${playerId}:${id}`,
+        phase === 'day' ? 'night' : 'day',
+        -duration,
+      );
+    }
     this.#phaseStats(player, 'day', modifiers);
     this.#phaseStats(player, 'night', modifiers);
     const stats = this.#phaseStats(
@@ -2819,6 +3248,11 @@ export class Match {
         resource.expiresAt = this.#time + 180_000;
       }
     }
+    if (id === 'alpha')
+      player.affinities.set(
+        'Gregarious',
+        (player.affinities.get('Gregarious') ?? 0) + 1,
+      );
     if (id === 'smol')
       player.affinities.set(
         'Imposing',
@@ -2826,6 +3260,57 @@ export class Match {
       );
     player.ranks.set(id, rank);
     player.rarities.set(id, rarity);
+    if (id === 'convergent-evolution') {
+      const names = ['Gregarious', 'Imposing', 'Predator', 'Prey', 'Trickster'];
+      const highest = Math.max(
+        ...names.map((name) => player.affinities.get(name) ?? 0),
+      );
+      const tied = names.filter(
+        (name) => (player.affinities.get(name) ?? 0) === highest,
+      );
+      const selected = tied[randomInt(tied.length)];
+      if (selected) player.affinities.set(selected, highest + value);
+    }
+    if (id === 'outlier') {
+      const candidates = this.#content
+        .eligible(
+          player.ranks,
+          player.specializations,
+          'ordinary',
+          this.#worldConditions,
+        )
+        .map((candidate) => this.#content.definition(candidate))
+        .filter(
+          (candidate): candidate is ContentDefinition =>
+            !!candidate &&
+            candidate.id !== 'outlier' &&
+            candidate.rarities.includes('legendary'),
+        );
+      const weighted = candidates.map((candidate) => ({
+        candidate,
+        weight: candidate.rarities.length === 1 ? value : 1,
+      }));
+      let roll =
+        Math.random() * weighted.reduce((sum, item) => sum + item.weight, 0);
+      const selected = weighted.find(
+        (item) => (roll -= item.weight) < 0,
+      )?.candidate;
+      if (selected)
+        this.grantUpgrade(
+          playerId,
+          selected.id,
+          'legendary',
+          (player.ranks.get(selected.id) ?? 0) + 1,
+        );
+    }
+    if (id === 'pollinator') {
+      player.pollinatorSinceBonus = 0;
+      this.#grantPollinatorBonus(playerId, player);
+    }
+    if (id === 'fungoid' && rank === 1)
+      player.nextFungoidAt =
+        this.#time +
+        (value + Math.random() * ((details.maximum ?? value) - value)) * 1000;
     const choices = definition.specializations.some((id) =>
       player.specializations.has(id),
     )
@@ -2877,11 +3362,25 @@ export class Match {
               'On sand during the day, gain progress every eight seconds based on heat adaptation.',
             'scales-hard':
               'Contact hits stun the attacker, with duration based on active plating.',
+            'fur-snow-dive':
+              'Dashes on snow can spawn salvage. Leap doubles the chance.',
+            'fur-wool': 'Cold adaptation also grants heat adaptation.',
             'spines-poisonous':
               'Contact attackers receive corrosion based on your ability.',
             'spines-detachable': 'Spines also retaliate when you dodge.',
             'turtle-down-reinforced': 'Stuns you inflict last twice as long.',
             'turtle-down-spiked': 'Spines deal double damage while guarding.',
+            'fungoid-cordyceps': 'Poison ticks can charm animals.',
+            'fungoid-ejection': 'Taking damage hastens firmware generation.',
+            'virulent-neurotoxin': 'Poison ticks 50% faster.',
+            'virulent-metabolisation': 'Poison ticks advance regeneration.',
+            'pedal-glands-thick': 'Slime trails cover a wider area.',
+            'pedal-glands-nemertide': 'Slime trails inflict corrosion.',
+            'spinnerets-trap': 'The center of each web stuns enemies.',
+            'spinnerets-egg-sac': 'Webs hatch an ally after expiring.',
+            'snout-whiskers': 'At night, gain 10% speed for every 30 senses.',
+            'snout-toxic-sequestration':
+              'Each poisonous firmware consumed adds 10% poison damage.',
           }[effect.feature];
         if (effect?.kind === 'healing-growth')
           return `Gain ${effect.healthPerThreshold} maximum hull per ${effect.healingRequired} hull actually repaired.`;
@@ -3010,7 +3509,22 @@ export class Match {
             : 0;
     return terrainSpeedMultiplier(
       terrain,
-      player.stats.terrainAdaptation,
+      player.stats.terrainAdaptation +
+        (this.#trails.some(
+          (trail) =>
+            trail.kind === 'pedal' &&
+            trail.ownerId === playerId &&
+            trail.until > this.#time &&
+            Math.hypot(
+              trail.position.x - player.craft.body.translation().x,
+              trail.position.z - player.craft.body.translation().z,
+            ) <= trail.radius,
+        )
+          ? (this.#content.definition('pedal-glands')?.detailValues
+              ?.adaptation?.[player.rarities.get('pedal-glands') ?? '']?.[
+              (player.ranks.get('pedal-glands') ?? 0) - 1
+            ] ?? 0)
+          : 0),
       specific,
       waterDepth,
     );
@@ -3319,6 +3833,26 @@ export class Match {
       return;
     const owner = this.#players.get(event.ownerId);
     if (!owner) return;
+    if (
+      event.abilityId &&
+      ['jaws', 'beak', 'leech', 'spit', 'projectile-tongue'].includes(
+        event.abilityId,
+      )
+    ) {
+      const rank = owner.ranks.get('poisonous-saliva') ?? 0;
+      const rarity = owner.rarities.get('poisonous-saliva') ?? '';
+      const value =
+        this.#content.definition('poisonous-saliva')?.values[rarity]?.[
+          rank - 1
+        ];
+      if (value !== undefined)
+        this.applyStatus(event.targetId, {
+          kind: 'corrosion',
+          ownerId: event.ownerId,
+          magnitude: value * owner.stats.ability,
+          duration: 5000,
+        });
+    }
     for (const effect of owner.runtimeEffects.hitStatuses(event.abilityId))
       this.applyStatus(event.targetId, {
         kind: effect.status,
@@ -3366,7 +3900,13 @@ export class Match {
               attackingPlayer.health.plating,
             ) +
             attackingPlayer.stats.platingHitFactor *
-              attackingPlayer.health.plating
+              attackingPlayer.health.plating +
+            (queued.channel === 'contact' &&
+            attackingPlayer.contactBoost &&
+            attackingPlayer.contactBoost.until > this.#time
+              ? Math.max(0, attackingPlayer.affinities.get('Predator') ?? 0) *
+                attackingPlayer.contactBoost.perAffinity
+              : 0)
           : 0;
       const attackingAlly = queued.ownerId
         ? this.#bots.get(queued.ownerId)
@@ -3387,7 +3927,10 @@ export class Match {
               this.#wallTime >= this.#finale.shrinkStartMs,
             ) *
             (attackingAlly
-              ? (attackingAlly.kind === 'charmed' &&
+              ? (attackingAlly.kind === 'charmed'
+                  ? 1 + (sourceOwner.ranks.get('commanding') ?? 0) * 0.05
+                  : 1) *
+                (attackingAlly.kind === 'charmed' &&
                 sourceOwner.specializations.has('stoner-signal') &&
                 this.#signalTargets.get(sourceOwnerId)?.has(queued.targetId)
                   ? 1.5
@@ -3411,11 +3954,58 @@ export class Match {
               queued.abilityId,
             )
           : 1;
+      const targetPoint = (
+        this.#players.get(queued.targetId)?.craft ??
+        this.#bots.get(queued.targetId)?.craft
+      )?.body.translation();
+      const webMultiplier =
+        targetPoint &&
+        targetStatuses &&
+        this.#hasActiveStatus(targetStatuses, 'stun') &&
+        this.#trails.some(
+          (trail) =>
+            trail.kind === 'web' &&
+            trail.ownerId !== queued.targetId &&
+            this.canUseOwnedOffense(trail.ownerId) &&
+            Math.hypot(
+              targetPoint.x - trail.position.x,
+              targetPoint.z - trail.position.z,
+            ) <= trail.radius,
+        )
+          ? 1.5
+          : 1;
+      const poisonMultiplier =
+        queued.channel === 'corrosion' &&
+        targetPoint &&
+        this.#trails.some(
+          (trail) =>
+            trail.kind === 'pedal' &&
+            trail.ownerId !== queued.targetId &&
+            this.#players
+              .get(trail.ownerId)
+              ?.specializations.has('pedal-glands-nemertide') &&
+            this.canUseOwnedOffense(trail.ownerId) &&
+            Math.hypot(
+              targetPoint.x - trail.position.x,
+              targetPoint.z - trail.position.z,
+            ) <= trail.radius,
+        )
+          ? 1 + this.#trailSlow(queued.targetId, targetPoint) * 0.5
+          : 1;
       const event =
-        bonus || multiplier !== 1 || stunMultiplier !== 1
+        bonus ||
+        multiplier !== 1 ||
+        stunMultiplier !== 1 ||
+        webMultiplier !== 1 ||
+        poisonMultiplier !== 1
           ? {
               ...queued,
-              amount: (queued.amount + bonus) * multiplier * stunMultiplier,
+              amount:
+                (queued.amount + bonus) *
+                multiplier *
+                stunMultiplier *
+                webMultiplier *
+                poisonMultiplier,
             }
           : queued;
       if (
@@ -3476,7 +4066,28 @@ export class Match {
         )
           throw new Error('Invalid damage amount');
         const health = { hull: bot.health, plating: bot.plating, level: 1 };
-        const result = applyDamage(health, { ...BASE_STATS }, event, false, 1);
+        const owner =
+          bot.kind === 'charmed' && bot.ownerId
+            ? this.#players.get(bot.ownerId)
+            : undefined;
+        const meteorBonus =
+          owner && bot.ownerId
+            ? (owner.ranks.get('strength-in-numbers') ?? 0) *
+              this.#ownedCount(bot.ownerId, 'charmed')
+            : 0;
+        const result = applyDamage(
+          health,
+          {
+            ...BASE_STATS,
+            cataclysmResistance: Math.min(
+              100,
+              BASE_STATS.cataclysmResistance + meteorBonus,
+            ),
+          },
+          event,
+          false,
+          1,
+        );
         const hull = result.hull;
         const actual = hull + result.plating;
         bot.health = health.hull;
@@ -3517,6 +4128,33 @@ export class Match {
         }
         this.#manualHitBenefits(event, actual, queue, events.length + 512);
         if (bot.health > 0) this.#statusFromManualHit(event, actual);
+        if (actual > 0 && event.channel === 'corrosion' && event.ownerId) {
+          const owner = this.#players.get(event.ownerId);
+          if (owner && this.canUseOwnedOffense(event.ownerId)) {
+            if (owner.specializations.has('virulent-metabolisation'))
+              this.repairPlayer(
+                event.ownerId,
+                owner.stats.regeneration * 0.005,
+                false,
+              );
+            const reserved = [...this.#nestDefenses.values()].filter(
+              (item) => item.ownerId === event.ownerId,
+            ).length;
+            if (
+              bot.health > 0 &&
+              bot.ownerId !== event.ownerId &&
+              (bot.kind === 'wild' || bot.kind === 'charmed') &&
+              owner.specializations.has('fungoid-cordyceps') &&
+              this.#ownedCount(event.ownerId, 'charmed') + reserved <
+                this.#charmCapacity(event.ownerId)
+            )
+              this.#attemptCharm(
+                event.ownerId,
+                bot,
+                this.#evolutionCharmChance(owner) * 0.4,
+              );
+          }
+        }
         this.#damageLedger.push({ event: { ...event }, result });
         if (this.#damageLedger.length > 1024) this.#damageLedger.shift();
         if (event.impulse && hull > 0) {
@@ -3662,7 +4300,52 @@ export class Match {
       );
       if (player.health.hull > 0)
         this.#statusFromManualHit(event, result.hull + result.plating);
+      if (
+        result.hull + result.plating > 0 &&
+        event.channel === 'corrosion' &&
+        event.ownerId &&
+        event.ownerId !== event.targetId
+      ) {
+        const owner = this.#players.get(event.ownerId);
+        if (
+          owner?.specializations.has('virulent-metabolisation') &&
+          this.canUseOwnedOffense(event.ownerId)
+        )
+          this.repairPlayer(
+            event.ownerId,
+            owner.stats.regeneration * 0.005,
+            false,
+          );
+      }
       player.matchStats.damageTaken += result.hull + result.plating;
+      if (
+        result.hull + result.plating > 0 &&
+        event.ownerId !== event.targetId &&
+        (event.channel === 'direct' || event.channel === 'contact') &&
+        player.ranks.has('lick-wounds')
+      ) {
+        const ready = player.equipment.readyAt.get('lick-wounds') ?? this.#time;
+        const fraction = sourceCurve(
+          [
+            { time: 0, value: 0, inSlope: 0, outSlope: 0 },
+            { time: 1, value: 0.1, inSlope: 0.1, outSlope: 0.45 },
+            { time: 3, value: 1, inSlope: 0.45, outSlope: 0.5 },
+          ],
+          player.stats.salvageSpeed / 100,
+        );
+        player.equipment.readyAt.set(
+          'lick-wounds',
+          Math.max(this.#time, ready - (1 + 4 * fraction) * 1000),
+        );
+      }
+      if (player.moulting) {
+        player.moulting.damage += result.hull + result.plating;
+        if (
+          player.moulting.damage >= player.stats.maximumHealth * 0.3 ||
+          player.health.hull <= player.stats.maximumHealth * 0.1
+        )
+          player.moulting = null;
+      }
       if (result.hull + result.plating > 0)
         player.hitCueUntil = this.#time + 200;
       if (result.hull + result.plating > 0)
@@ -3683,6 +4366,11 @@ export class Match {
       ) {
         this.#charmAura(event.targetId, 'hurt', this.#time);
         this.#hurtStatusAura(event.targetId);
+        if (player.specializations.has('fungoid-ejection'))
+          player.nextFungoidAt = Math.max(
+            this.#time,
+            player.nextFungoidAt - 5000,
+          );
       }
       if (event.ownerId && event.ownerId !== event.targetId) {
         const credited = event.credit
@@ -3813,7 +4501,8 @@ export class Match {
         kind: 'third-party' as const,
       };
       const loot = enemyLoot(bot.loot);
-      for (const rarity of loot.rarities)
+      const owner = credit.ownerId && this.#players.get(credit.ownerId);
+      for (const rarity of loot.rarities) {
         this.#createResource({
           position,
           source: bot.biome === 'water' ? 'aquatic' : 'meat',
@@ -3823,7 +4512,22 @@ export class Match {
           killerKind: credit.kind,
           repair: false,
         });
-      const owner = credit.ownerId && this.#players.get(credit.ownerId);
+        if (
+          owner &&
+          (bot.elite ||
+            this.#signalTargets.get(credit.ownerId ?? '')?.has(bot.id)) &&
+          Math.random() * 100 < owner.stats.trackerFood
+        )
+          this.#createResource({
+            position,
+            source: bot.biome === 'water' ? 'aquatic' : 'meat',
+            rarity,
+            killerId: ownerId,
+            ownerId: credit.ownerId,
+            killerKind: credit.kind,
+            repair: false,
+          });
+      }
       const killingBlow = killingBlows.get(botId);
       if (
         owner &&
@@ -4459,7 +5163,7 @@ export class Match {
           this.applyStatus(target.id, {
             kind: effect.status,
             ownerId,
-            magnitude: effect.magnitude,
+            magnitude: effect.magnitude * owner.stats.ability,
             duration: effect.durationMs,
           });
     }
@@ -5068,6 +5772,26 @@ export class Match {
               });
             if (committed) {
               player.specializations.add(choice.id);
+              if (choice.id === 'virulent-neurotoxin')
+                this.setModifiers(playerId, [
+                  ...player.modifiers,
+                  {
+                    id: 'specialization:virulent-neurotoxin',
+                    stat: 'poisonTickSpeed',
+                    add: 50,
+                    multiplier: 1,
+                  },
+                ]);
+              if (choice.id === 'snout-whiskers' || choice.id === 'fur-wool')
+                this.setModifiers(playerId, player.modifiers);
+              if (choice.id.startsWith('pedal-glands-'))
+                this.#configurePedalGlands(
+                  player,
+                  player.ranks.get('pedal-glands') ?? 0,
+                  player.rarities.get('pedal-glands') ?? '',
+                  choice.id,
+                );
+
               player.carcinisation = Math.min(
                 10,
                 player.carcinisation + choice.carcinisationBonus,
@@ -5116,6 +5840,11 @@ export class Match {
             player.rarities,
             Math.random,
             reward.level,
+            player.carcinisation,
+            (this.#content.definition('convergent-evolution')?.detailValues
+              ?.chance?.[
+              player.rarities.get('convergent-evolution') ?? ''
+            ]?.[0] ?? 0) / 100,
           );
           const first = choices[0];
           if (first) {
@@ -5225,6 +5954,12 @@ export class Match {
       !Number.isFinite(position.z) ||
       Math.hypot(position.x, position.z) >=
         boundaryRadius(this.#wallTime, this.#finale) - 1 ||
+      this.#arena.shelters.length >= 512 ||
+      this.#arena.shelters.some(
+        (shelter, index) =>
+          !this.#closedShelters.has(index) &&
+          Math.hypot(shelter.x - position.x, shelter.z - position.z) < 3,
+      ) ||
       !arenaPointClear(this.#arena.obstacles, position, 1)
     )
       return null;
@@ -5297,6 +6032,7 @@ export class Match {
       );
     if (this.#shelterEvents.length > 4096) this.#shelterEvents.shift();
     player.shelter = null;
+    player.hibernationElapsed = 0;
     player.craft.collider.setCollisionGroups(COLLISION.craft);
     if (
       playerId &&
@@ -5460,6 +6196,28 @@ export class Match {
       effect: item.effect,
     });
     player.lastFirmware = { effect: item.effect, at: this.#time };
+    if (
+      item.effect === 'poisonous' &&
+      player.specializations.has('snout-toxic-sequestration')
+    )
+      this.setModifiers(playerId, [
+        ...player.modifiers.filter(
+          (modifier) =>
+            modifier.id !== 'specialization:snout-toxic-sequestration',
+        ),
+        {
+          id: 'specialization:snout-toxic-sequestration',
+          stat: 'poisonDamage',
+          add: Math.min(
+            900,
+            (player.modifiers.find(
+              (modifier) =>
+                modifier.id === 'specialization:snout-toxic-sequestration',
+            )?.add ?? 0) + 10,
+          ),
+          multiplier: 1,
+        },
+      ]);
     if (item.effect === 'yummy' || item.effect === 'delicious')
       this.grantProgress(
         playerId,
@@ -5517,8 +6275,36 @@ export class Match {
   }
 
   #advanceFirmware(deltaMs: number): void {
-    for (const player of this.#players.values()) {
-      if (player.life.kind !== 'alive' || player.shelter) continue;
+    for (const [playerId, player] of this.#players) {
+      if (player.life.kind !== 'alive') continue;
+      const rank = player.ranks.get('fungoid') ?? 0;
+      const rarity = player.rarities.get('fungoid') ?? '';
+      const definition = this.#content.definition('fungoid');
+      const minimum = definition?.values[rarity]?.[rank - 1];
+      const maximum = definition?.detailValues?.maximum?.[rarity]?.[rank - 1];
+      if (
+        minimum !== undefined &&
+        maximum !== undefined &&
+        player.nextFungoidAt <= this.#time
+      ) {
+        player.nextFungoidAt =
+          this.#time + (minimum + Math.random() * (maximum - minimum)) * 1000;
+        if (this.canUseOwnedOffense(playerId)) {
+          const origin = player.craft.body.translation();
+          const angle = Math.random() * Math.PI * 2;
+          const point = {
+            x: origin.x + Math.cos(angle) * 2,
+            z: origin.z + Math.sin(angle) * 2,
+          };
+          if (
+            terrainAt(this.#arena, point.x, point.z) !== 'water' &&
+            Math.hypot(point.x, point.z) <
+              boundaryRadius(this.#wallTime, this.#finale) - 1
+          )
+            this.#firmware.spawn(point);
+        }
+      }
+      if (player.shelter) continue;
       const position = player.craft.body.translation();
       for (const module of this.#firmware.visible()) {
         if (
@@ -5735,6 +6521,10 @@ export class Match {
         player.rarities,
         Math.random,
         player.activeReward?.level ?? player.health.level,
+        player.carcinisation,
+        (this.#content.definition('convergent-evolution')?.detailValues
+          ?.chance?.[player.rarities.get('convergent-evolution') ?? '']?.[0] ??
+          0) / 100,
       );
       const first = choices[0];
       if (!first) return false;
@@ -6148,6 +6938,9 @@ export class Match {
       return true;
     }
     if (this.#phase !== 'running') return false;
+    if (this.#wallAnchor === null) this.#wallTime += deltaMs;
+    if (this.#wallTime >= this.#finale.shrinkStartMs)
+      this.#worldConditions.add('finale');
     const dt = deltaMs / 1000;
     this.#advanceTrails(this.#time);
     for (const [id, player] of this.#players) {
@@ -6162,6 +6955,9 @@ export class Match {
         ((1 - previousDecay) * tuning.lifetimeMs) / contribution;
       player.shelter.until = this.#time + remainingMs;
       const shelteredMs = Math.max(0, Math.min(deltaMs, remainingMs));
+      const burrowReady = player.equipment.readyAt.get('burrower');
+      if (burrowReady !== undefined && burrowReady > this.#time)
+        player.equipment.readyAt.set('burrower', burrowReady + shelteredMs);
       const decay = Math.min(
         1,
         previousDecay + (shelteredMs / tuning.lifetimeMs) * contribution,
@@ -6169,6 +6965,26 @@ export class Match {
       this.#shelterDecay.set(player.shelter.id, decay);
       const progress = player.runtimeEffects.shelterProgress(shelteredMs);
       if (progress > 0) this.grantProgress(id, progress);
+      const rank = player.ranks.get('hibernation') ?? 0;
+      const rarity = player.rarities.get('hibernation') ?? '';
+      const hibernation =
+        this.#content.definition('hibernation')?.values[rarity]?.[rank - 1] ??
+        0;
+      if (hibernation > 0) {
+        player.hibernationElapsed += shelteredMs;
+        while (player.hibernationElapsed >= 1000) {
+          player.hibernationElapsed -= 1000;
+          this.grantProgress(
+            id,
+            (levelRequirement(
+              player.health.level,
+              player.stats.progressRequirement,
+            ) *
+              hibernation) /
+              100,
+          );
+        }
+      }
       if (this.#time + deltaMs >= player.shelter.until) {
         this.#closedShelters.add(
           Number(player.shelter.id.slice('shelter-'.length)),
@@ -6176,7 +6992,6 @@ export class Match {
         this.#leaveShelter(player);
       }
     }
-    if (this.#wallAnchor === null) this.#wallTime += deltaMs;
     if (
       !this.#finaleStatsApplied &&
       this.#wallTime >= this.#finale.shrinkStartMs
@@ -6321,7 +7136,13 @@ export class Match {
         player.leapRepeatUntil = 0;
         player.dash = null;
         player.channel = null;
+        player.moulting = null;
         continue;
+      }
+      if (player.moulting && player.moulting.until <= this.#time) {
+        const points = player.moulting.points;
+        player.moulting = null;
+        for (let i = 0; i < points; i++) this.#grantPollinatorBonus(id, player);
       }
       const stunned = this.#hasActiveStatus(player.statuses, 'stun');
       if (stunned) player.attack = null;
@@ -6536,6 +7357,10 @@ export class Match {
                   player.specializations.has('beak-sharp')),
               hits: ability.hits,
               range: ability.range,
+              impulse:
+                ability.id === 'pistol-pincer'
+                  ? 2.5 + 2.5 * (player.ranks.get('pistol-pincer') ?? 1)
+                  : undefined,
               damage:
                 ability.action === 'body-slam'
                   ? ((attackDamage * player.stats.physical +
@@ -6572,7 +7397,9 @@ export class Match {
                           100
                         : ability.action === 'hybrid-strike'
                           ? (attackDamage *
-                              Math.min(
+                              (ability.id === 'pistol-pincer'
+                                ? Math.max
+                                : Math.min)(
                                 player.stats.physical,
                                 player.stats.ability,
                               ) *
@@ -6665,6 +7492,35 @@ export class Match {
               false,
             );
             player.attackReadyAt = this.#time + 200;
+          } else if (ability.action === 'create-shelter') {
+            const position = player.craft.body.translation();
+            if (!this.createShelter({ x: position.x, z: position.z })) {
+              player.equipment.readyAt.set(ability.id, this.#time + 1000);
+              continue;
+            }
+            player.attackReadyAt = this.#time + 200;
+          } else if (ability.action === 'moult') {
+            if (
+              !this.applyStatus(id, {
+                kind: 'stun',
+                ownerId: id,
+                magnitude: 0,
+                duration: ability.stunMs,
+              })
+            )
+              continue;
+            player.moulting = {
+              until: this.#time + ability.stunMs,
+              damage: 0,
+              points: player.carcinisation,
+            };
+            player.attackReadyAt = this.#time + 200;
+          } else if (ability.action === 'contact-boost') {
+            player.contactBoost = {
+              until: this.#time + ability.durationMs,
+              perAffinity: ability.perAffinity,
+            };
+            player.attackReadyAt = this.#time + 200;
           } else if (ability.action === 'speed-boost') {
             player.speedBoost = {
               until: this.#time + ability.durationMs,
@@ -6672,10 +7528,73 @@ export class Match {
             };
             this.setModifiers(id, player.modifiers);
             player.attackReadyAt = this.#time + 200;
+          } else if (ability.action === 'capture') {
+            const origin = player.craft.body.translation();
+            const reserved = [...this.#nestDefenses.values()].filter(
+              (item) => item.ownerId === id,
+            ).length;
+            const target = [...this.#bots.values()]
+              .filter(
+                (bot) =>
+                  bot.health > 0 &&
+                  bot.ownerId !== id &&
+                  (bot.kind === 'wild' || bot.kind === 'charmed') &&
+                  Math.hypot(
+                    bot.craft.body.translation().x - origin.x,
+                    bot.craft.body.translation().z - origin.z,
+                  ) <= ability.range,
+              )
+              .sort(
+                (a, b) =>
+                  Math.hypot(
+                    a.craft.body.translation().x - origin.x,
+                    a.craft.body.translation().z - origin.z,
+                  ) -
+                  Math.hypot(
+                    b.craft.body.translation().x - origin.x,
+                    b.craft.body.translation().z - origin.z,
+                  ),
+              )[0];
+            if (
+              !target ||
+              this.#ownedCount(id, 'charmed') + reserved >=
+                this.#charmCapacity(id)
+            ) {
+              player.equipment.readyAt.set(ability.id, this.#time + 2000);
+              continue;
+            }
+            this.#attemptCharm(id, target, 1, true);
+            player.attackReadyAt = this.#time + 200;
           } else if (ability.action === 'slow-field') {
             if (this.#trails.length >= 128) continue;
             const origin = player.craft.body.translation();
+            if (
+              ability.id === 'spinnerets' &&
+              this.#trails.some(
+                (trail) =>
+                  trail.kind === 'web' &&
+                  Math.hypot(
+                    trail.position.x - origin.x,
+                    trail.position.z - origin.z,
+                  ) < 2,
+              )
+            )
+              continue;
+            if (
+              ability.id === 'spinnerets' &&
+              player.specializations.has('spinnerets-egg-sac')
+            )
+              this.scheduleAlly(id, 'offspring', ability.durationMs, 30000, {
+                x: origin.x,
+                z: origin.z,
+              });
             this.#trails.push({
+              kind: ability.id === 'spinnerets' ? 'web' : undefined,
+              trapped:
+                ability.id === 'spinnerets' &&
+                player.specializations.has('spinnerets-trap')
+                  ? new Set<string>()
+                  : undefined,
               id: ++this.#nextTrailId,
               ownerId: id,
               position: { x: origin.x, z: origin.z },
@@ -6732,7 +7651,7 @@ export class Match {
                 (ability.radius * player.stats.effectArea) / 100,
               ),
               stunMs: ability.stunMs,
-              damage: ability.damage,
+              damage: attackDamage,
             };
             player.attackReadyAt = this.#time + 200;
           } else if (ability.action === 'area-status') {
@@ -6813,6 +7732,7 @@ export class Match {
                     : 1)) /
                 ((ability.durationMs ?? 200) / 1000),
               leap: ability.id === 'leap',
+              ...(ability.id === 'jet' ? { jetNextAt: this.#time } : {}),
             };
             if (ability.id === 'leap') {
               const start = player.craft.body.translation();
@@ -7036,8 +7956,8 @@ export class Match {
               amount: player.attack.damage,
               depth: 0,
               impulse: {
-                x: Math.sin(player.attack.aim) * 2,
-                z: Math.cos(player.attack.aim) * 2,
+                x: Math.sin(player.attack.aim) * (player.attack.impulse ?? 2),
+                z: Math.cos(player.attack.aim) * (player.attack.impulse ?? 2),
               },
             });
         player.attack = null;
@@ -7067,8 +7987,37 @@ export class Match {
       for (const point of this.#pointsOfInterest)
         if (discoverPointOfInterest(point, id, position)) {
           this.#discoveries.push({ playerId: id, siteId: point.id });
+          const pollinatorRank = player.ranks.get('pollinator') ?? 0;
+          if (pollinatorRank > 0) {
+            player.pollinatorDiscoveries++;
+            player.pollinatorSinceBonus++;
+            const interval =
+              this.#content.definition('pollinator')?.values.branching?.[
+                pollinatorRank - 1
+              ] ?? 4;
+            if (player.pollinatorSinceBonus >= interval) {
+              player.pollinatorSinceBonus = 0;
+              this.#grantPollinatorBonus(id, player);
+            }
+          }
           const progress = player.runtimeEffects.discoveryProgress();
           if (progress > 0) this.grantProgress(id, progress);
+          const nomadicRank = player.ranks.get('nomadic') ?? 0;
+          const nomadicRarity = player.rarities.get('nomadic') ?? '';
+          const nomadic =
+            this.#content.definition('nomadic')?.values[nomadicRarity]?.[
+              nomadicRank - 1
+            ] ?? 0;
+          if (nomadic > 0)
+            this.grantProgress(
+              id,
+              (levelRequirement(
+                player.health.level,
+                player.stats.progressRequirement,
+              ) *
+                nomadic) /
+                100,
+            );
           const bonus = player.runtimeEffects.discoveryBonuses();
           if (bonus.modifiers.length) {
             const ids = new Set(bonus.modifiers.map((modifier) => modifier.id));
@@ -7244,6 +8193,46 @@ export class Match {
         if (player.dash) {
           const velocity = player.craft.body.linvel();
           player.craft.body.setLinvel({ x: 0, y: velocity.y, z: 0 }, true);
+          if (
+            !player.dash.charge &&
+            player.specializations.has('fur-snow-dive') &&
+            terrainAt(this.#arena, point.x, point.z) === 'snow' &&
+            Math.random() < (player.dash.leap ? 0.4 : 0.2)
+          ) {
+            const countRoll = Math.random();
+            const count =
+              countRoll < 0.2
+                ? 1
+                : countRoll < 0.6
+                  ? 2
+                  : countRoll < 0.9
+                    ? 3
+                    : 4;
+            for (let i = 0; i < count; i++) {
+              const angle = Math.random() * Math.PI * 2;
+              const distance = 1 + Math.random();
+              const roll = Math.random();
+              this.#createResource({
+                position: {
+                  x: point.x + Math.cos(angle) * distance,
+                  z: point.z + Math.sin(angle) * distance,
+                },
+                source: 'vegetation',
+                rarity:
+                  roll < 0.75
+                    ? 'common'
+                    : roll < 0.94
+                      ? 'rare'
+                      : roll < 0.99
+                        ? 'epic'
+                        : 'legendary',
+                killerId: null,
+                ownerId: null,
+                killerKind: null,
+                repair: false,
+              });
+            }
+          }
         }
         player.dash = null;
         steerCraft(player.craft.body, movement, dt);
@@ -7275,7 +8264,11 @@ export class Match {
     this.#worldConditions.add(lightPhase);
     if (lightPhase !== previousLightPhase) {
       for (const [id, player] of this.#players) {
-        if (player.life.kind !== 'alive' || player.phaseModifiers.size === 0)
+        if (
+          player.life.kind !== 'alive' ||
+          (player.phaseModifiers.size === 0 &&
+            !player.specializations.has('snout-whiskers'))
+        )
           continue;
         player.stats = this.#phaseStats(player, lightPhase);
         updateHealthStats(player.health, player.stats);
@@ -7353,10 +8346,21 @@ export class Match {
         const hint = radarHint('poi', origin, site.position, range);
         if (hint) radar.push(hint);
       }
+      if (projection.ranks.has('snout'))
+        for (const module of this.#firmware.visible()) {
+          if (visibleAt(module.position)) continue;
+          const hint = radarHint('firmware', origin, module.position, range);
+          if (hint) radar.push(hint);
+        }
       for (const bot of this.#bots.values()) {
         const point = bot.craft.body.translation();
         if (!bot.elite || visibleAt(point)) continue;
-        const hint = radarHint('elite', origin, point, range);
+        const hint = radarHint(
+          'elite',
+          origin,
+          point,
+          projection.ranks.has('tracker') ? range * 2 : range,
+        );
         if (hint) radar.push(hint);
       }
     }
@@ -7690,6 +8694,9 @@ export class Match {
           hit: player.hitCueUntil > this.#time,
           guarding: (player.guard?.until ?? 0) > this.#time,
           modules: [
+            ...(['more-eyes', 'antennae', 'snout', 'fungoid'] as const)
+              .filter((kind) => player.ranks.has(kind))
+              .map((kind) => ({ kind, rank: player.ranks.get(kind) ?? 1 })),
             ...(player.ranks.has('spines')
               ? [
                   {

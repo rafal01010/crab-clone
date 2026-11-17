@@ -248,7 +248,11 @@
     {/if}
     {#each state.radar as hint (`${hint.kind}:${hint.direction}:${hint.distance}`)}
       <span
-        >{hint.kind === 'elite' ? 'Elite' : 'Site'} · {hint.direction} · {hint.distance}</span
+        >{hint.kind === 'elite'
+          ? 'Elite'
+          : hint.kind === 'firmware'
+            ? 'Firmware'
+            : 'Site'} · {hint.direction} · {hint.distance}</span
       >
     {/each}
     {#if state.boundary.elapsedMs >= state.boundary.shrinkStartMs}

@@ -17,6 +17,32 @@ function entry(
   const keys = Object.keys(values);
   const summaries: Record<string, string> = {
     'muscular-tissue': 'Increases physical.',
+    'more-eyes': 'Increases senses and dodge.',
+    antennae: 'Increases senses and social. The first rank adds Carcinisation.',
+    cortex: 'Increases ability.',
+    synapse: 'Reduces cooldowns.',
+    snout: 'Increases senses and offers sensory specializations.',
+    tracker: 'Tracks elites and increases their salvage drops.',
+    nomadic: 'Gain progress when discovering a point of interest.',
+    diurnal: 'Extend day and deal more damage during it.',
+    nocturnal: 'Extend night, increase senses, and deal more damage at night.',
+    hibernation: 'Gain progress each second inside shelter.',
+    pollinator:
+      'Discoveries increase nearby vegetation and grant affinity-weighted bonuses.',
+    'subcutaneous-fat': 'Increases maximum hull and thermal adaptation.',
+    sharpen: 'Temporarily adds contact damage based on Predator affinity.',
+    'pistol-pincer':
+      'Strike with your stronger offensive stat and push the target.',
+    constriction: 'Hold still to stun and damage nearby enemies.',
+    moulting: 'Stun yourself, then gain random bonuses for your Carcinisation.',
+    burrower: 'Create a finite shelter.',
+    'lick-wounds':
+      'Heal yourself. Incoming attacks shorten its cooldown based on salvage speed.',
+    outlier: 'Gain a random eligible legendary evolution.',
+    'convergent-evolution':
+      'Increase your highest affinity and favor Carcinisation offers.',
+    ambush: 'Increases damage briefly after leaving shelter.',
+    'detachable-tail': 'Deploys a decoy after damage or a dodge.',
     stomach: 'Increases salvage speed.',
     'slow-metabolism': 'Reduces movement speed and progress required to level.',
     saliva: 'Increases salvage speed and regeneration.',
@@ -41,6 +67,7 @@ function entry(
     dexterous: 'Increases ability and reduces cooldowns.',
     robust: 'Increases maximum hull with size above normal.',
     scales: 'Increases damage resistance and heat adaptation.',
+    fur: 'Increases damage resistance and cold adaptation.',
     carapace: 'Increases damage resistance and plating.',
     shell: 'Increases damage resistance.',
     plated: 'Increases maximum plating.',
@@ -50,6 +77,7 @@ function entry(
     impervious: 'Delays half of incoming damage and increases maximum hull.',
     'regenerative-tissue': 'Increases regeneration.',
     fibroblasts: 'Gain maximum hull after enough actual healing.',
+    hump: 'Gain maximum hull when consuming repair salvage at full hull.',
     'immune-system': 'Increases corrosion resistance.',
     'turtle-down':
       'Briefly reduce damage and stun correctly timed contact attackers.',
@@ -76,6 +104,7 @@ function entry(
     sprint: 'Temporarily increase speed.',
     leap: 'Jump over obstacles and avoid direct impacts.',
     scuttle: 'Move a short distance and gain Carcinisation.',
+    jet: 'Dash and release your learned secretions along the way.',
   };
   const icons: Record<string, ContentDefinition['icon']> = {
     'muscular-tissue': 'power',
@@ -157,6 +186,25 @@ const resistanceThree = rows(
   [7, 15, 22],
   [8, 17, 26],
 );
+const repeatable = (
+  id: string,
+  name: string,
+  amount: number,
+  description: string,
+  affinity: string,
+): ContentDefinition => ({
+  ...entry(
+    id,
+    name,
+    'ordinary',
+    rows([amount], [amount], [amount], [amount]),
+    description,
+  ),
+  maxRank: Number.MAX_SAFE_INTEGER,
+  repeatable: 'linear',
+  requirement: { kind: 'world', condition: 'finale' },
+  affinities: [affinity],
+});
 const feature = (
   id:
     | 'jaws-neck-bite'
@@ -177,10 +225,22 @@ const feature = (
     | 'cheek-pouch-storage'
     | 'scales-basking'
     | 'scales-hard'
+    | 'fur-snow-dive'
+    | 'fur-wool'
     | 'spines-poisonous'
     | 'spines-detachable'
     | 'turtle-down-reinforced'
-    | 'turtle-down-spiked',
+    | 'turtle-down-spiked'
+    | 'snout-whiskers'
+    | 'snout-toxic-sequestration'
+    | 'fungoid-cordyceps'
+    | 'fungoid-ejection'
+    | 'virulent-neurotoxin'
+    | 'virulent-metabolisation'
+    | 'pedal-glands-thick'
+    | 'pedal-glands-nemertide'
+    | 'spinnerets-trap'
+    | 'spinnerets-egg-sac',
   name: string,
   triggerRank: number,
 ) => ({
@@ -191,6 +251,483 @@ const feature = (
   effect: { kind: 'ability-feature' as const, feature: id },
 });
 const playableDefinitions: readonly ContentDefinition[] = [
+  repeatable('aggressive', 'Aggressive', 1, '+{value} physical.', 'Predator'),
+  repeatable('cunning', 'Cunning', 1, '+{value} ability.', 'Trickster'),
+  repeatable('sturdy', 'Sturdy', 8, '+{value} maximum hull.', 'Imposing'),
+  repeatable(
+    'commanding',
+    'Commanding',
+    5,
+    '+{value}% charmed ally damage.',
+    'Gregarious',
+  ),
+  repeatable(
+    'resourceful',
+    'Resourceful',
+    5,
+    '+{value}% progress from all salvage.',
+    'Prey',
+  ),
+  {
+    ...repeatable(
+      'extremophile',
+      'Extremophile',
+      1,
+      '+{value}% meteor resistance.',
+      'Prey',
+    ),
+    rarities: ['legendary'],
+    values: { legendary: [9, 9, 8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1] },
+    repeatable: 'cumulative',
+    affinities: ['Prey', 'Imposing'],
+  },
+  {
+    ...repeatable(
+      'strength-in-numbers',
+      'Strength in Numbers',
+      1,
+      '+{value}% meteor resistance per charmed ally for you and your charmed allies.',
+      'Gregarious',
+    ),
+    rarities: ['legendary'],
+    values: { legendary: [1] },
+  },
+  {
+    ...entry(
+      'more-eyes',
+      'More Eyes',
+      'ordinary',
+      rows(
+        [5, 10, 15, 20, 25],
+        [6, 12, 18, 25, 32],
+        [7, 15, 22, 30, 38],
+        [8, 17, 26, 35, 45],
+      ),
+      '+{value}% dodge and +{senses}% senses.',
+    ),
+    affinities: ['Gregarious', 'Prey'],
+    detailValues: {
+      senses: rows(
+        [15, 30, 45, 60, 75],
+        [17, 35, 52, 70, 85],
+        [20, 40, 60, 80, 100],
+        [23, 45, 70, 95, 120],
+      ),
+    },
+  },
+  {
+    ...entry(
+      'antennae',
+      'Antennae',
+      'ordinary',
+      {
+        rare: [1.5, 3, 4.5, 6, 7.5],
+        epic: [1.7, 3.5, 5.2, 7, 8.7],
+        legendary: [2, 4, 6, 8, 10],
+      },
+      '+{value} social and +{senses}% senses. The first rank adds one Carcinisation point.',
+    ),
+    affinities: ['Carcinisation', 'Gregarious'],
+    detailValues: {
+      senses: {
+        rare: [15, 30, 45, 60, 75],
+        epic: [18, 36, 55, 73, 90],
+        legendary: [23, 45, 68, 90, 110],
+      },
+    },
+  },
+  {
+    ...entry(
+      'cortex',
+      'Cortex',
+      'ordinary',
+      rows(
+        [2, 4, 6, 8, 10],
+        [2.3, 4.5, 7, 9.5, 11.5],
+        [2.7, 5.5, 8, 11, 13.5],
+        [3.3, 6.6, 10, 13, 16],
+      ),
+      '+{value} ability.',
+    ),
+    affinities: ['Trickster'],
+  },
+  {
+    ...entry(
+      'synapse',
+      'Synapse',
+      'ordinary',
+      {
+        rare: [10, 20, 30],
+        epic: [11, 23, 35],
+        legendary: [13, 26, 40],
+      },
+      '-{value}% cooldown.',
+    ),
+    requirement: { kind: 'rank', id: 'cortex', minimum: 3 },
+    affinities: ['Trickster'],
+  },
+  {
+    ...entry(
+      'snout',
+      'Snout',
+      'ordinary',
+      {
+        rare: [15, 30, 45],
+        epic: [20, 40, 60],
+        legendary: [25, 50, 75],
+      },
+      '+{value}% senses.',
+      ['trunk', 'beak', 'leech'],
+    ),
+    specializations: ['snout-whiskers', 'snout-toxic-sequestration'],
+    affinities: ['Prey', 'Gregarious'],
+    specializationChoices: [
+      feature('snout-whiskers', 'Whiskers', 3),
+      feature('snout-toxic-sequestration', 'Toxic Sequestration', 3),
+    ],
+  },
+  {
+    ...entry(
+      'diurnal',
+      'Diurnal',
+      'ordinary',
+      { epic: [7, 15, 22], legendary: [10, 20, 30] },
+      '+{value}% damage during the day. Extend day by {duration} seconds and shorten night by the same amount.',
+      ['nocturnal'],
+    ),
+    detailValues: { duration: { epic: [8, 16, 24], legendary: [10, 20, 30] } },
+  },
+  {
+    ...entry(
+      'nocturnal',
+      'Nocturnal',
+      'ordinary',
+      { epic: [7, 15, 22], legendary: [10, 20, 30] },
+      '+{value}% damage at night and +{senses}% senses. Extend night by {duration} seconds and shorten day by the same amount.',
+      ['diurnal'],
+    ),
+    detailValues: {
+      duration: { epic: [8, 16, 24], legendary: [10, 20, 30] },
+      senses: { epic: [18, 36, 55], legendary: [23, 45, 68] },
+    },
+  },
+  {
+    ...entry(
+      'pollinator',
+      'Pollinator',
+      'branching',
+      { branching: [4, 3, 2] },
+      'Discoveries increase vegetation by 5%. Gain an affinity-weighted bonus now and every {value} discoveries.',
+    ),
+    affinities: ['Gregarious'],
+  },
+  {
+    ...entry(
+      'hibernation',
+      'Hibernation',
+      'ordinary',
+      rows(
+        [2.5, 5, 7.5, 10, 12.5],
+        [3, 6, 9, 12, 15],
+        [3.5, 7, 10.5, 14, 17.5],
+        [4, 8, 12, 16, 20],
+      ),
+      'Gain {value}% of the next level requirement each second in shelter.',
+    ),
+    requirement: { kind: 'rank', id: 'fur', minimum: 1 },
+    affinities: ['Prey'],
+  },
+  {
+    ...entry(
+      'nomadic',
+      'Nomadic',
+      'ordinary',
+      {
+        rare: [20, 40, 60, 80, 100],
+        epic: [25, 50, 75, 100, 125],
+        legendary: [30, 60, 90, 120, 150],
+      },
+      'Gain {value}% of the next level requirement when discovering a point of interest.',
+    ),
+    affinities: ['Prey', 'Gregarious'],
+  },
+  {
+    ...entry(
+      'tracker',
+      'Tracker',
+      'ordinary',
+      {
+        rare: [20, 40, 60],
+        epic: [25, 50, 75],
+        legendary: [30, 60, 90],
+      },
+      'Elite salvage has a {value}% chance to produce an extra item.',
+    ),
+    requirement: {
+      kind: 'any',
+      conditions: [
+        { kind: 'rank', id: 'nomadic', minimum: 1 },
+        { kind: 'rank', id: 'snout', minimum: 1 },
+        { kind: 'rank', id: 'more-eyes', minimum: 2 },
+      ],
+    },
+    affinities: ['Predator'],
+  },
+  {
+    ...entry(
+      'ambush',
+      'Ambush',
+      'ordinary',
+      {
+        epic: [30, 60, 90],
+        legendary: [40, 80, 120],
+      },
+      'Deal {value}% more damage for 3 seconds after leaving shelter.',
+    ),
+    affinities: ['Predator', 'Trickster'],
+  },
+  {
+    ...entry(
+      'detachable-tail',
+      'Detachable Tail',
+      'ordinary',
+      { rare: [2, 2.5, 3], epic: [2.5, 3, 3.5], legendary: [3, 3.5, 4] },
+      'Deploy a decoy for {value} seconds. Cooldown {cooldown} seconds.',
+      ['stinger'],
+    ),
+    requirement: { kind: 'rank', id: 'tail', minimum: 2 },
+    affinities: ['Prey', 'Trickster'],
+    detailValues: {
+      cooldown: { rare: [13, 11, 9], epic: [12, 10, 8], legendary: [11, 9, 7] },
+    },
+  },
+  {
+    ...entry(
+      'fungoid',
+      'Fungoid',
+      'ordinary',
+      {
+        rare: [18, 16, 14, 12, 10],
+        epic: [16, 14, 12, 10, 8],
+        legendary: [14, 12, 10, 8, 6],
+      },
+      'Generate firmware every {value} to {maximum} seconds.',
+    ),
+    detailValues: {
+      maximum: {
+        rare: [24, 22, 20, 18, 16],
+        epic: [22, 20, 18, 16, 14],
+        legendary: [20, 18, 16, 14, 12],
+      },
+    },
+    affinities: ['Prey'],
+    specializations: ['fungoid-cordyceps', 'fungoid-ejection'],
+    specializationChoices: [
+      feature('fungoid-cordyceps', 'Cordyceps', 3),
+      feature('fungoid-ejection', 'Ejection', 3),
+    ],
+  },
+  {
+    ...entry(
+      'poisonous-saliva',
+      'Poisonous Saliva',
+      'ordinary',
+      {
+        rare: [0.1, 0.15, 0.2],
+        epic: [0.15, 0.2, 0.25],
+        legendary: [0.25, 0.3, 0.35],
+      },
+      'Compatible mouth attacks inflict corrosion for 5 seconds.',
+    ),
+    requirement: {
+      kind: 'all',
+      conditions: [
+        { kind: 'rank', id: 'saliva', minimum: 1 },
+        {
+          kind: 'any',
+          conditions: [
+            'jaws',
+            'beak',
+            'leech',
+            'spit',
+            'projectile-tongue',
+          ].map((id) => ({ kind: 'rank' as const, id, minimum: 1 })),
+        },
+      ],
+    },
+    affinities: ['Trickster'],
+  },
+  {
+    ...entry(
+      'revenge',
+      'Revenge',
+      'ordinary',
+      {
+        rare: [4, 7, 10],
+        epic: [4, 7, 10],
+        legendary: [4, 7, 10],
+      },
+      'Taking a hit grants damage for 4 seconds, up to {value} stacks.',
+    ),
+    detailValues: {
+      increase: {
+        rare: [10, 10, 10],
+        epic: [12, 12, 12],
+        legendary: [15, 15, 15],
+      },
+    },
+    affinities: ['Imposing', 'Predator'],
+  },
+  {
+    ...entry(
+      'poisonous-spores',
+      'Poisonous Spores',
+      'ordinary',
+      {
+        rare: [0.175, 0.225, 0.275],
+        epic: [0.225, 0.275, 0.325],
+        legendary: [0.275, 0.325, 0.375],
+      },
+      'Taking damage releases nearby corrosion for 5 seconds.',
+    ),
+    requirement: { kind: 'rank', id: 'fungoid', minimum: 1 },
+    affinities: ['Trickster'],
+  },
+  {
+    ...entry(
+      'virulent',
+      'Virulent',
+      'ordinary',
+      {
+        rare: [15, 30, 45, 60, 75],
+        epic: [20, 40, 60, 80, 100],
+        legendary: [25, 50, 75, 100, 125],
+      },
+      '+{value}% corrosion damage.',
+    ),
+    requirement: {
+      kind: 'any',
+      conditions: ['poisonous-saliva', 'poisonous-spores', 'stinger'].map(
+        (id) => ({ kind: 'rank' as const, id, minimum: 1 }),
+      ),
+    },
+    affinities: ['Trickster'],
+    specializations: ['virulent-neurotoxin', 'virulent-metabolisation'],
+    specializationChoices: [
+      feature('virulent-neurotoxin', 'Neurotoxin', 3),
+      feature('virulent-metabolisation', 'Metabolisation', 3),
+    ],
+  },
+  {
+    ...entry(
+      'pedal-glands',
+      'Pedal Glands',
+      'ordinary',
+      {
+        common: [10, 20, 25],
+        rare: [15, 25, 30],
+        epic: [20, 30, 35],
+        legendary: [25, 35, 40],
+      },
+      'Leave a slowing trail when pursued.',
+    ),
+    detailValues: {
+      cooldown: {
+        common: [25, 25, 25],
+        rare: [20, 20, 20],
+        epic: [15, 15, 15],
+        legendary: [10, 10, 10],
+      },
+      adaptation: {
+        common: [15, 15, 15],
+        rare: [20, 20, 20],
+        epic: [30, 30, 30],
+        legendary: [40, 40, 40],
+      },
+    },
+    requirement: { kind: 'rank', id: 'slithery', minimum: 1 },
+    affinities: ['Prey', 'Trickster'],
+    specializations: ['pedal-glands-thick', 'pedal-glands-nemertide'],
+    specializationChoices: [
+      feature('pedal-glands-thick', 'Thick', 3),
+      feature('pedal-glands-nemertide', 'Nemertide', 3),
+    ],
+  },
+  {
+    ...entry(
+      'alpha',
+      'Alpha',
+      'branching',
+      { branching: [15, 30, 45] },
+      '+{value}% size, +{social} social, and +{health} maximum hull.',
+    ),
+    detailValues: {
+      social: { branching: [2, 4, 6] },
+      health: { branching: [15, 30, 45] },
+    },
+    affinities: ['Imposing', 'Gregarious'],
+  },
+  {
+    ...entry(
+      'pack',
+      'Pack',
+      'ordinary',
+      {
+        rare: [3, 6, 9],
+        epic: [4, 8, 12],
+        legendary: [5, 10, 15],
+      },
+      'You and your allies gain {value}% damage per charmed ally.',
+    ),
+    requirement: { kind: 'rank', id: 'alpha', minimum: 1 },
+    affinities: ['Gregarious'],
+  },
+  {
+    ...entry(
+      'whining',
+      'Whining',
+      'ordinary',
+      {
+        rare: [0.4, 0.5, 0.6],
+        epic: [0.5, 0.65, 0.8],
+        legendary: [0.6, 0.8, 1],
+      },
+      'Attempt to charm nearby animals after taking a hit.',
+    ),
+    affinities: ['Gregarious'],
+  },
+  {
+    ...entry(
+      'courting-display',
+      'Courting Display',
+      'ordinary',
+      {
+        epic: [25, 15, 5],
+        legendary: [20, 10, 1],
+      },
+      'Attempt to capture a nearby animal. Cooldown {value} seconds.',
+    ),
+    aliases: ['courting'],
+    affinities: ['Gregarious'],
+  },
+  {
+    ...entry(
+      'spinnerets',
+      'Spinnerets',
+      'ordinary',
+      {
+        epic: [25, 20, 15],
+        legendary: [20, 15, 10],
+      },
+      'Deploy a slowing web for 7 seconds. Cooldown {value} seconds.',
+    ),
+    affinities: ['Predator', 'Trickster'],
+    specializations: ['spinnerets-trap', 'spinnerets-egg-sac'],
+    specializationChoices: [
+      feature('spinnerets-trap', 'Trap', 3),
+      feature('spinnerets-egg-sac', 'Egg Sac', 3),
+    ],
+  },
   {
     ...entry(
       'omnivore',
@@ -378,6 +915,42 @@ const playableDefinitions: readonly ContentDefinition[] = [
   },
   {
     ...entry(
+      'subcutaneous-fat',
+      'Subcutaneous Fat',
+      'ordinary',
+      { rare: [10, 20, 30], epic: [12, 24, 36], legendary: [16, 32, 48] },
+      '+{value} maximum hull and +{thermal}% heat and cold adaptation.',
+    ),
+    aliases: ['fat'],
+    affinities: ['Imposing'],
+    detailValues: {
+      thermal: {
+        rare: [15, 30, 45],
+        epic: [18, 36, 55],
+        legendary: [23, 45, 68],
+      },
+    },
+  },
+  {
+    ...entry(
+      'fur',
+      'Fur',
+      'ordinary',
+      resistanceThree,
+      '+{value}% damage resistance and +{cold}% cold adaptation.',
+      ['scales', 'exoskeleton'],
+    ),
+    detailValues: {
+      cold: rows([33, 66, 100], [36, 72, 110], [40, 80, 120], [50, 100, 150]),
+    },
+    specializations: ['fur-snow-dive', 'fur-wool'],
+    specializationChoices: [
+      feature('fur-snow-dive', 'Snow Dive', 3),
+      feature('fur-wool', 'Wool', 3),
+    ],
+  },
+  {
+    ...entry(
       'carapace',
       'Carapace',
       'ordinary',
@@ -477,6 +1050,17 @@ const playableDefinitions: readonly ContentDefinition[] = [
       '+{value} hull regenerated per 10 seconds.',
     ),
     affinities: ['Imposing'],
+  },
+  {
+    ...entry(
+      'hump',
+      'Hump',
+      'ordinary',
+      { epic: [1, 1.5, 2], legendary: [1.5, 2, 2.5] },
+      'Gain {value} maximum hull when consuming repair salvage at full hull.',
+      ['fin'],
+    ),
+    affinities: ['Imposing', 'Prey'],
   },
   {
     ...entry(
@@ -1081,6 +1665,157 @@ const playableDefinitions: readonly ContentDefinition[] = [
       feature('spur-marking', 'Marking', 3),
       feature('spur-primal', 'Primal', 3),
     ],
+  },
+  {
+    ...entry(
+      'outlier',
+      'Outlier',
+      'ordinary',
+      { rare: [1], epic: [1.5], legendary: [2] },
+      'Gain an eligible legendary evolution. Legendary-only choices have {value} times the weight.',
+    ),
+  },
+  {
+    ...entry(
+      'convergent-evolution',
+      'Convergent Evolution',
+      'ordinary',
+      { epic: [10], legendary: [15] },
+      'Add {value} to your highest affinity and increase the weight of Carcinisation offers by {chance}% per risk point.',
+    ),
+    affinities: ['Carcinisation'],
+    detailValues: { chance: { epic: [15], legendary: [20] } },
+  },
+  {
+    ...entry(
+      'lick-wounds',
+      'Lick Wounds',
+      'ordinary',
+      {
+        rare: [10, 15, 20, 25, 30],
+        epic: [12, 20, 27, 35, 42],
+        legendary: [15, 25, 35, 45, 55],
+      },
+      'Restore {value} hull. Attacks shorten the 25 second cooldown based on salvage speed.',
+      ['poisonous-saliva'],
+    ),
+    requirement: {
+      kind: 'any',
+      conditions: [
+        { kind: 'rank', id: 'saliva', minimum: 1 },
+        { kind: 'rank', id: 'whining', minimum: 1 },
+      ],
+    },
+  },
+  {
+    ...entry(
+      'burrower',
+      'Burrower',
+      'ordinary',
+      { rare: [80, 60, 40], epic: [70, 50, 30], legendary: [60, 40, 20] },
+      'Create a shelter. Cooldown {value} seconds, paused while sheltered.',
+    ),
+    affinities: ['Prey'],
+  },
+  {
+    ...entry(
+      'moulting',
+      'Moulting',
+      'ordinary',
+      { rare: [90, 80, 70], epic: [85, 75, 65], legendary: [80, 70, 60] },
+      'Stun yourself for 3 seconds, then gain a random bonus for each Carcinisation point. Cooldown {value} seconds.',
+    ),
+    affinities: ['Carcinisation'],
+    requirement: { kind: 'rank', id: 'exoskeleton', minimum: 1 },
+  },
+  {
+    ...entry(
+      'constriction',
+      'Constriction',
+      'ordinary',
+      {
+        rare: [0.17, 0.2, 0.22, 0.25, 0.27],
+        epic: [0.22, 0.25, 0.27, 0.3, 0.32],
+        legendary: [0.27, 0.3, 0.32, 0.35, 0.37],
+      },
+      'Hold still for {duration} seconds, stunning nearby enemies and dealing {value} to {maximum} times physical damage each second.',
+    ),
+    affinities: ['Predator', 'Trickster'],
+    requirement: {
+      kind: 'any',
+      conditions: [
+        { kind: 'rank', id: 'slithery', minimum: 1 },
+        { kind: 'rank', id: 'tail', minimum: 1 },
+      ],
+    },
+    detailValues: {
+      maximum: {
+        rare: [0.27, 0.3, 0.32, 0.35, 0.37],
+        epic: [0.32, 0.35, 0.37, 0.4, 0.42],
+        legendary: [0.37, 0.4, 0.42, 0.45, 0.47],
+      },
+      duration: {
+        rare: [3, 3.5, 4, 4.5, 5],
+        epic: [3, 3.5, 4, 4.5, 5],
+        legendary: [3, 3.5, 4, 4.5, 5],
+      },
+    },
+  },
+  {
+    ...entry(
+      'pistol-pincer',
+      'Pistol Pincer',
+      'ordinary',
+      { epic: [2.2, 2.6, 3], legendary: [2.5, 3, 3.5] },
+      'Strike for {value} to {maximum} times the higher of physical or ability, and push the target.',
+    ),
+    requirement: { kind: 'rank', id: 'pincer', minimum: 1 },
+    affinities: ['Carcinisation', 'Trickster'],
+    detailValues: { maximum: { epic: [2.6, 3, 3.5], legendary: [3, 3.1, 4] } },
+  },
+  {
+    ...entry(
+      'sharpen',
+      'Sharpen',
+      'ordinary',
+      { epic: [0.6, 0.8, 1], legendary: [0.8, 1, 1.2] },
+      'For 10 seconds, add {value} contact damage per Predator affinity. Cooldown {cooldown} seconds.',
+    ),
+    affinities: ['Predator'],
+    detailValues: { cooldown: { epic: [20, 20, 20], legendary: [16, 16, 16] } },
+  },
+  {
+    ...entry(
+      'jet',
+      'Jet',
+      'ordinary',
+      rows([6, 5.5, 5], [5.75, 5.25, 4.75], [5.5, 5, 4.5], [5, 4.5, 4]),
+      'Dash {distance} units and release learned secretions. Cooldown {value} seconds.',
+    ),
+    icon: 'movement',
+    affinities: ['Trickster'],
+    requirement: {
+      kind: 'all',
+      conditions: [
+        { kind: 'rank', id: 'tentacles', minimum: 1 },
+        {
+          kind: 'any',
+          conditions: [
+            { kind: 'rank', id: 'pedal-glands', minimum: 1 },
+            { kind: 'rank', id: 'spinnerets', minimum: 1 },
+          ],
+        },
+      ],
+    },
+    detailValues: {
+      distance: rows([4, 4.5, 5], [4, 4.5, 5], [4, 4.5, 5], [4, 4.5, 5]),
+      duration: rows(
+        [0.2, 0.2, 0.2],
+        [0.2, 0.2, 0.2],
+        [0.2, 0.2, 0.2],
+        [0.2, 0.2, 0.2],
+      ),
+    },
   },
   {
     ...entry(

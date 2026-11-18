@@ -210,8 +210,63 @@ test('dead players remain dead on reconnect and spectator visibility follows sur
   }
 });
 
+test('boundary damage ticks after one second outside and resets on re-entry', () => {
+  const world = new RAPIER.World({ x: 0, y: 0, z: 0 });
+  const match = setup({}, createStarterRegistry(), world);
+  try {
+    const start = player(match, 'a').position;
+    const craft = world.bodies.getAll().find((body) => {
+      const position = body.translation();
+      return (
+        body.isDynamic() && position.x === start.x && position.z === start.z
+      );
+    });
+    assert.ok(craft);
+    const move = (x, z) => {
+      craft.setTranslation({ x, y: 0.25, z }, true);
+      craft.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    };
+    const boundaryHits = () =>
+      match
+        .takeDamageLedger()
+        .filter(
+          ({ event }) => event.targetId === 'a' && event.channel === 'boundary',
+        )
+        .map(({ result }) => result.hull);
+
+    move(-107, 63);
+    step(match, 750);
+    assert.deepEqual(boundaryHits(), [], 'leaving grants time to turn back');
+    move(-29, -7);
+    step(match, 50);
+    move(-107, 63);
+    step(match, 999);
+    assert.deepEqual(
+      boundaryHits(),
+      [],
+      're-entry resets time until the first hit',
+    );
+    step(match, 1);
+    assert.deepEqual(boundaryHits(), [10]);
+    step(match, 999);
+    assert.deepEqual(boundaryHits(), [], 'hull is not drained between hits');
+    step(match, 1);
+    assert.deepEqual(boundaryHits(), [10]);
+    move(-29, -7);
+    step(match, 1100);
+    assert.deepEqual(boundaryHits(), []);
+  } finally {
+    match.dispose();
+  }
+});
+
 test('collapse bypasses protection, plating and extreme defenses, and resolves a draw once', () => {
-  const match = setup({ shrinkStartMs: 100, tinyAtMs: 200, collapseAtMs: 300 });
+  const match = setup({
+    shrinkStartMs: 100,
+    tinyAtMs: 200,
+    collapseAtMs: 300,
+    boundaryDamagePerSecond: 20_000,
+  });
   try {
     assert.ok(
       match.setModifiers(
@@ -226,7 +281,7 @@ test('collapse bypasses protection, plating and extreme defenses, and resolves a
     );
     match.syncWallClock(1000);
     match.syncWallClock(1301);
-    match.advance(16);
+    step(match, 1000);
     const result = match.view('a').result;
     assert.equal(result.outcome.kind, 'draw');
     assert.deepEqual(result.eliminationGroups[0], ids);

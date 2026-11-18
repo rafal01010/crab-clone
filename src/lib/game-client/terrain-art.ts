@@ -51,12 +51,16 @@ const surfacePattern = {
     diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.21, .50, .65), ripple * .45);`,
 } satisfies Record<Terrain, string>;
 
-export function groundMaterial(terrain: Terrain) {
+export function groundMaterial(
+  terrain: Terrain,
+  boundaryRadius: THREE.IUniform<number>,
+) {
   const material = new THREE.MeshStandardMaterial({
     roughness: terrain === 'water' ? 0.67 : 1,
   });
   material.customProgramCacheKey = () => `arena-ground:${terrain}`;
   material.onBeforeCompile = (shader) => {
+    shader.uniforms.arenaBoundaryRadius = boundaryRadius;
     shader.vertexShader =
       'varying vec2 arenaPoint;\n' +
       shader.vertexShader.replace(
@@ -66,6 +70,7 @@ export function groundMaterial(terrain: Terrain) {
       );
     shader.fragmentShader =
       `varying vec2 arenaPoint;
+      uniform float arenaBoundaryRadius;
       float terrainHash(vec2 p) {
         return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
       }
@@ -83,10 +88,54 @@ export function groundMaterial(terrain: Terrain) {
         `#include <color_fragment>
       float large = terrainNoise(arenaPoint * .24);
       float grit = terrainNoise(arenaPoint * 2.3);
-      ${surfacePattern[terrain]}`,
+      ${surfacePattern[terrain]}
+      if (arenaBoundaryRadius >= 0.0 && (arenaBoundaryRadius == 0.0 ||
+          dot(arenaPoint, arenaPoint) > arenaBoundaryRadius * arenaBoundaryRadius)) {
+        float luminance = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722));
+        vec3 exterior = vec3(.23, .045, .012) + luminance * vec3(1.12, .50, .26);
+        diffuseColor.rgb = mix(diffuseColor.rgb * .78, exterior, .62);
+      }`,
       );
   };
   return material;
+}
+
+export function createBoundaryWall() {
+  const height = 6;
+  const geometry = new THREE.CylinderGeometry(1, 1, height, 192, 1, true);
+  geometry.translate(0, height / 2, 0);
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      amber: { value: new THREE.Color(0xff964d) },
+      glow: { value: new THREE.Color(0xffe2a6) },
+    },
+    vertexShader: `
+      varying vec2 wallUv;
+      void main() {
+        wallUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec2 wallUv;
+      uniform vec3 amber;
+      uniform vec3 glow;
+      void main() {
+        float foot = 1.0 - smoothstep(0.0, .09, wallUv.y);
+        float fade = 1.0 - smoothstep(.72, 1.0, wallUv.y);
+        float bands = 1.0 - smoothstep(.02, .15, abs(fract(wallUv.y * 6.0) - .5));
+        float crest = smoothstep(.78, .91, wallUv.y) * (1.0 - smoothstep(.91, 1.0, wallUv.y));
+        float signal = max(foot, max(.24 * bands * fade, .38 * crest));
+        gl_FragColor = vec4(mix(amber, glow, signal), .23 * fade + .59 * signal);
+        #include <colorspace_fragment>
+      }
+    `,
+    side: THREE.DoubleSide,
+    transparent: true,
+    forceSinglePass: true,
+    depthWrite: false,
+  });
+  return new THREE.Mesh(geometry, material);
 }
 
 export function biomeEdges(regions: readonly TerrainRegion[]) {

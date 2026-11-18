@@ -126,13 +126,16 @@ test('timed finale unlocks its upgrade at the boundary and applies real meteor a
           result.hull > 0,
       ),
     );
+    assert.ok(match.advance(950));
     assert.ok(
-      collapse.some(
-        ({ event, result }) =>
-          event.channel === 'boundary' &&
-          event.targetId === 'a' &&
-          result.hull > 0,
-      ),
+      match
+        .takeDamageLedger()
+        .some(
+          ({ event, result }) =>
+            event.channel === 'boundary' &&
+            event.targetId === 'a' &&
+            result.hull > 0,
+        ),
     );
   } finally {
     match.dispose();

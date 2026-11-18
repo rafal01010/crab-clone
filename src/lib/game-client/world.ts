@@ -3,6 +3,7 @@ import { createAssets, PRESENTATION } from './assets.js';
 import { createCombatBatches, createCraftCombat } from './combat-art.js';
 import {
   biomeEdges,
+  createBoundaryWall,
   createTerrainClusters,
   groundMaterial,
   obstacleGeometry,
@@ -105,6 +106,7 @@ export function createWorld(canvas: HTMLCanvasElement) {
   scene.add(rain);
   type BotAsset = ReturnType<typeof assets.bot> & {
     bars: ReturnType<typeof makeBars>;
+    allyLink: THREE.Sprite | null;
     fraction: number;
     previous: number;
     changedAt: number;
@@ -204,8 +206,12 @@ export function createWorld(canvas: HTMLCanvasElement) {
       salvage: 'SALVAGED',
       reward: 'LEVEL GAINED',
     }[value.kind];
+    const outcome =
+      value.channel === 'boundary' && value.kind === 'hull'
+        ? 'BOUNDARY HIT'
+        : label;
     return (
-      (value.lethal ? 'ELIMINATED' : label) +
+      (value.lethal ? 'ELIMINATED' : outcome) +
       (damageNumbers && value.hull + value.plating > 0
         ? ` ${value.kind === 'repair' ? '+' : '−'}${Math.ceil(value.hull + value.plating)}`
         : '')
@@ -243,17 +249,12 @@ export function createWorld(canvas: HTMLCanvasElement) {
           : '#ffbc51';
   }
   const ringGeometry = new THREE.RingGeometry(0.96, 1, 96);
-  const boundaryMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffae45,
-    side: THREE.DoubleSide,
-  });
   const meteorMaterial = new THREE.MeshBasicMaterial({
     color: 0xff493d,
     side: THREE.DoubleSide,
   });
-  const boundary = new THREE.Mesh(ringGeometry, boundaryMaterial);
-  boundary.rotation.x = -Math.PI / 2;
-  boundary.position.y = 0.07;
+  const boundaryRadius = { value: -1 };
+  const boundary = createBoundaryWall();
   boundary.visible = false;
   scene.add(boundary);
   const meteors = new Map<number, THREE.Mesh>();
@@ -262,10 +263,10 @@ export function createWorld(canvas: HTMLCanvasElement) {
   let arenaSeed: string | null = null;
   const arenaObjects: THREE.Mesh[] = [];
   const ground = {
-    grass: groundMaterial('grass'),
-    sand: groundMaterial('sand'),
-    snow: groundMaterial('snow'),
-    water: groundMaterial('water'),
+    grass: groundMaterial('grass', boundaryRadius),
+    sand: groundMaterial('sand', boundaryRadius),
+    snow: groundMaterial('snow', boundaryRadius),
+    water: groundMaterial('water', boundaryRadius),
   };
   const groundTint = new THREE.Color();
   const terrainMeshes: {
@@ -337,6 +338,7 @@ export function createWorld(canvas: HTMLCanvasElement) {
     clearTerrain();
     clearObservedEntities();
     boundary.visible = false;
+    boundaryRadius.value = -1;
     rain.visible = false;
     followId = null;
   }
@@ -740,11 +742,10 @@ export function createWorld(canvas: HTMLCanvasElement) {
         clock.phase === 'day'
           ? 0.65 + 1.35 * transition
           : 2 - 1.35 * transition;
-      boundary.visible =
-        observation.state.phase === 'running' &&
-        observation.state.boundary.elapsedMs >=
-          observation.state.boundary.shrinkStartMs;
-      boundary.scale.setScalar(observation.state.boundary.radius);
+      boundaryRadius.value = observed ? observation.state.boundary.radius : -1;
+      boundary.visible = boundaryRadius.value > 0;
+      if (boundary.visible)
+        boundary.scale.set(boundaryRadius.value, 1, boundaryRadius.value);
       sun.intensity =
         clock.phase === 'day' ? 0.65 + transition : 1.65 - transition;
       const meteorIds = new Set(
@@ -816,6 +817,7 @@ export function createWorld(canvas: HTMLCanvasElement) {
           asset = {
             ...model,
             bars,
+            allyLink: null,
             fraction: bot.health / bot.maxHealth,
             previous: bot.health / bot.maxHealth,
             changedAt: now,
@@ -836,10 +838,14 @@ export function createWorld(canvas: HTMLCanvasElement) {
           ),
         );
         asset.badge.scale.setScalar(bot.elite ? 1.4 : 0.7);
-        const friendly =
-          bot.kind !== 'wild' ||
-          (bot.friendshipUntil ?? 0) > observation.state.time;
-        asset.badge.material = friendly
+        const allied =
+          followId !== null && bot.ownerId === followId && bot.kind !== 'decoy';
+        const recruitable = (bot.friendshipUntil ?? 0) > observation.state.time;
+        if (allied && !asset.allyLink) {
+          asset.allyLink = assets.allyLink();
+          if (asset.allyLink) asset.root.add(asset.allyLink);
+        }
+        asset.badge.material = recruitable
           ? assets.ally
           : bot.elite
             ? assets.light
@@ -892,7 +898,13 @@ export function createWorld(canvas: HTMLCanvasElement) {
           bot.position.z,
         );
         asset.root.rotation.y = bot.aim;
-        asset.root.scale.setScalar(bot.radius * 1.35);
+        const scale = bot.radius * 1.35;
+        asset.root.scale.setScalar(scale);
+        if (asset.allyLink) {
+          asset.allyLink.visible = allied;
+          asset.allyLink.position.y = 1.12 + 0.5 / scale;
+          asset.allyLink.scale.set(0.56 / scale, 0.56 / scale, 1);
+        }
         asset.bars.root.rotation.y = -bot.aim;
         const fraction = Math.max(0, Math.min(1, bot.health / bot.maxHealth));
         if (fraction !== asset.fraction) {
@@ -1150,7 +1162,8 @@ export function createWorld(canvas: HTMLCanvasElement) {
       observer.disconnect();
       clear();
       ringGeometry.dispose();
-      boundaryMaterial.dispose();
+      boundary.geometry.dispose();
+      boundary.material.dispose();
       meteorMaterial.dispose();
       guardGeometry.dispose();
       moduleGeometry.dispose();

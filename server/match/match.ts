@@ -173,6 +173,7 @@ type Player = {
   stats: Stats;
   health: Health;
   thermal: ThermalExposure;
+  boundaryExposureMs: number;
   modifiers: StatModifier[];
   phaseModifiers: Map<string, { phase: LightPhase; modifiers: StatModifier[] }>;
   runtimeEffects: RuntimeEffects;
@@ -314,6 +315,7 @@ const STRIKE_WINDUP_MS = 200;
 const STRIKE_POSE_MS = 100;
 const STRIKE_RECOVERY_MS = 160;
 const ATTACK_FLASH_MS = 300;
+const BOUNDARY_DAMAGE_INTERVAL_MS = 1000;
 
 function contactTool(abilityId: string): ContactTool {
   if (['horns', 'spur'].includes(abilityId)) return 'blade';
@@ -623,6 +625,7 @@ export class Match {
         stats,
         health: initialHealth(stats),
         thermal: { heat: 0, cold: 0 },
+        boundaryExposureMs: 0,
         modifiers: [],
         phaseModifiers: new Map(),
         runtimeEffects: new RuntimeEffects(),
@@ -7281,20 +7284,34 @@ export class Match {
     for (const [id, player] of this.#players) {
       if (player.life.kind !== 'alive') continue;
       const position = player.craft.body.translation();
-      if (collapsed || Math.hypot(position.x, position.z) > radius)
-        damage.push({
-          targetId: id,
-          ownerId: null,
-          channel: 'boundary',
-          amount:
-            (config.boundaryDamagePerSecond *
-              (collapsed
-                ? 1 + (this.#wallTime - config.collapseAtMs) / 30_000
-                : 1) *
-              deltaMs) /
-            1000,
-          depth: 0,
-        });
+      if (!collapsed && Math.hypot(position.x, position.z) <= radius) {
+        player.boundaryExposureMs = 0;
+        continue;
+      }
+      player.boundaryExposureMs += deltaMs;
+      // Sixty fixed physics steps can add up to just under 1,000 ms.
+      const ticks = Math.floor(
+        (player.boundaryExposureMs + 1e-6) / BOUNDARY_DAMAGE_INTERVAL_MS,
+      );
+      if (ticks === 0) continue;
+      const exposureMs = ticks * BOUNDARY_DAMAGE_INTERVAL_MS;
+      player.boundaryExposureMs = Math.max(
+        0,
+        player.boundaryExposureMs - exposureMs,
+      );
+      damage.push({
+        targetId: id,
+        ownerId: null,
+        channel: 'boundary',
+        amount:
+          (config.boundaryDamagePerSecond *
+            (collapsed
+              ? 1 + (this.#wallTime - config.collapseAtMs) / 30_000
+              : 1) *
+            exposureMs) /
+          1000,
+        depth: 0,
+      });
     }
     for (const bot of this.#bots.values()) {
       const position = bot.craft.body.translation();

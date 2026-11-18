@@ -169,6 +169,42 @@ export function createAssets(treatment: Treatment = 'matte') {
     return mesh;
   }
 
+  let allyLinkMaterial: THREE.SpriteMaterial | undefined;
+  function allyLink() {
+    if (!allyLinkMaterial) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 64;
+      const paint = canvas.getContext('2d');
+      if (!paint) return null;
+      paint.beginPath();
+      paint.arc(32, 32, 29, 0, 2 * Math.PI);
+      paint.fillStyle = '#101722';
+      paint.fill();
+      paint.strokeStyle = '#76cdb4';
+      paint.lineWidth = 2;
+      paint.stroke();
+      paint.strokeStyle = paint.fillStyle = '#a6ffd2';
+      paint.lineWidth = 5;
+      paint.lineCap = 'round';
+      for (const radius of [12, 22]) {
+        paint.beginPath();
+        paint.arc(32, 45, radius, -0.8 * Math.PI, -0.2 * Math.PI);
+        paint.stroke();
+      }
+      paint.beginPath();
+      paint.arc(32, 45, 3.5, 0, 2 * Math.PI);
+      paint.fill();
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      allyLinkMaterial = new THREE.SpriteMaterial({
+        map: texture,
+        depthWrite: false,
+      });
+      materials.add(allyLinkMaterial);
+    }
+    return new THREE.Sprite(allyLinkMaterial);
+  }
+
   function geometry(key: string, parts: Part[]) {
     const cached = cache.get(key);
     if (cached) return cached;
@@ -659,6 +695,7 @@ export function createAssets(treatment: Treatment = 'matte') {
     load,
     model,
     sprite,
+    allyLink,
     artSurface,
     craft,
     bot,
@@ -680,6 +717,7 @@ export function createAssets(treatment: Treatment = 'matte') {
     dispose() {
       loading.abort();
       artwork?.dispose();
+      allyLinkMaterial?.map?.dispose();
       geometries.forEach((value) => value.dispose());
       materials.forEach((value) => value.dispose());
     },

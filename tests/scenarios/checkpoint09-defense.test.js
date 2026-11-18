@@ -454,7 +454,7 @@ test('Collapse defeats active Turtle Down, Fibroblasts, regeneration, and Imperv
     assert.equal(player(match).guarding, true);
     match.syncWallClock(1000);
     match.syncWallClock(1301);
-    assert.ok(match.advance(16));
+    advance(match, 1000);
     assert.equal(match.view('a').phase, 'finished');
     assert.equal(player(match).life.kind, 'eliminated');
     assert.equal(match.view('a').result.outcome.kind, 'draw');

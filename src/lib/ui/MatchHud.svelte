@@ -48,6 +48,11 @@
   const localWeather = $derived(
     state.weather.find((weather) => weather.biome === localBiome),
   );
+  const outsideSafeZone = $derived(
+    me?.life.kind === 'alive' &&
+      state.boundary.elapsedMs < state.boundary.collapseAtMs &&
+      Math.hypot(me.position.x, me.position.z) > state.boundary.radius,
+  );
   const canAct = $derived(
     connected &&
       me?.life.kind === 'alive' &&
@@ -215,7 +220,12 @@
           ? 'Meteor incoming.'
           : 'Danger: meteor incoming. Leave the marked ring.'}</strong
       >{/if}
-    {#if state.boundary.elapsedMs >= state.boundary.shrinkStartMs}
+    {#if outsideSafeZone}
+      <strong>Outside the safe zone. Return to avoid boundary damage.</strong>
+    {/if}
+    {#if state.boundary.elapsedMs >= state.boundary.collapseAtMs}
+      <strong>The safe zone has collapsed.</strong>
+    {:else if state.boundary.elapsedMs >= state.boundary.shrinkStartMs}
       <strong
         >Danger: boundary closing. Collapse in {Math.ceil(
           Math.max(0, state.boundary.collapseAtMs - state.boundary.elapsedMs) /
@@ -280,7 +290,7 @@
       {notice}
     />
     {#if state.bots.some((bot) => bot.friendshipUntil !== null && bot.friendshipUntil > state.time)}<span
-        >A green bot is available to recruit. Approach and press {actionLabel(
+        >A bot with green diamonds is available to recruit. Approach and press {actionLabel(
           preferences,
           'interact',
         )}; attacking cancels the offer.</span

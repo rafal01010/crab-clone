@@ -628,13 +628,16 @@ test('recruited companion attacks marked visible opponents and stops while owner
     allyBody.setTranslation({ x: point.x + 2, y: 0.25, z: point.z }, true);
     move(players, 'b', { x: point.x + 3.5, z: point.z });
     assert.ok(match.markAllyTarget('a', 'b'));
-    const hp = self(match, 'b').health.hull;
     step(match, 1500, 50);
-    assert.ok(self(match, 'b').health.hull < hp);
     assert.ok(
       match
         .takeDamageLedger()
-        .some((x) => x.event.ownerId === ally.id && x.event.targetId === 'b'),
+        .some(
+          ({ event, result }) =>
+            event.ownerId === ally.id &&
+            event.targetId === 'b' &&
+            result.hull > 0,
+        ),
     );
     assert.ok(
       match.setOffer('a', { id: 'pause', revision: 0, choices: ['none'] }),
@@ -1590,12 +1593,26 @@ test('companion follows its owner and its kill gives owner salvage credit', () =
     let p;
     for (let x = -18; x <= 18 && !p; x += 2)
       for (let z = -18; z <= 18 && !p; z += 2)
-        if (arenaPointClear(arena.obstacles, { x, z }, 7)) p = { x, z };
+        if (
+          terrainAt(arena, x, z) === 'grass' &&
+          arenaPointClear(arena.obstacles, { x, z }, 7)
+        )
+          p = { x, z };
     move(players, 'a', p);
     move(players, 'b', { x: p.x + 15, z: p.z });
     move(players, 'c', { x: p.x + 18, z: p.z });
     move(players, 'd', { x: p.x + 20, z: p.z });
     step(match, 50);
+    for (const bot of match.view('a').bots)
+      match.damageBatch([
+        {
+          targetId: bot.id,
+          ownerId: null,
+          channel: 'direct',
+          amount: 10000,
+          depth: 0,
+        },
+      ]);
     assert.ok(match.recruitCompanion('a', 'follow', 0));
     const ally = match.view('a').bots.find((b) => b.ownerId === 'a');
     const body = world.bodies

@@ -10,7 +10,7 @@ export const startingDefinitions: readonly ContentDefinition[] = [
     disposition: 'implemented',
     selectable: false,
     name: 'Standard',
-    description: 'Starting configuration: +15 maximum health.',
+    description: 'Standard frame adds 15 maximum hull.',
     pool: 'starting',
     maxRank: 1,
     rarities: ['fixed'],

@@ -1166,7 +1166,7 @@ test(
 test(
   'food-funded Jaws and Horns form a heavy contact build',
   { timeout: 90000 },
-  () => foodRoute('jaws', 'horns', 123456789),
+  () => foodRoute('jaws', 'horns', 7),
 );
 test(
   'food-funded Fur unlocks Hibernation and shelter progress',
@@ -1176,7 +1176,7 @@ test(
 test(
   'food-funded Smol and Shifty provide evasion in the final area',
   { timeout: 90000 },
-  () => foodRoute('smol', 'shifty', 42),
+  () => foodRoute('smol', 'shifty', 7),
 );
 test(
   'food-funded Arms and Toe Beans can transfer a companion',

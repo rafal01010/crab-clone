@@ -48,6 +48,12 @@ export type PointOfInterest = {
     | { kind: 'claimed'; playerId: string };
 };
 
+export function poiName(kind: PointOfInterestKind) {
+  if (kind === 'unattended-nest') return 'Drone Dock';
+  if (kind === 'frozen-specimen') return 'Frozen Drone';
+  return kind.replaceAll('-', ' ');
+}
+
 export const POI_DISCOVERY_RANGE = 8;
 export const POI_INTERACTION_RANGE = 3;
 export const POI_RESERVATION_MS = 10_000;
@@ -99,7 +105,7 @@ const options: Record<PointOfInterestKind, readonly PoiOption[]> = {
   'frozen-specimen': [
     {
       id: 'recruit',
-      label: 'Free a random companion',
+      label: 'Free a random allied bot',
       reward: { kind: 'recruit' },
     },
     {
@@ -163,12 +169,17 @@ const options: Record<PointOfInterestKind, readonly PoiOption[]> = {
       label: 'Increase heat and cold adaptation by 10',
       reward: { kind: 'adaptation', amount: 10 },
     },
-    stat('tail', 'Increase social by 2 (requires Tail)', 'social', 2),
+    stat(
+      'tail',
+      'Increase social by 2 (requires Rear Stabilizer)',
+      'social',
+      2,
+    ),
   ],
   'unattended-nest': [
     {
       id: 'defend',
-      label: 'Defend the egg for one minute',
+      label: 'Defend the drone dock for one minute',
       reward: { kind: 'defend-nest' },
     },
     {
@@ -339,4 +350,37 @@ export function reservePointOfInterest(
     expiresAt: now + (remaining || POI_RESERVATION_MS),
   };
   return true;
+}
+
+export function poiConsequence(reward: PoiReward): string {
+  switch (reward.kind) {
+    case 'repair':
+      return `Repair up to ${reward.fraction * 100}% of maximum hull now. Excess repair is lost.`;
+    case 'progress':
+      return `Gain ${reward.levels} level of progress. Upgrade decisions may queue.`;
+    case 'stat':
+      return 'Change this stat for the rest of this run. Other rewards at this site are forfeited.';
+    case 'random-stat':
+      return 'Increase physical damage, ability damage, maximum hull, speed, or regeneration at random for this run.';
+    case 'adaptation':
+      return `Add ${reward.amount} heat and cold adaptation for this run.`;
+    case 'temporary-resistance':
+      return `Reduce incoming combat damage by ${reward.amount}% for ${reward.duration / 1000} seconds. Boundary damage still applies.`;
+    case 'nest-salvage':
+      return 'Release rare wreck salvage. There is a 50% chance of an elite encounter. Nearby players may compete for the salvage.';
+    case 'recruit':
+      return 'Recruit a random companion now. Uses companion capacity.';
+    case 'defend-nest':
+      return 'Protect the dock for 60 seconds to recruit an allied drone. The dock has 60 integrity and reserves one ally slot.';
+    case 'currency':
+      return `Gain ${reward.amount} currency now. Currency lasts for this run.`;
+    case 'upgrade':
+      return 'Pay once to acquire this displayed upgrade immediately. Any slot replacement shown applies, and cooldowns are preserved.';
+    case 'clock':
+      return `Day duration changes by ${reward.dayMs / 1000} seconds and night duration by ${reward.nightMs / 1000} seconds for everyone, within phase limits. The current phase end may move. Match and final-area deadlines stay fixed.`;
+    case 'firmware-spawn':
+      return `Increase your firmware spawn bonus by ${reward.percent}% for this run.`;
+    case 'cancel':
+      return 'Release the reservation without spending currency or claiming a reward. Used protection time stays spent.';
+  }
 }

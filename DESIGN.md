@@ -1,4 +1,95 @@
 # Your workplace has the answer. Just ask Dala for it. — Style Reference
+
+## Game presentation rules
+
+These game-specific rules take precedence over the website reference below. The menu reference supplies the black, violet, and amber identity, typographic composition, and constellation imagery. Gameplay needs its own readable, compact layouts.
+
+- Design the low-quality experience for Intel HD 620-class browser laptops. Target at least 30 rendered FPS at 1280 by 720 internal resolution and readable UI at 1366 by 768 CSS pixels. These targets require measurement on recorded hardware before claiming support. Render scale controls the drawing buffer independently of UI scale and quality.
+- Use coherent stylized low-poly hovercrafts with recognizable hulls, designed attachment points, matte materials, and restrained emissive accents. Distinguish bot roles by silhouette and pose. Give biomes distinct shapes, quiet palettes, and sparse landmark clusters. Keep combatants and useful objects visually separate from decoration.
+- Establish a representative scene and compare two inexpensive visual treatments before producing the complete asset set. Show early and late builds, two bot roles, terrain, pickups, HUD, and an upgrade overlay at the actual camera distance. Record the chosen palette, proportions, lighting, material and icon rules, and scene budgets here as implementation decisions are made.
+- Use simple lighting and inexpensive contact-shadow shapes to ground entities. Low quality must retain the intended art direction without real-time shadow maps, bloom, screen-space effects, or large transparent particle layers. Share materials and geometry, instance repeated decoration where useful, bound effects, and release resources on teardown.
+- Use readable regular or medium-weight gameplay text, compact spacing, and restrained opaque or translucent backing surfaces where needed for contrast. Huge display headings and ultra-light body text belong to menu compositions. Gameplay may use bounded panels, dividers, and upgrade-option outlines for clarity. Preserve the flat palette and restrained accents.
+- Show upgrade rarity through an explicit name, a colored accent, and a distinct badge treatment. Use neutral for common, blue for rare, violet for epic, and amber for legendary. Show branching and specialization as named choice types. Keep rarity distinct from rank, affinity, selection, and disabled state. Apply the same system to offers, equipment, and build inspection; it must remain understandable without color.
+- Confirm actual attacks on visible bots with a short impact flash or simple shape, responsive health/plating feedback, and a compact local-attacker hit cue. Use authorized server outcomes; predicted overlap is insufficient. Distinguish hull damage, plating absorption or break, dodge, blocked hits, and misses. Coalesce rapid ticks and make damage numbers optional. Low effects, muted play, and reduced motion retain essential confirmation without camera shake or sound.
+- Keep boundary warnings visible during choices and explain that selection protection does not pause the world. Preserve the requested removal of minimaps.
+- Prioritize visuals and interaction over audio. Start with only optional short hit, pickup, upgrade, and danger cues after visual implementation. Original browser-synthesized tones and noise are sufficient; external audio packs are not required. Music and elaborate ambience are deferred. Every audible cue has a visual equivalent.
+
+### Chosen gameplay treatment
+
+The visual-direction comparison uses `scripts/visual-target.html` and `scripts/visual-target.ts`. Run `node node_modules/vite/bin/vite.js --config scripts/visual-target.config.ts`, then open `http://127.0.0.1:5182/scripts/visual-target.html`. Both scenes use a 45-degree perspective camera at `(0, 12, 12)`, a 1280 by 720 drawing buffer, and the same early and late builds, hunter, forager, terrain, pickups, HUD, and Epic offer. The normal gameplay camera uses this minimum distance and moves outward for large hulls.
+
+The native Chrome comparison on 2026-11-17 selected treatment A, matte lighting. Its directional faces separate hull planes and bot bodies more clearly than treatment B's unlit fills. Both retain the pickup silhouettes and repair cross. This observation settles the art direction only. It does not establish crowded combat readability, frame rate, or target-hardware support. An incompatible indexed geometry merge initially prevented the comparison from rendering. The shared builder now converts its parts to non-indexed geometry before merging.
+
+| Element | Production rule |
+|---|---|
+| Hull and mounts | Pale gray-green shell `#b3c8bf`, dark lift pods `#303c42`, violet mounts `#a78bdb`, and small amber heading lights `#ffbc51`. The core fits inside its collision diameter. Small external mounts are cosmetic and do not enlarge hit or attack geometry. |
+| Proportions | The unit hull is 0.9 units wide with a low canopy. Side mounts share the same left and right mounting points. Rear propulsion, dorsal sensors, front weapons, lateral protection, and rear command masts occupy distinct positions. Rank detail grows by 3.5% per rank, capped after four increments. The whole model follows the server radius. |
+| Materials and light | Roughness 1, metalness 0, flat faces, hemisphere fill, and one directional light. One atlas supplies the effects. The hulls and terrain props use vertex colors. Low-sided contact disks ground the craft and bots. Night retains fill light for silhouettes. |
+| Terrain | Grass `#526647`, sand `#9b7953`, snow `#a5bac8`, and shallow water `#3d8fab` anchor the palette. World coordinates drive moss patches, sand ripples, snow drifts, and surface ripples on water. Reeds and pale foam mark the banks. Darker blue shows deeper water. Obstacles use a full-width base and faceted stone tops within the server box. Landmarks stay clear of movement routes. |
+| Icons | Original 24-unit SVG line drawings with a 1.6-unit stroke. Power, salvage, plating, attack, manipulators, movement, wings, projectiles, sensors, and beacons share the same rounded stroke rules. Text supplies the meaning. |
+| Feedback | Danger and impact have priority over repair, rewards, and decoration. Authoritative labels distinguish hull, plating, break, dodge, blocked, repair, salvage, and level gain. Impact bursts, bot health and plating bars, and a local attack-outcome label work without audio or damage numbers. No camera shake is used. |
+
+### Menu, HUD, and choice composition
+
+Menus use an asymmetric two-column composition on black. The title wraps in the left column beside an original outlined hovercraft constellation. Inter display text uses weight 400, menu introductions use weight 200, and only the current primary action has a filled violet background. Room rows, crew seats, result tables, loading states, and amber failures share this flat treatment. Secondary actions use underlined text. All font files remain local.
+
+Gameplay fills the viewport. The left edge holds hull, plating, experience, statuses, and personal risk. Ability keys and readiness sit at the bottom. Nearby actions use the right edge, while weather, boundary, and meteor warnings occupy the top center. Gameplay text uses weight 400 or 600 with dark backing. Build details scroll inside their bounded area. No minimap is introduced.
+
+Offers use three outlined columns with regular-weight descriptions and a sticky deadline and warning region. Current and next effects appear separately. Requirements and affinities expand below the benefit. Rarity has an explicit name and a separate badge treatment. Common uses a plain neutral border and one circle. Rare uses a dashed blue border and two diamonds. Epic uses a double violet border and three diamonds. Legendary uses an amber border with distinct corners and four diamonds. Rank, affinity, selection, and unavailable states use separate labels. Equipment, offers, final builds, and the existing build list reuse the same badge component.
+
+The equipment editor previews replacement and movement between slots before submitting. Prompt transactions wait for the host and discard responses belonging to an older offer revision. Native keyboard behavior remains available on focused buttons and selects. Choice warnings and server countdowns remain visible while longer content scrolls. Reduced motion requires no menu animation or camera effect. Laptop layout, grayscale recognition, timed choices, and the complete journey still require the assigned presentation checkpoint.
+
+Nearby interaction panels distinguish personal discovery credit from the shared site's claim. Claim and consumption controls wait for host results. Unavailable options keep their cost and reason visible. Firmware shows the viewer's identification result without a hidden effect mapping. Shelters show occupancy, estimated entry duration, and a forced-exit countdown. Build inspection lists the local craft's learned and equipped abilities, specializations, current stats, and recorded modifiers. The optional field guide is available before readiness and during play. Inspection captures controls without granting protection; its danger notices remain above scrolling content.
+
+Render scale controls the drawing buffer independently of the HUD. Low quality caps pixel ratio at 1, displays up to 40 nearby clusters per biome, and uses eight weather streaks. Balanced displays up to 92 nearby clusters per biome and 24 weather streaks. Both retain the same visibility, combat feedback, and danger geometry. Reduced motion keeps the key attack poses and static effects. Settings use a bounded scrolling panel and repeat boundary and meteor warnings. Timed choices take focus priority over rebinding.
+
+All nine gameplay actions use one complete, unique binding map. The editor resolves conflicts through explicit swaps, reserves menu navigation keys, and supports reset. Gameplay clears held input on remapping and waits for a fresh key press. Labels derive from that map throughout the UI. Only validated local presentation and input preferences persist.
+
+Audio consists of four original browser-synthesized sine or triangle sweeps for hits, pickups, confirmed upgrades, and danger. No sampled or remote sounds are used. A single gesture-unlocked context uses a master gain, mute, category rate limits, and a six-voice cap. It respects private deafness, viewer-authorized feedback, tab visibility, disconnects, and round reset. These are implementation budgets, not measured hardware capacity.
+
+### Asset inventory and provenance
+
+The local art bundle combines adapted CC0 models with original attachment geometry, glyphs, and animation. Quaternius's individual pack pages and downloaded license notices identify these models as CC0. Kenney's downloaded archives include the same dedication. The Inter font retains its bundled license. [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
+
+| Creator and source | Original files | Shipped adaptation |
+|---|---|---|
+| Quaternius · [Ultimate Spaceships Pack](https://quaternius.com/packs/ultimatespaceships.html) | `Pancake.gltf` | Starter shell, cockpit, and nacelles. The shortened hull faces +Z and leaves space for front, side, and rear mounts. |
+| Quaternius · [Ultimate Space Kit](https://quaternius.com/packs/ultimatespacekit.html) | `Rover_Round.gltf`, `Rover_1.gltf`, `Rover_2.gltf` | The main chassis sections form the broad forager, narrow hunter, and long scavenger. The adapted bodies use original scoops, jaws, and probes. |
+| Kenney · [Nature Kit 2.1](https://kenney.nl/assets/nature-kit) | `rock_largeA.glb`, `rock_smallFlatA.glb`, `grass_large.glb`, `log_stack.glb`, `tree_oak.glb` | Outcrops, stones, tufts, reeds, exposed roots, and landmark trees. Prop pivots sit at ground level. |
+| Kenney · [Particle Pack](https://opengameart.org/content/particle-pack-80-sprites) | `trace_01.png`, `scorch_01.png`, `smoke_04.png` | Muzzle streak, hit spark, and thruster puff in a single atlas. |
+
+The [art preparation script](scripts/prepare-game-art.py) bakes the palette into mesh vertices and writes the local mesh bundle and effect atlas. Its inputs are the original files above. The browser loads both files from the LAN host before confirming readiness.
+
+| Family | Included assets and binding |
+|---|---|
+| Craft | Continuous painted shell, recessed cockpit, twin lift pods, amber heading lamps, and a contact shadow. Health, damage, and other stat-only improvements remain in the existing stats UI instead of creating invented hardware. |
+| Structural mounts | Manipulator arms, flex mounts, lift pods, wing panels, stabilizers, hydrofoils, lightweight rails, reactive studs, sensor probes, and firmware fabricators follow learned public structural upgrades. Optical arrays and signal antennas occupy dorsal sensor positions. |
+| Equipped modules | Rear jets represent movement abilities. Front barrels represent Plasma Shot, Slug Launcher, and Shock Harpoon. Paired manipulators represent contact tools. Piercing Blade and Follow-up Blade use blades. Hull Ram uses a front bumper. These are shared role silhouettes. Equipped techniques without a physical mount use their actual guard, status, movement, projectile, or field feedback. |
+| Protection and command | Lateral armor follows Armor Panels, Layered Armor, Plated, and Outer Frame. Command Chassis and Squad Link add a command mast. Commanding and Strength in Numbers do not invent physical attachments. |
+| Specializations | Public crest and fin variants reuse the registry's declared visual contract. Private specializations do not gain public geometry. Other branches retain their parent's mount and actual behavior feedback. |
+| Bots | The forager tilts a scoop, the hunter closes forward jaws, and the scavenger extends probes. Windup, strike, and recovery follow authoritative state. The tier badge grows for elites and uses mint for allies. Stun, corrosion, and slow keep their distinct marks. |
+| Resources | A leaf cluster, wrecked component, and sealed cylinder identify plant, wreck, and aquatic salvage. A cross marks healing. One to four diamonds identify rarity. Remaining stage marks and shrinking bulk show salvage progress. |
+| Firmware | Sixteen combinations of counted marks, orientation, and neutral capsule detailing follow appearance IDs only. Stage changes reduce capsule bulk. Identifying a capsule does not alter its geometry or disclose another player's knowledge. |
+| Landmarks | Reed-fringed pools, trees, reef spires, specimen crystal, mushroom cap, lotus petals, drone dock, and dial. Claimed markers flatten, reserved markers stretch, and available markers remain diamonds. Shelter arches have an outward exit wedge and reflect remaining lifetime. |
+| World effects | Grounded snares and foam trails, bright projectile cores and trails, muzzle flashes, contact arcs, thrust, and field outlines. Meteor and boundary geometry retain their warning shapes. Reduced motion keeps the contact, movement, area, and hit-outcome cues visible. |
+
+### Provisional low-quality budgets
+
+These are design ceilings and implementation limits, not measurements. Presentation verification must record actual render costs, and hardware acceptance remains a later gate. If a representative scene exceeds the proposed draw or triangle budget, simplify shared geometry or instance another family. Do not hide gameplay entities to satisfy a budget.
+
+| Cost | Budget or bound |
+|---|---|
+| Drawing buffer | Canvas CSS dimensions multiplied by the device pixel ratio and a render scale from 0.5 to 1. The camera uses the canvas aspect ratio. |
+| Visible geometry | Target at most 200,000 rendered triangles and 600 draw calls in the representative crowded scene. Terrain is instanced by biome and water depth. These targets still need measurement. |
+| Materials | Share the craft, bot, pickup, and module palettes. Target at most 32 active materials, including terrain, warnings, and occlusion materials. No per-impact materials. |
+| Textures | One 256 × 128 RGBA atlas, 9,947 bytes on disk and 131,072 decoded bytes without mipmaps. The vertex-colored GLB is 65,340 bytes. |
+| Decoration | Low quality draws up to 40 nearby clusters per biome using eight scenery batches. Each cluster uses up to two low-profile pieces. Coordinates determine placement across streamed views. |
+| Transient feedback | At most 32 reusable labels and impact shapes, one active label per target, with a 700 ms display window. Repeated ticks reuse the target's slot. Bot hull loss trails settle over 650 ms after a short hold. Numbers are optional. |
+| Network feedback | At most 256 retained outcomes globally and 64 in a viewer projection, retained for 900 ms. Monotonic IDs suppress replay. Visibility is checked at emission and projection, including the spectating identity and hidden-player rules. Lethal outcomes retain only the authorized last position. No attacker identity is sent. |
+| Lifecycle | The view reuses shared models across rounds. Round and spectator changes clear projected effects. Replacing terrain releases its scene-owned geometry. Teardown releases pools, materials, the texture, and its decoded image. The lobby can retry a failed art load. |
+
+## Website style reference
+
 > constellation floating on black velvet
 
 **Theme:** dark

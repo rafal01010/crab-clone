@@ -33,6 +33,7 @@ export type Bot = {
   targetId: string | null;
   hostileToBots: boolean;
   windupUntil: number | null;
+  lastStrikeAt: number | null;
   readyAt: number;
   charmReadyAt: number;
   forageAt: number;
@@ -104,16 +105,41 @@ export function enemyLoot(loot: SourceLoot | null) {
 }
 export const BOT_RULES = {
   count: 4,
-  maxCount: 64,
+  maxCount: 32,
   maxElites: 2,
   speed: 0.55,
-  aggro: 18,
+  fleeSpeedFactor: 0.65,
+  aggro: 10,
+  separationDistance: 2.5,
+  selectionClearance: 6,
+  localPopulationCap: 12,
+  populationRadius: 22,
+  sourceRegionEquivalents: 1.5,
+  spawnRingDistance: 13,
+  spawnRingStep: 4,
+  spawnPlayerClearance: 12,
   attackRange: 2,
   windup: 600,
   cooldown: 1800,
   forageInterval: 4000,
-  spawnInterval: 1000,
+  spawnInterval: 2000,
 } as const;
+
+export const PVE_BALANCE = {
+  playerSideDamageToWild: 1.2,
+  wildDamageToPlayer: 0.6,
+} as const;
+
+export function wildPopulationLimit(radius: number): number {
+  const areaRatio = (radius / BOT_RULES.populationRadius) ** 2;
+  return Math.min(
+    BOT_RULES.maxCount,
+    Math.max(
+      BOT_RULES.count,
+      Math.ceil(BOT_RULES.localPopulationCap * areaRatio),
+    ),
+  );
+}
 
 // Time-based estimates, independent of player level.
 export const BOT_STAGES = [

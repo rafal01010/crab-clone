@@ -17,30 +17,31 @@ function entry(
   const keys = Object.keys(values);
   const summaries: Record<string, string> = {
     'muscular-tissue': 'Increases physical.',
-    'more-eyes': 'Increases senses and dodge.',
-    antennae: 'Increases senses and social. The first rank adds Carcinisation.',
+    'more-eyes': 'Improves sensors and dodge.',
+    antennae:
+      'Improves sensors and signal strength. The first rank adds Overload.',
     cortex: 'Increases ability.',
     synapse: 'Reduces cooldowns.',
-    snout: 'Increases senses and offers sensory specializations.',
+    snout: 'Improves sensors and offers sensor specializations.',
     tracker: 'Tracks elites and increases their salvage drops.',
     nomadic: 'Gain progress when discovering a point of interest.',
     diurnal: 'Extend day and deal more damage during it.',
-    nocturnal: 'Extend night, increase senses, and deal more damage at night.',
+    nocturnal: 'Extend night, improve sensors, and deal more damage at night.',
     hibernation: 'Gain progress each second inside shelter.',
     pollinator:
       'Discoveries increase nearby vegetation and grant affinity-weighted bonuses.',
     'subcutaneous-fat': 'Increases maximum hull and thermal adaptation.',
-    sharpen: 'Temporarily adds contact damage based on Predator affinity.',
+    sharpen: 'Temporarily adds contact damage based on Assault affinity.',
     'pistol-pincer':
       'Strike with your stronger offensive stat and push the target.',
     constriction: 'Hold still to stun and damage nearby enemies.',
-    moulting: 'Stun yourself, then gain random bonuses for your Carcinisation.',
+    moulting: 'Stun yourself, then gain random bonuses for your Overload.',
     burrower: 'Create a finite shelter.',
     'lick-wounds':
       'Heal yourself. Incoming attacks shorten its cooldown based on salvage speed.',
-    outlier: 'Gain a random eligible legendary evolution.',
+    outlier: 'Gain a random eligible legendary module.',
     'convergent-evolution':
-      'Increase your highest affinity and favor Carcinisation offers.',
+      'Increase your highest affinity and favor Overload offers.',
     ambush: 'Increases damage briefly after leaving shelter.',
     'detachable-tail': 'Deploys a decoy after damage or a dodge.',
     stomach: 'Increases salvage speed.',
@@ -50,14 +51,16 @@ function entry(
       'Adds a chance of repair salvage and increases corrosion resistance.',
     'cheek-pouch': 'Stores salvage for automatic consumption.',
     reach: 'Increases attack area.',
-    ruminant: 'Generates progress based on Prey affinity while unharmed.',
-    herbivore: 'Increases vegetation progress and reduces Predator affinity.',
-    carnivore: 'Increases meat progress and reduces Prey affinity.',
+    ruminant: 'Generates progress based on Survival affinity while unharmed.',
+    herbivore: 'Increases vegetation progress and reduces Assault affinity.',
+    carnivore:
+      'Increases wreck salvage progress and reduces Survival affinity.',
     piscivore: 'Increases aquatic progress.',
     omnivore: 'Increases progress from all salvage.',
     vegan:
-      'Increases vegetation progress but prevents animal salvage consumption.',
-    scavenger: 'Increases progress from animals you did not defeat.',
+      'Increases vegetation progress but blocks wreck and aquatic salvage.',
+    scavenger:
+      'Increases progress from salvage you did not earn a kill credit for.',
     chonky: 'Increases size and physical.',
     'more-mass': 'Increases size, physical, and maximum hull.',
     elusive: 'Reduces size and increases dodge.',
@@ -72,7 +75,7 @@ function entry(
     shell: 'Increases damage resistance.',
     plated: 'Increases maximum plating.',
     spines: 'Returns damage from contact attacks.',
-    exoskeleton: 'Increases plating and social.',
+    exoskeleton: 'Increases plating and signal strength.',
     shifty: 'Converts reduced size into dodge and damage.',
     impervious: 'Delays half of incoming damage and increases maximum hull.',
     'regenerative-tissue': 'Increases regeneration.',
@@ -87,27 +90,36 @@ function entry(
     wings: 'Increases speed and terrain adaptation.',
     tentacles: 'Increases speed and ability.',
     legs: 'Increases speed and offers locomotion specializations.',
-    tail: 'Increases ability and social.',
+    tail: 'Increases ability power and signal strength.',
     'tail-wag':
-      'Automatically attempts to charm nearby animals every 5 seconds.',
+      'Automatically attempts to recruit nearby bots every 5 seconds.',
     'prehensile-tail':
-      'Increases salvage reach and offers tail specializations.',
+      'Increases salvage reach and offers boom specializations.',
     'more-legs': 'Increases speed and adds personal risk.',
     fin: 'Improves movement through water.',
     'hollow-bones': 'Increases speed while reducing damage resistance.',
     spit: 'Fire a ranged ability attack.',
-    'projectile-tongue': 'Root yourself and fire a stunning tongue.',
+    'projectile-tongue': 'Hold position and fire a stunning harpoon.',
     leech: 'Drain hull with a short-range ability attack.',
     stinger: 'Strike and inflict corrosion.',
     spur: 'Automatically follow attacks with physical damage.',
     slide: 'Slide a long distance.',
     sprint: 'Temporarily increase speed.',
     leap: 'Jump over obstacles and avoid direct impacts.',
-    scuttle: 'Move a short distance and gain Carcinisation.',
-    jet: 'Dash and release your learned secretions along the way.',
+    scuttle: 'Move a short distance and gain Overload.',
+    jet: 'Dash and deploy any installed foam or snares along the way.',
   };
   const icons: Record<string, ContentDefinition['icon']> = {
     'muscular-tissue': 'power',
+    'more-eyes': 'sensor',
+    antennae: 'beacon',
+    snout: 'sensor',
+    'tail-wag': 'beacon',
+    whining: 'beacon',
+    'courting-display': 'beacon',
+    stoner: 'projectile',
+    spit: 'projectile',
+    'projectile-tongue': 'projectile',
     stomach: 'salvage',
     plated: 'plating',
     'body-slam': 'attack',
@@ -258,7 +270,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
     'commanding',
     'Commanding',
     5,
-    '+{value}% charmed ally damage.',
+    '+{value}% recruited bot damage.',
     'Gregarious',
   ),
   repeatable(
@@ -271,7 +283,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...repeatable(
       'extremophile',
-      'Extremophile',
+      'Meteor Insulation',
       1,
       '+{value}% meteor resistance.',
       'Prey',
@@ -286,7 +298,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
       'strength-in-numbers',
       'Strength in Numbers',
       1,
-      '+{value}% meteor resistance per charmed ally for you and your charmed allies.',
+      '+{value}% meteor resistance per recruited bot for you and your recruited bots.',
       'Gregarious',
     ),
     rarities: ['legendary'],
@@ -295,7 +307,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'more-eyes',
-      'More Eyes',
+      'Optical Array',
       'ordinary',
       rows(
         [5, 10, 15, 20, 25],
@@ -303,7 +315,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
         [7, 15, 22, 30, 38],
         [8, 17, 26, 35, 45],
       ),
-      '+{value}% dodge and +{senses}% senses.',
+      '+{value}% dodge and +{senses}% sensors.',
     ),
     affinities: ['Gregarious', 'Prey'],
     detailValues: {
@@ -318,14 +330,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'antennae',
-      'Antennae',
+      'Signal Antennas',
       'ordinary',
       {
         rare: [1.5, 3, 4.5, 6, 7.5],
         epic: [1.7, 3.5, 5.2, 7, 8.7],
         legendary: [2, 4, 6, 8, 10],
       },
-      '+{value} social and +{senses}% senses. The first rank adds one Carcinisation point.',
+      '+{value} signal strength and +{senses}% sensors. The first rank adds one Overload point.',
     ),
     affinities: ['Carcinisation', 'Gregarious'],
     detailValues: {
@@ -339,7 +351,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'cortex',
-      'Cortex',
+      'Combat Processor',
       'ordinary',
       rows(
         [2, 4, 6, 8, 10],
@@ -354,7 +366,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'synapse',
-      'Synapse',
+      'Timing Circuit',
       'ordinary',
       {
         rare: [10, 20, 30],
@@ -369,27 +381,27 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'snout',
-      'Snout',
+      'Sensor Probe',
       'ordinary',
       {
         rare: [15, 30, 45],
         epic: [20, 40, 60],
         legendary: [25, 50, 75],
       },
-      '+{value}% senses.',
+      '+{value}% sensors.',
       ['trunk', 'beak', 'leech'],
     ),
     specializations: ['snout-whiskers', 'snout-toxic-sequestration'],
     affinities: ['Prey', 'Gregarious'],
     specializationChoices: [
-      feature('snout-whiskers', 'Whiskers', 3),
-      feature('snout-toxic-sequestration', 'Toxic Sequestration', 3),
+      feature('snout-whiskers', 'Night Navigation', 3),
+      feature('snout-toxic-sequestration', 'Reactive Filter', 3),
     ],
   },
   {
     ...entry(
       'diurnal',
-      'Diurnal',
+      'Solar Calibration',
       'ordinary',
       { epic: [7, 15, 22], legendary: [10, 20, 30] },
       '+{value}% damage during the day. Extend day by {duration} seconds and shorten night by the same amount.',
@@ -400,10 +412,10 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'nocturnal',
-      'Nocturnal',
+      'Night Calibration',
       'ordinary',
       { epic: [7, 15, 22], legendary: [10, 20, 30] },
-      '+{value}% damage at night and +{senses}% senses. Extend night by {duration} seconds and shorten day by the same amount.',
+      '+{value}% damage at night and +{senses}% sensors. Extend night by {duration} seconds and shorten day by the same amount.',
       ['diurnal'],
     ),
     detailValues: {
@@ -414,7 +426,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'pollinator',
-      'Pollinator',
+      'Survey Seeder',
       'branching',
       { branching: [4, 3, 2] },
       'Discoveries increase vegetation by 5%. Gain an affinity-weighted bonus now and every {value} discoveries.',
@@ -424,7 +436,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'hibernation',
-      'Hibernation',
+      'Standby Cycle',
       'ordinary',
       rows(
         [2.5, 5, 7.5, 10, 12.5],
@@ -440,7 +452,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'nomadic',
-      'Nomadic',
+      'Survey Uplink',
       'ordinary',
       {
         rare: [20, 40, 60, 80, 100],
@@ -489,7 +501,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'detachable-tail',
-      'Detachable Tail',
+      'Ejectable Decoy',
       'ordinary',
       { rare: [2, 2.5, 3], epic: [2.5, 3, 3.5], legendary: [3, 3.5, 4] },
       'Deploy a decoy for {value} seconds. Cooldown {cooldown} seconds.',
@@ -504,7 +516,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'fungoid',
-      'Fungoid',
+      'Firmware Fabricator',
       'ordinary',
       {
         rare: [18, 16, 14, 12, 10],
@@ -523,21 +535,21 @@ const playableDefinitions: readonly ContentDefinition[] = [
     affinities: ['Prey'],
     specializations: ['fungoid-cordyceps', 'fungoid-ejection'],
     specializationChoices: [
-      feature('fungoid-cordyceps', 'Cordyceps', 3),
-      feature('fungoid-ejection', 'Ejection', 3),
+      feature('fungoid-cordyceps', 'Infiltration Firmware', 3),
+      feature('fungoid-ejection', 'Emergency Fabrication', 3),
     ],
   },
   {
     ...entry(
       'poisonous-saliva',
-      'Poisonous Saliva',
+      'Corrosive Payload',
       'ordinary',
       {
         rare: [0.1, 0.15, 0.2],
         epic: [0.15, 0.2, 0.25],
         legendary: [0.25, 0.3, 0.35],
       },
-      'Compatible mouth attacks inflict corrosion for 5 seconds.',
+      'Crusher, Piercing Probe, Drain Probe, Plasma Shot, and Shock Harpoon hits cause corrosion for 5 seconds.',
     ),
     requirement: {
       kind: 'all',
@@ -581,7 +593,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'poisonous-spores',
-      'Poisonous Spores',
+      'Corrosive Vent',
       'ordinary',
       {
         rare: [0.175, 0.225, 0.275],
@@ -596,7 +608,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'virulent',
-      'Virulent',
+      'Catalytic Mix',
       'ordinary',
       {
         rare: [15, 30, 45, 60, 75],
@@ -614,14 +626,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
     affinities: ['Trickster'],
     specializations: ['virulent-neurotoxin', 'virulent-metabolisation'],
     specializationChoices: [
-      feature('virulent-neurotoxin', 'Neurotoxin', 3),
-      feature('virulent-metabolisation', 'Metabolisation', 3),
+      feature('virulent-neurotoxin', 'Fast Catalyst', 3),
+      feature('virulent-metabolisation', 'Recovery Loop', 3),
     ],
   },
   {
     ...entry(
       'pedal-glands',
-      'Pedal Glands',
+      'Drag Foam',
       'ordinary',
       {
         common: [10, 20, 25],
@@ -649,17 +661,17 @@ const playableDefinitions: readonly ContentDefinition[] = [
     affinities: ['Prey', 'Trickster'],
     specializations: ['pedal-glands-thick', 'pedal-glands-nemertide'],
     specializationChoices: [
-      feature('pedal-glands-thick', 'Thick', 3),
-      feature('pedal-glands-nemertide', 'Nemertide', 3),
+      feature('pedal-glands-thick', 'Wide Spray', 3),
+      feature('pedal-glands-nemertide', 'Caustic Foam', 3),
     ],
   },
   {
     ...entry(
       'alpha',
-      'Alpha',
+      'Command Chassis',
       'branching',
       { branching: [15, 30, 45] },
-      '+{value}% size, +{social} social, and +{health} maximum hull.',
+      '+{value}% size, +{social} signal strength, and +{health} maximum hull.',
     ),
     detailValues: {
       social: { branching: [2, 4, 6] },
@@ -670,14 +682,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'pack',
-      'Pack',
+      'Squad Link',
       'ordinary',
       {
         rare: [3, 6, 9],
         epic: [4, 8, 12],
         legendary: [5, 10, 15],
       },
-      'You and your allies gain {value}% damage per charmed ally.',
+      'You and your allies gain {value}% damage per recruited bot.',
     ),
     requirement: { kind: 'rank', id: 'alpha', minimum: 1 },
     affinities: ['Gregarious'],
@@ -685,27 +697,27 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'whining',
-      'Whining',
+      'Distress Beacon',
       'ordinary',
       {
         rare: [0.4, 0.5, 0.6],
         epic: [0.5, 0.65, 0.8],
         legendary: [0.6, 0.8, 1],
       },
-      'Attempt to charm nearby animals after taking a hit.',
+      'Attempt to recruit nearby bots after taking a hit.',
     ),
     affinities: ['Gregarious'],
   },
   {
     ...entry(
       'courting-display',
-      'Courting Display',
+      'Override Beacon',
       'ordinary',
       {
         epic: [25, 15, 5],
         legendary: [20, 10, 1],
       },
-      'Attempt to capture a nearby animal. Cooldown {value} seconds.',
+      'Attempt to override a nearby bot. Cooldown {value} seconds.',
     ),
     aliases: ['courting'],
     affinities: ['Gregarious'],
@@ -713,25 +725,25 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'spinnerets',
-      'Spinnerets',
+      'Snare Projector',
       'ordinary',
       {
         epic: [25, 20, 15],
         legendary: [20, 15, 10],
       },
-      'Deploy a slowing web for 7 seconds. Cooldown {value} seconds.',
+      'Deploy a slowing snare for 7 seconds. Cooldown {value} seconds.',
     ),
     affinities: ['Predator', 'Trickster'],
     specializations: ['spinnerets-trap', 'spinnerets-egg-sac'],
     specializationChoices: [
-      feature('spinnerets-trap', 'Trap', 3),
-      feature('spinnerets-egg-sac', 'Egg Sac', 3),
+      feature('spinnerets-trap', 'Stun Grid', 3),
+      feature('spinnerets-egg-sac', 'Drone Canister', 3),
     ],
   },
   {
     ...entry(
       'omnivore',
-      'Omnivore',
+      'Universal Recycler',
       'ordinary',
       { rare: [40, 80, 120], epic: [50, 100, 150], legendary: [60, 120, 180] },
       '+{value}% progress from all salvage.',
@@ -748,10 +760,10 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'vegan',
-      'Vegan',
+      'Plant-Only Feed',
       'ordinary',
       { epic: [75, 150, 225], legendary: [100, 200, 300] },
-      '+{value}% vegetation progress. Cannot consume animal salvage. Lose three Predator affinity per rank.',
+      '+{value}% vegetation progress. Cannot process wreck or aquatic salvage. Lose three Assault affinity per rank.',
       ['carnivore', 'piscivore', 'scavenger'],
     ),
     requirement: { kind: 'rank', id: 'herbivore', minimum: 2 },
@@ -759,14 +771,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'scavenger',
-      'Scavenger',
+      'Derelict Scavenger',
       'ordinary',
       {
         rare: [50, 100, 150, 200, 250],
         epic: [66, 133, 200, 266, 333],
         legendary: [75, 150, 225, 300, 375],
       },
-      '+{value}% progress from animals you did not defeat.',
+      '+{value}% progress from salvage you did not earn a kill credit for.',
       ['vegan'],
     ),
     aliases: ['carrion'],
@@ -775,7 +787,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'chonky',
-      'Chonky',
+      'Heavy Frame',
       'ordinary',
       sizeThree,
       '+{value}% size and +{physical} physical.',
@@ -811,14 +823,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'smol',
-      'Smol',
+      'Microframe',
       'ordinary',
       {
         rare: [0.1, 0.2, 0.3, 0.4, 0.5],
         epic: [0.12, 0.25, 0.38, 0.5, 0.62],
         legendary: [0.15, 0.3, 0.45, 0.6, 0.75],
       },
-      '+{value} speed, -{size}% size, and -2 Imposing affinity per rank.',
+      '+{value} speed, -{size}% size, and -2 Armor affinity per rank.',
     ),
     affinities: ['Prey'],
     detailValues: {
@@ -865,7 +877,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'dexterous',
-      'Dexterous',
+      'Precision Controls',
       'ordinary',
       rows(
         [1, 2, 3, 4, 5],
@@ -898,7 +910,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'scales',
-      'Scales',
+      'Heat Shielding',
       'ordinary',
       resistanceThree,
       '+{value}% damage resistance and +{heat}% heat adaptation.',
@@ -909,14 +921,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
     },
     specializations: ['scales-basking', 'scales-hard'],
     specializationChoices: [
-      feature('scales-basking', 'Basking', 3),
-      feature('scales-hard', 'Hard', 3),
+      feature('scales-basking', 'Solar Charging', 3),
+      feature('scales-hard', 'Shock Plates', 3),
     ],
   },
   {
     ...entry(
       'subcutaneous-fat',
-      'Subcutaneous Fat',
+      'Thermal Lining',
       'ordinary',
       { rare: [10, 20, 30], epic: [12, 24, 36], legendary: [16, 32, 48] },
       '+{value} maximum hull and +{thermal}% heat and cold adaptation.',
@@ -934,7 +946,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'fur',
-      'Fur',
+      'Cold Shielding',
       'ordinary',
       resistanceThree,
       '+{value}% damage resistance and +{cold}% cold adaptation.',
@@ -945,14 +957,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
     },
     specializations: ['fur-snow-dive', 'fur-wool'],
     specializationChoices: [
-      feature('fur-snow-dive', 'Snow Dive', 3),
-      feature('fur-wool', 'Wool', 3),
+      feature('fur-snow-dive', 'Snow Sweep', 3),
+      feature('fur-wool', 'Dual-Climate Lining', 3),
     ],
   },
   {
     ...entry(
       'carapace',
-      'Carapace',
+      'Layered Armor',
       'ordinary',
       resistanceThree,
       '+{value}% damage resistance and +{plating} plating.',
@@ -966,7 +978,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'shell',
-      'Shell',
+      'Armor Panels',
       'ordinary',
       {
         rare: [7.5, 15, 22.5],
@@ -981,7 +993,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'spines',
-      'Spines',
+      'Reactive Studs',
       'ordinary',
       {
         rare: [35, 70, 105, 140, 175],
@@ -994,17 +1006,17 @@ const playableDefinitions: readonly ContentDefinition[] = [
     affinities: ['Imposing'],
     specializations: ['spines-poisonous', 'spines-detachable'],
     specializationChoices: [
-      feature('spines-poisonous', 'Poisonous', 4),
-      feature('spines-detachable', 'Detachable', 4),
+      feature('spines-poisonous', 'Caustic Studs', 4),
+      feature('spines-detachable', 'Ejecting Studs', 4),
     ],
   },
   {
     ...entry(
       'exoskeleton',
-      'Exoskeleton',
+      'Outer Frame',
       'ordinary',
       { rare: [4, 8, 12], epic: [6, 12, 18], legendary: [8, 16, 24] },
-      '+{value} plating and +{social} social.',
+      '+{value} plating and +{social} signal strength.',
       ['scales', 'fur'],
     ),
     affinities: ['Gregarious', 'Carcinisation'],
@@ -1039,7 +1051,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'regenerative-tissue',
-      'Regenerative Tissue',
+      'Auto-Repair',
       'ordinary',
       rows(
         [2, 4, 6, 8, 10],
@@ -1054,7 +1066,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'hump',
-      'Hump',
+      'Repair Reserve',
       'ordinary',
       { epic: [1, 1.5, 2], legendary: [1.5, 2, 2.5] },
       'Gain {value} maximum hull when consuming repair salvage at full hull.',
@@ -1065,7 +1077,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'fibroblasts',
-      'Fibroblasts',
+      'Adaptive Hull',
       'ordinary',
       { epic: [1, 1.5, 2], legendary: [1.5, 2, 2.5] },
       'Gain {value} maximum hull for every 50 hull actually healed.',
@@ -1075,7 +1087,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'immune-system',
-      'Immune System',
+      'Corrosion Seal',
       'ordinary',
       { rare: [15, 20, 25], epic: [30, 40, 50], legendary: [45, 60, 75] },
       '+{value}% corrosion resistance.',
@@ -1085,7 +1097,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'turtle-down',
-      'Turtle Down',
+      'Guard Lock',
       'ordinary',
       { rare: [4, 3.5, 3], epic: [3.5, 3, 2.5], legendary: [3, 2.5, 2] },
       'Reduce damage by 95% for a short time. Block contact early to stun. Cooldown {value}s.',
@@ -1103,7 +1115,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
     specializationChoices: [
       {
         id: 'turtle-down-reinforced',
-        name: 'Reinforced',
+        name: 'Stun Amplifier',
         triggerRank: 3,
         carcinisationBonus: 0,
         effect: {
@@ -1111,13 +1123,13 @@ const playableDefinitions: readonly ContentDefinition[] = [
           changes: [{ stat: 'stunDuration', add: 0, multiplier: 2 }],
         },
       },
-      feature('turtle-down-spiked', 'Spiked', 3),
+      feature('turtle-down-spiked', 'Guard Studs', 3),
     ],
   },
   {
     ...entry(
       'cheek-pouch',
-      'Cheek Pouch',
+      'Salvage Hopper',
       'ordinary',
       { rare: [1, 2, 3], epic: [2, 3, 4], legendary: [3, 4, 5] },
       'Store up to {value} salvage pieces for automatic consumption.',
@@ -1125,14 +1137,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
     affinities: ['Gregarious', 'Trickster'],
     specializations: ['cheek-pouch-provider', 'cheek-pouch-storage'],
     specializationChoices: [
-      feature('cheek-pouch-provider', 'Provider', 3),
-      feature('cheek-pouch-storage', 'Storage', 3),
+      feature('cheek-pouch-provider', 'Support Dispenser', 3),
+      feature('cheek-pouch-storage', 'Magazine Rack', 3),
     ],
   },
   {
     ...entry(
       'forager',
-      'Forager',
+      'Salvage Scanner',
       'ordinary',
       { rare: [7.5, 15, 22.5], epic: [9, 18, 27], legendary: [11, 22, 33] },
       '+{value}% repair salvage chance and +{resistance}% corrosion resistance.',
@@ -1159,45 +1171,45 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'ruminant',
-      'Ruminant',
+      'Idle Processor',
       'branching',
       { branching: [5, 7, 9] },
-      'Gain {value} progress per Prey affinity every 10 seconds. Damage interrupts this for 10 seconds.',
+      'Gain {value} progress per Survival affinity every 10 seconds. Damage interrupts this for 10 seconds.',
     ),
     affinities: ['Prey'],
   },
   {
     ...entry(
       'herbivore',
-      'Herbivore',
+      'Plant Recycler',
       'ordinary',
       {
         rare: [30, 50, 70, 90, 110],
         epic: [35, 60, 85, 110, 135],
         legendary: [40, 70, 100, 130, 160],
       },
-      '+{value}% vegetation progress. Lose one Predator affinity per rank.',
+      '+{value}% vegetation progress. Lose one Assault affinity per rank.',
     ),
     affinities: ['Prey'],
   },
   {
     ...entry(
       'carnivore',
-      'Carnivore',
+      'Wreck Recycler',
       'ordinary',
       {
         rare: [30, 50, 70, 90, 110],
         epic: [35, 60, 85, 110, 135],
         legendary: [40, 70, 100, 130, 160],
       },
-      '+{value}% meat progress. Lose one Prey affinity per rank.',
+      '+{value}% wreck salvage progress. Lose one Survival affinity per rank.',
       ['vegan'],
     ),
     affinities: ['Predator'],
   },
   entry(
     'piscivore',
-    'Piscivore',
+    'Aquatic Recycler',
     'ordinary',
     {
       rare: [40, 70, 100, 130, 160],
@@ -1210,7 +1222,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'slow-metabolism',
-      'Slow Metabolism',
+      'Economy Mode',
       'ordinary',
       {
         epic: [15, 20, 25, 30, 37],
@@ -1226,7 +1238,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'saliva',
-      'Saliva',
+      'Recovery Coolant',
       'ordinary',
       rows(
         [15, 30, 45, 60, 75],
@@ -1248,7 +1260,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   },
   entry(
     'muscular-tissue',
-    'Muscular Tissue',
+    'Power Actuators',
     'ordinary',
     rows(
       [2, 4, 6, 8, 10],
@@ -1260,7 +1272,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   ),
   entry(
     'stomach',
-    'Stomach',
+    'Salvage Grinder',
     'ordinary',
     rows(
       [25, 50, 75, 100, 125],
@@ -1285,7 +1297,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'body-slam',
-      'Body Slam',
+      'Hull Ram',
       'ordinary',
       {
         rare: [10, 11, 12, 13, 14],
@@ -1306,7 +1318,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'claws',
-      'Claws',
+      'Rotary Cutters',
       'ordinary',
       rows(
         [0.775, 0.975, 1.175, 1.375, 1.575],
@@ -1337,7 +1349,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'pincer',
-      'Pincer',
+      'Shock Clamps',
       'ordinary',
       rows(
         [0.8, 1, 1.2, 1.4, 1.6],
@@ -1345,7 +1357,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
         [0.9, 1.1, 1.3, 1.55, 1.75],
         [1.1, 1.2, 1.4, 1.65, 1.85],
       ),
-      'Two pincers each deal {value} times ability damage.',
+      'Each clamp deals {value} times ability damage.',
       ['claws', 'toe-beans'],
     ),
     aliases: ['pincers'],
@@ -1356,7 +1368,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'toe-beans',
-      'Toe Beans',
+      'Signal Strike',
       'ordinary',
       rows(
         [1.2, 1.4, 1.6, 1.8, 2],
@@ -1364,7 +1376,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
         [1.3, 1.55, 1.75, 1.95, 2.15],
         [1.4, 1.65, 1.85, 2.05, 2.25],
       ),
-      'Deal {value} times social damage and attempt to charm a bot at {charm} times the usual chance.',
+      'Deal damage equal to {value} times your signal strength and attempt to recruit a bot at {charm} times the usual chance.',
       ['pincer'],
     ),
     icon: 'arms',
@@ -1382,7 +1394,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'beak',
-      'Beak',
+      'Piercing Probe',
       'ordinary',
       rows(
         [0.9, 1.1, 1.3, 1.5, 1.7],
@@ -1390,7 +1402,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
         [1.1, 1.3, 1.5, 1.8, 2],
         [1.3, 1.5, 1.7, 2, 2.25],
       ),
-      'Peck at range for {value} times ability damage; gain {salvageSpeed}% salvage speed.',
+      'Thrust the probe for {value} times ability damage; gain {salvageSpeed}% salvage speed.',
       ['jaws', 'trunk', 'snout'],
     ),
     icon: 'attack',
@@ -1398,14 +1410,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
     detailValues: { salvageSpeed: salvageSpeedRows },
     specializations: ['beak-sharp', 'beak-long'],
     specializationChoices: [
-      feature('beak-sharp', 'Sharp', 3),
-      feature('beak-long', 'Long', 3),
+      feature('beak-sharp', 'Armor Piercer', 3),
+      feature('beak-long', 'Shelter Breaker', 3),
     ],
   },
   {
     ...entry(
       'stoner',
-      'Stoner',
+      'Slug Launcher',
       'ordinary',
       rows(
         [1.1, 1.3, 1.5, 1.7, 1.9],
@@ -1413,7 +1425,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
         [1.3, 1.5, 1.7, 1.9, 2.1],
         [1.4, 1.6, 1.8, 2, 2.2],
       ),
-      'Throw a stone for {value} to {chargedDamage} times the lower of physical or ability. Hold to charge. Carries {ammo} stones.',
+      'Launch a slug for {value} to {chargedDamage} times the lower of physical or ability. Hold to charge. Carries {ammo} slugs.',
     ),
     icon: 'attack',
     affinities: ['Trickster'],
@@ -1442,14 +1454,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
     },
     specializations: ['stoner-training', 'stoner-signal'],
     specializationChoices: [
-      feature('stoner-training', 'Training', 2),
-      feature('stoner-signal', 'Signal', 2),
+      feature('stoner-training', 'Combat Calibration', 2),
+      feature('stoner-signal', 'Target Beacon', 2),
     ],
   },
   {
     ...entry(
       'antlers',
-      'Antlers',
+      'Recoil Fork',
       'ordinary',
       rows(
         [1.4, 1.6, 1.8, 2, 2.2],
@@ -1474,7 +1486,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'jaws',
-      'Jaws',
+      'Crusher',
       'ordinary',
       rows(
         [0.85, 1.05, 1.25, 1.45, 1.65],
@@ -1490,14 +1502,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
     detailValues: { salvageSpeed: salvageSpeedRows },
     specializations: ['jaws-neck-bite', 'jaws-stalker'],
     specializationChoices: [
-      feature('jaws-neck-bite', 'Neck Bite', 3),
-      feature('jaws-stalker', 'Stalker', 3),
+      feature('jaws-neck-bite', 'Salvage Crusher', 3),
+      feature('jaws-stalker', 'Night Crusher', 3),
     ],
   },
   {
     ...entry(
       'horns',
-      'Horns',
+      'Piercing Blade',
       'ordinary',
       Object.fromEntries(
         Object.entries(SOURCE_GAMEPLAY.horns.damageRanges)
@@ -1507,7 +1519,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
             rows.map(({ x, y }) => Math.round((x + y) * 50) / 100),
           ]),
       ),
-      'Strike with horns for {value} times physical damage, bypassing plating.',
+      'Strike for {value} times physical damage, bypassing plating.',
       ['antlers'],
     ),
     icon: 'attack',
@@ -1516,7 +1528,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'trunk',
-      'Trunk',
+      'Grapple Arm',
       'ordinary',
       {
         rare: [1.2, 1.5, 1.8, 2.1, 2.4],
@@ -1539,7 +1551,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'spit',
-      'Spit',
+      'Plasma Shot',
       'ordinary',
       rows(
         [0.6, 0.7, 0.8, 0.95, 1.2],
@@ -1571,14 +1583,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'projectile-tongue',
-      'Projectile Tongue',
+      'Shock Harpoon',
       'ordinary',
       {
         rare: [1.05, 1.25, 1.45, 1.65, 1.85],
         epic: [1.15, 1.35, 1.6, 1.8, 2.05],
         legendary: [1.35, 1.55, 1.8, 2, 2.25],
       },
-      'Extend your tongue for {value} times physical damage and stun the target.',
+      'Fire the harpoon for {value} times physical damage and stun the target.',
     ),
     icon: 'attack',
     affinities: ['Trickster'],
@@ -1591,14 +1603,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
     },
     specializations: ['projectile-tongue-sticky', 'projectile-tongue-whiplash'],
     specializationChoices: [
-      feature('projectile-tongue-sticky', 'Sticky', 3),
-      feature('projectile-tongue-whiplash', 'Whiplash', 3),
+      feature('projectile-tongue-sticky', 'Winch Cable', 3),
+      feature('projectile-tongue-whiplash', 'Rapid Cable', 3),
     ],
   },
   {
     ...entry(
       'leech',
-      'Leech',
+      'Drain Probe',
       'ordinary',
       {
         rare: [1.05, 1.25, 1.45, 1.65, 1.85],
@@ -1619,14 +1631,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
     },
     specializations: ['leech-anaesthetic', 'leech-vasodilators'],
     specializationChoices: [
-      feature('leech-anaesthetic', 'Anaesthetic', 3),
-      feature('leech-vasodilators', 'Vasodilators', 3),
+      feature('leech-anaesthetic', 'Quiet Drain', 3),
+      feature('leech-vasodilators', 'Recovery Pump', 3),
     ],
   },
   {
     ...entry(
       'stinger',
-      'Stinger',
+      'Corrosion Spike',
       'ordinary',
       {
         rare: [0.8, 0.9, 1, 1.1, 1.2],
@@ -1649,39 +1661,39 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'spur',
-      'Spur',
+      'Follow-up Blade',
       'ordinary',
       {
         rare: [0.45, 0.55, 0.65, 0.75, 0.85],
         epic: [0.55, 0.65, 0.75, 0.85, 0.95],
         legendary: [0.65, 0.75, 0.85, 0.95, 1.05],
       },
-      'Strike for {value} times physical damage. While equipped, also follows your other attack automatically, even while Spur is on cooldown.',
+      'Strike for {value} times physical damage. While equipped, also follows your other attack automatically, even while this blade is on cooldown.',
     ),
     icon: 'attack',
     affinities: ['Predator'],
     specializations: ['spur-marking', 'spur-primal'],
     specializationChoices: [
-      feature('spur-marking', 'Marking', 3),
-      feature('spur-primal', 'Primal', 3),
+      feature('spur-marking', 'Tracking Blade', 3),
+      feature('spur-primal', 'Reserve Charge', 3),
     ],
   },
   {
     ...entry(
       'outlier',
-      'Outlier',
+      'Experimental Module',
       'ordinary',
       { rare: [1], epic: [1.5], legendary: [2] },
-      'Gain an eligible legendary evolution. Legendary-only choices have {value} times the weight.',
+      'Gain an eligible legendary module. Legendary-only choices have {value} times the weight.',
     ),
   },
   {
     ...entry(
       'convergent-evolution',
-      'Convergent Evolution',
+      'Affinity Tuning',
       'ordinary',
       { epic: [10], legendary: [15] },
-      'Add {value} to your highest affinity and increase the weight of Carcinisation offers by {chance}% per risk point.',
+      'Add {value} to your highest affinity and increase the weight of Overload offers by {chance}% per risk point.',
     ),
     affinities: ['Carcinisation'],
     detailValues: { chance: { epic: [15], legendary: [20] } },
@@ -1689,7 +1701,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'lick-wounds',
-      'Lick Wounds',
+      'Field Repair',
       'ordinary',
       {
         rare: [10, 15, 20, 25, 30],
@@ -1710,7 +1722,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'burrower',
-      'Burrower',
+      'Shelter Rig',
       'ordinary',
       { rare: [80, 60, 40], epic: [70, 50, 30], legendary: [60, 40, 20] },
       'Create a shelter. Cooldown {value} seconds, paused while sheltered.',
@@ -1720,10 +1732,10 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'moulting',
-      'Moulting',
+      'System Refit',
       'ordinary',
       { rare: [90, 80, 70], epic: [85, 75, 65], legendary: [80, 70, 60] },
-      'Stun yourself for 3 seconds, then gain a random bonus for each Carcinisation point. Cooldown {value} seconds.',
+      'Stun yourself for 3 seconds, then gain a random bonus for each Overload point. Cooldown {value} seconds.',
     ),
     affinities: ['Carcinisation'],
     requirement: { kind: 'rank', id: 'exoskeleton', minimum: 1 },
@@ -1731,7 +1743,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'constriction',
-      'Constriction',
+      'Lockdown Field',
       'ordinary',
       {
         rare: [0.17, 0.2, 0.22, 0.25, 0.27],
@@ -1764,7 +1776,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'pistol-pincer',
-      'Pistol Pincer',
+      'Impact Cannon',
       'ordinary',
       { epic: [2.2, 2.6, 3], legendary: [2.5, 3, 3.5] },
       'Strike for {value} to {maximum} times the higher of physical or ability, and push the target.',
@@ -1776,10 +1788,10 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'sharpen',
-      'Sharpen',
+      'Edge Charge',
       'ordinary',
       { epic: [0.6, 0.8, 1], legendary: [0.8, 1, 1.2] },
-      'For 10 seconds, add {value} contact damage per Predator affinity. Cooldown {cooldown} seconds.',
+      'For 10 seconds, add {value} contact damage per Assault affinity. Cooldown {cooldown} seconds.',
     ),
     affinities: ['Predator'],
     detailValues: { cooldown: { epic: [20, 20, 20], legendary: [16, 16, 16] } },
@@ -1790,7 +1802,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
       'Jet',
       'ordinary',
       rows([6, 5.5, 5], [5.75, 5.25, 4.75], [5.5, 5, 4.5], [5, 4.5, 4]),
-      'Dash {distance} units and release learned secretions. Cooldown {value} seconds.',
+      'Dash {distance} units and deploy any installed foam or snares. Cooldown {value} seconds.',
     ),
     icon: 'movement',
     affinities: ['Trickster'],
@@ -1875,17 +1887,17 @@ const playableDefinitions: readonly ContentDefinition[] = [
     requirement: { kind: 'rank', id: 'legs', minimum: 1 },
     specializations: ['leap-bouncy', 'leap-heavy'],
     specializationChoices: [
-      feature('leap-bouncy', 'Bouncy', 3),
-      feature('leap-heavy', 'Heavy', 3),
+      feature('leap-bouncy', 'Second Stage', 3),
+      feature('leap-heavy', 'Impact Landing', 3),
     ],
   },
   {
     ...entry(
       'scuttle',
-      'Scuttle',
+      'Quick Boost',
       'ordinary',
       rows([4], [3.5], [3], [2.5]),
-      'Scuttle 3.5 units with a {value} second cooldown.',
+      'Boost 3.5 units with a {value} second cooldown.',
       ['leap'],
     ),
     icon: 'movement',
@@ -1895,7 +1907,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'arms',
-      'Arms',
+      'Manipulator Arms',
       'branching',
       { branching: [2, 4, 6] },
       '+{value} physical, ability, and salvage reach.',
@@ -1905,7 +1917,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'tentacles',
-      'Tentacles',
+      'Flex Mounts',
       'branching',
       { branching: [0.75, 1.25, 1.75, 2.25, 2.75] },
       '+{value} speed and +{ability} ability.',
@@ -1918,7 +1930,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'legs',
-      'Legs',
+      'Lift Pods',
       'branching',
       { branching: [1.25, 2, 2.75] },
       '+{value} speed.',
@@ -1929,7 +1941,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
     specializationChoices: [
       {
         id: 'legs-arthropod',
-        name: 'Arthropod',
+        name: 'Vector Fins',
         triggerRank: 3,
         carcinisationBonus: 1,
         visual: { attachment: 'fins', visibility: 'public' },
@@ -1941,7 +1953,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
       },
       {
         id: 'legs-bipedal',
-        name: 'Bipedal',
+        name: 'Manipulator Retrofit',
         triggerRank: 3,
         carcinisationBonus: 0,
         requiresUnowned: ['arms'],
@@ -1958,7 +1970,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'tail',
-      'Tail',
+      'Rear Stabilizer',
       'ordinary',
       rows(
         [1, 2, 3, 4, 5],
@@ -1966,7 +1978,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
         [1.4, 3, 4.5, 6, 7.5],
         [1.7, 3.5, 5.2, 7, 9],
       ),
-      '+{value} ability and +{social} social.',
+      '+{value} ability power and +{social} signal strength.',
     ),
     affinities: ['Gregarious'],
     detailValues: {
@@ -1981,10 +1993,10 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'tail-wag',
-      'Tail Wag',
+      'Recruitment Transmitter',
       'ordinary',
       SOURCE_GAMEPLAY.tailWag.multipliers,
-      'Automatically attempt to charm nearby animals every 5 seconds with a {value}x charm chance multiplier. Requires a free ally slot.',
+      'Automatically attempt to recruit nearby bots every 5 seconds at {value} times the usual recruitment chance. Requires a free ally slot.',
     ),
     requirement: { kind: 'rank', id: 'tail', minimum: 1 },
     affinities: ['Gregarious'],
@@ -1992,7 +2004,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'prehensile-tail',
-      'Prehensile Tail',
+      'Salvage Boom',
       'ordinary',
       { rare: [2, 4, 6], epic: [2.5, 5, 7.5], legendary: [3, 6, 9] },
       '+{value} salvage reach.',
@@ -2003,7 +2015,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
     specializationChoices: [
       {
         id: 'prehensile-tail-arboreal',
-        name: 'Arboreal',
+        name: 'Obstacle Assist',
         triggerRank: 3,
         carcinisationBonus: 0,
         visual: { attachment: 'fins', visibility: 'public' },
@@ -2017,7 +2029,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
       },
       {
         id: 'prehensile-tail-thrower',
-        name: 'Thrower',
+        name: 'High-Caliber Slugs',
         triggerRank: 3,
         carcinisationBonus: 0,
         visual: { attachment: 'crest', visibility: 'public' },
@@ -2032,14 +2044,14 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'more-legs',
-      'More Legs',
+      'Auxiliary Lift Pods',
       'ordinary',
       {
         rare: [0.4, 0.8, 1.2],
         epic: [0.55, 1.1, 1.65],
         legendary: [0.7, 1.4, 2.1],
       },
-      '+{value} speed. The first rank adds one Carcinisation point.',
+      '+{value} speed. The first rank adds one Overload point.',
       ['slithery'],
     ),
     affinities: ['Carcinisation'],
@@ -2054,7 +2066,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'fin',
-      'Fin',
+      'Hydrofoil',
       'ordinary',
       { rare: [60], epic: [80], legendary: [100] },
       '+{value}% water adaptation.',
@@ -2064,7 +2076,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'hollow-bones',
-      'Hollow Bones',
+      'Hollow Frame',
       'ordinary',
       {
         epic: [0.25, 0.5, 0.75, 1, 1.25],
@@ -2083,7 +2095,7 @@ const playableDefinitions: readonly ContentDefinition[] = [
   {
     ...entry(
       'slithery',
-      'Slithery',
+      'Low-Friction Skirt',
       'branching',
       { branching: [1, 1.75, 2.25] },
       '+{value} speed and +{adaptation}% terrain adaptation.',

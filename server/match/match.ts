@@ -9,10 +9,17 @@ import {
   type Point,
 } from '../../shared/arena.js';
 import type {
+  AttackFlash,
+  ContactTool,
+  ContactVisual,
   MatchPhase,
   MatchView,
   MatchResult,
   PlayerLife,
+  PresentationFeedback,
+  ProjectileVisual,
+  StrikePose,
+  UpgradeDetail,
 } from '../../shared/match.js';
 import { CONTROL_BUTTON, type Intent } from '../../shared/protocol/index.js';
 import RAPIER, { type World } from '@dimforge/rapier3d-compat';
@@ -25,8 +32,8 @@ import { sourceRange } from '../content/source-tuning.js';
 import { sourceCurve } from '../content/source-curve.js';
 import { initialStartingStats } from '../content/starting.js';
 import { createStarterRegistry } from '../content/starter.js';
-import { contentRankValue } from '../content/registry.js';
-import type { ContentDefinition } from '../content/registry.js';
+import { contentRankValue, formatUpgradeNumber } from '../content/registry.js';
+import type { ContentDefinition, Requirement } from '../content/registry.js';
 import { terrainSpeedMultiplier, type Terrain } from '../../shared/movement.js';
 import { BASE_STATS, type Stat } from './stats.js';
 import { deriveStats, type Stats, type StatModifier } from './stats.js';
@@ -68,8 +75,10 @@ import {
   ALLY_LIMITS,
   BOT_RULES,
   BOT_STAGES,
+  PVE_BALANCE,
   sourceEnemyProfile,
   enemyLoot,
+  wildPopulationLimit,
   type AllyKind,
   type Bot,
   type BotRole,
@@ -81,6 +90,8 @@ import {
   discoverPointOfInterest,
   distance as poiDistance,
   poiOptions,
+  poiConsequence,
+  poiName,
   releasePointOfInterest,
   remainingProtection,
   reservePointOfInterest,
@@ -88,6 +99,7 @@ import {
   POI_RESERVATION_MS,
   RANDOM_POI_STATS,
   type PoiOption,
+  type PointOfInterest,
 } from './points-of-interest.js';
 import { WorldClock, type LightPhase } from './world-clock.js';
 import {
@@ -178,6 +190,9 @@ type Player = {
     impulse?: number;
     bypassPlating?: boolean;
   } | null;
+  lastStrike:
+    (Pick<ContactVisual, 'tool' | 'aim' | 'reach'> & { at: number }) | null;
+  attackFlash: AttackFlash | null;
   interactHeld: boolean;
   attackReadyAt: number;
   lastManualAttackAt: number;
@@ -295,10 +310,62 @@ type Projectile = {
 };
 
 const CONTROL_EXPIRY_MS = 250;
+const STRIKE_WINDUP_MS = 200;
+const STRIKE_POSE_MS = 100;
+const STRIKE_RECOVERY_MS = 160;
+const ATTACK_FLASH_MS = 300;
+
+function contactTool(abilityId: string): ContactTool {
+  if (['horns', 'spur'].includes(abilityId)) return 'blade';
+  if (['bop', 'slam', 'body-slam'].includes(abilityId)) return 'bumper';
+  return 'jaws';
+}
+
+function projectileVisual(abilityId: string | undefined): ProjectileVisual {
+  if (abilityId === 'spit') return 'glob';
+  if (abilityId === 'projectile-tongue') return 'tether';
+  if (abilityId === 'stoner') return 'stone';
+  return 'bolt';
+}
+
+function strikePose(
+  now: number,
+  windupUntil: number | null,
+  windupMs: number,
+  lastStrikeAt: number | null,
+): StrikePose | null {
+  if (windupUntil !== null)
+    return {
+      phase: 'windup',
+      progress: Math.max(0, Math.min(1, 1 - (windupUntil - now) / windupMs)),
+    };
+  if (lastStrikeAt === null) return null;
+  const elapsed = Math.max(0, now - lastStrikeAt);
+  if (elapsed < STRIKE_POSE_MS)
+    return { phase: 'strike', progress: elapsed / STRIKE_POSE_MS };
+  if (elapsed < STRIKE_POSE_MS + STRIKE_RECOVERY_MS)
+    return {
+      phase: 'recovery',
+      progress: (elapsed - STRIKE_POSE_MS) / STRIKE_RECOVERY_MS,
+    };
+  return null;
+}
 const CARCINISATION_DAMAGE_PER_POINT = 0.1;
 const CARCINISATION_RARITY_PER_POINT = 0.08;
 const CARCINISATION_THRESHOLD_LEVELS = [4, 7, 10] as const;
 const CARCINISATION_THRESHOLD_DAMAGE = 0.05;
+const affinityNames: Readonly<Record<string, string>> = {
+  Carcinisation: 'Overload',
+  Gregarious: 'Networking',
+  Imposing: 'Armor',
+  Predator: 'Assault',
+  Prey: 'Survival',
+  Trickster: 'Disruption',
+};
+
+function affinityName(id: string) {
+  return affinityNames[id] ?? id;
+}
 
 function carcinisationDamage(level: number): number {
   return (
@@ -362,6 +429,12 @@ export class Match {
     at: number;
   }[] = [];
   readonly #deaths: { playerId: string; ownerId: string | null }[] = [];
+  #feedbackId = 0;
+  readonly #feedback: {
+    value: PresentationFeedback;
+    ownerId: string | null;
+    audience: Map<string, string>;
+  }[] = [];
   readonly #damageLedger: {
     event: DamageEvent;
     result: ReturnType<typeof applyDamage>;
@@ -558,6 +631,8 @@ export class Match {
         statusImmunities: new Set(),
         reflection: 0,
         attack: null,
+        lastStrike: null,
+        attackFlash: null,
         throwCharge: null,
         leapCharge: null,
         leapRepeatUntil: 0,
@@ -644,16 +719,7 @@ export class Match {
       return true;
     }
     if (command.kind === 'finish-survivor') {
-      const survivors = [...this.#players].filter(
-        ([, player]) => player.life.kind === 'alive',
-      );
-      if (
-        this.#phase !== 'running' ||
-        this.#players.size < 2 ||
-        survivors.length !== 1 ||
-        survivors[0]?.[0] !== command.playerId
-      )
-        return false;
+      if (!this.#canFinishSurvivor(command.playerId)) return false;
       this.#resolveOutcome(true);
       return true;
     }
@@ -680,23 +746,37 @@ export class Match {
       player.connected = command.kind === 'connect';
       player.selection.setConnected(player.connected, this.#time);
       if (!player.connected) {
+        this.#forgetFeedback(command.playerId);
+        if (isSelectionProtected(player)) setSelecting(player, false);
         this.#cancelOwnedWork(command.playerId);
         player.selection.cancelPoi(this.#time);
         for (const point of this.#pointsOfInterest)
           releasePointOfInterest(point, command.playerId, this.#time);
-        this.#advanceSelections(this.#time);
+        for (const [id, consumer] of this.#firmwareConsumers)
+          if (consumer.playerId === command.playerId)
+            this.#firmwareConsumers.delete(id);
+        if (player.shelter) this.#leaveShelter(player);
         if (this.#phase === 'loading' || this.#phase === 'countdown')
           this.#returnToLobby(
             'A player disconnected while loading. Ready again to retry.',
           );
         player.ready = false;
         player.control = null;
+        player.interactHeld = false;
         player.attack = null;
+        player.throwCharge = null;
+        player.leapCharge = null;
+        player.leapRepeatUntil = 0;
+        player.dash = null;
+        player.guard = null;
+        player.invulnerableUntil = 0;
         player.channel = null;
+        player.moulting = null;
         for (let i = this.#projectiles.length - 1; i >= 0; i--)
           if (this.#projectiles[i]?.ownerId === command.playerId)
             this.#projectiles.splice(i, 1);
       }
+      if (this.#phase === 'running') this.#advanceSelections(this.#time);
       return true;
     }
     if (this.#phase === 'finished' || this.#phase === 'aborted') return false;
@@ -721,6 +801,7 @@ export class Match {
     if (command.kind === 'loading-failed') {
       if (
         (this.#phase !== 'loading' && this.#phase !== 'countdown') ||
+        !player.connected ||
         command.revision !== this.#loadingRevision
       )
         return false;
@@ -768,11 +849,14 @@ export class Match {
       }
       this.#cancelOwnedWork(command.playerId);
       player.life = { kind: 'eliminated' };
-      player.spectating =
+      this.#setSpectating(
+        command.playerId,
+        player,
         [...this.#players].find(
           ([id, other]) =>
             id !== command.playerId && other.life.kind === 'alive',
-        )?.[0] ?? null;
+        )?.[0] ?? null,
+      );
       for (const point of this.#pointsOfInterest)
         releasePointOfInterest(point, command.playerId, this.#time);
       player.poiChoices.clear();
@@ -794,7 +878,7 @@ export class Match {
       for (let index = this.#projectiles.length - 1; index >= 0; index--)
         if (this.#projectiles[index]?.ownerId === command.playerId)
           this.#projectiles.splice(index, 1);
-      for (const other of this.#players.values()) {
+      for (const [otherId, other] of this.#players) {
         other.statuses = other.statuses.filter(
           (status) =>
             status.ownerId !== command.playerId &&
@@ -804,10 +888,13 @@ export class Match {
           other.life.kind === 'eliminated' &&
           other.spectating === command.playerId
         )
-          other.spectating =
+          this.#setSpectating(
+            otherId,
+            other,
             [...this.#players].find(
               ([, candidate]) => candidate.life.kind === 'alive',
-            )?.[0] ?? null;
+            )?.[0] ?? null,
+          );
       }
       for (const bot of this.#bots.values())
         bot.statuses = bot.statuses.filter(
@@ -847,18 +934,38 @@ export class Match {
     }
   }
 
+  #forgetFeedback(viewerId: string): void {
+    for (const item of this.#feedback) item.audience.delete(viewerId);
+  }
+
+  #setSpectating(
+    viewerId: string,
+    viewer: Player,
+    targetId: string | null,
+  ): void {
+    if (viewer.spectating === targetId) return;
+    this.#forgetFeedback(viewerId);
+    viewer.spectating = targetId;
+  }
+
   #clearCombat(): void {
+    this.#feedback.length = 0;
     this.#projectiles.length = 0;
     this.#trails.length = 0;
     this.#pendingAllies.length = 0;
+    this.#meteors.length = 0;
     this.#nestDefenses.clear();
     this.#markedTargets.clear();
     this.#closedShelters.clear();
     this.#signalTargets.clear();
     this.#provoked.clear();
     this.#pulls.clear();
+    this.#thickExposure.clear();
+    this.#firmwareConsumers.clear();
+    this.#offers.clear();
     for (const bot of this.#bots.values()) {
       bot.statuses.length = 0;
+      bot.lastStrikeAt = null;
       if (
         bot.kind === 'summoned' ||
         bot.kind === 'offspring' ||
@@ -869,6 +976,13 @@ export class Match {
       }
     }
     for (const player of this.#players.values()) {
+      player.selection.cancel();
+      player.displayedOffer = null;
+      player.activeReward = null;
+      player.generatedChoices = [];
+      player.poiChoices.clear();
+      player.progression.pending.length = 0;
+      player.control = null;
       player.statuses.length = 0;
       player.deferredDamage.length = 0;
       player.hitCueUntil = 0;
@@ -878,6 +992,8 @@ export class Match {
       player.speedBoost = null;
       player.delayedBoost = null;
       player.attack = null;
+      player.lastStrike = null;
+      player.attackFlash = null;
     }
   }
 
@@ -940,6 +1056,7 @@ export class Match {
       targetId: null,
       hostileToBots: role === 'hunter',
       windupUntil: null,
+      lastStrikeAt: null,
       readyAt: 0,
       charmReadyAt: 0,
       home: { ...position },
@@ -1482,72 +1599,80 @@ export class Match {
     }
   }
 
+  #retireWildBot(bot: Bot): void {
+    this.#world.removeRigidBody(bot.craft.body);
+    this.#bots.delete(bot.id);
+    this.#provoked.delete(bot.id);
+    for (const tracked of this.#signalTargets.values()) tracked.delete(bot.id);
+  }
+
   #replenishBots(): void {
     if (this.#time < this.#nextBotSpawn) return;
     this.#nextBotSpawn = this.#time + BOT_RULES.spawnInterval;
-    const centers = [...this.#players.values()]
+    const centers: Point[] = [...this.#players.values()]
       .filter((player) => player.life.kind === 'alive')
       .map((player) => player.craft.body.translation());
     if (!centers.length) return;
-    for (const [id, bot] of this.#bots) {
+    const spawnCenters: Point[] = [...this.#players.values()]
+      .filter(
+        (player) =>
+          player.life.kind === 'alive' && !isSelectionProtected(player),
+      )
+      .map((player) => player.craft.body.translation());
+    for (const bot of this.#bots.values()) {
       const point = bot.craft.body.translation();
       if (
         bot.kind === 'wild' &&
         centers.every(
           (center) => Math.hypot(center.x - point.x, center.z - point.z) > 42,
         )
-      ) {
-        this.#world.removeRigidBody(bot.craft.body);
-        this.#bots.delete(id);
-        this.#provoked.delete(id);
-        for (const tracked of this.#signalTargets.values()) tracked.delete(id);
-      }
+      )
+        this.#retireWildBot(bot);
     }
     const stage =
       BOT_STAGES.findLast((item) => this.#wallTime >= item.at) ?? BOT_STAGES[0];
     const source = SOURCE_GAMEPLAY.enemyPopulation.findLast(
       (item) => this.#wallTime >= item.atMs,
     );
-    // Three nearby region equivalents; the scale and multiplayer cap are adaptation estimates.
     const target = source
       ? Math.min(
-          24,
+          BOT_RULES.localPopulationCap,
           Math.ceil(
-            ((3 * (source.minimum + source.maximum)) / 2) * source.density,
+            ((source.minimum + source.maximum) / 2) *
+              source.density *
+              BOT_RULES.sourceRegionEquivalents,
           ),
         )
-      : 10;
-    const radius = Math.max(
-      0,
-      boundaryRadius(this.#wallTime, this.#finale) - 2,
-    );
+      : 4;
+    const boundary = boundaryRadius(this.#wallTime, this.#finale);
+    const radius = Math.max(0, boundary - 2);
     if (radius < 2) return;
     const wild = [...this.#bots.values()].filter((bot) => bot.kind === 'wild');
     const population = (center: Point) =>
       wild.filter((bot) => {
         const point = bot.craft.body.translation();
-        return Math.hypot(center.x - point.x, center.z - point.z) < 32;
+        return (
+          Math.hypot(center.x - point.x, center.z - point.z) <
+          BOT_RULES.populationRadius
+        );
       }).length;
-    for (let attempt = 0; attempt < centers.length * 3; attempt++) {
-      if (
-        wild.length >= BOT_RULES.maxCount ||
-        this.#bots.size +
-          this.#pendingAllies.length +
-          this.#nestDefenses.size >=
-          ALLY_LIMITS.total
-      )
-        break;
-      centers.sort((a, b) => population(a) - population(b));
-      const center = centers[0];
-      if (!center || population(center) >= target) break;
+    if (
+      wild.length >= wildPopulationLimit(boundary) ||
+      this.#bots.size + this.#pendingAllies.length + this.#nestDefenses.size >=
+        ALLY_LIMITS.total
+    )
+      return;
+    spawnCenters.sort((a, b) => population(a) - population(b));
+    for (const center of spawnCenters) {
+      if (population(center) >= target) break;
       let position: Point | null = null;
       for (let candidate = 0; candidate < 48; candidate++) {
         const angle =
-          ((candidate + this.#nextBotId * 0.618) * Math.PI * 2) / 16;
-        const distance = Math.min(
-          14 + Math.floor(candidate / 16) * 4,
-          radius * 0.6,
-        );
+          (candidate * Math.PI * 2) / 16 +
+          this.#nextBotId * Math.PI * (3 - Math.sqrt(5));
+        const distance =
+          BOT_RULES.spawnRingDistance +
+          Math.floor(candidate / 16) * BOT_RULES.spawnRingStep;
         const point = {
           x: center.x + Math.cos(angle) * distance,
           z: center.z + Math.sin(angle) * distance,
@@ -1561,7 +1686,7 @@ export class Match {
           centers.some(
             (other) =>
               Math.hypot(other.x - point.x, other.z - point.z) <
-              Math.min(8, radius * 0.2),
+              BOT_RULES.spawnPlayerClearance,
           )
         )
           continue;
@@ -1575,12 +1700,13 @@ export class Match {
         position = point;
         break;
       }
-      if (!position) break;
+      if (!position) continue;
       const elite =
         this.#wallTime >= 180_000 &&
         (this.#nextBotId + 1) % 5 === 0 &&
         wild.filter((bot) => bot.elite).length < BOT_RULES.maxElites;
-      wild.push(this.#spawnBot(position, stage.tier, elite));
+      this.#spawnBot(position, stage.tier, elite);
+      break;
     }
   }
 
@@ -1922,12 +2048,37 @@ export class Match {
     );
     const speedFactor =
       1 - Math.min(1, this.#trailSlow(bot.id, origin) + statusSlow);
+    let directionX = distance > 0.1 ? dx / distance : 0;
+    let directionZ = distance > 0.1 ? dz / distance : 0;
+    if (bot.kind === 'wild') {
+      for (const other of this.#bots.values()) {
+        if (other.id === bot.id || other.kind !== 'wild') continue;
+        const point = other.craft.body.translation();
+        const gapX = origin.x - point.x;
+        const gapZ = origin.z - point.z;
+        const gap = Math.hypot(gapX, gapZ);
+        if (gap >= BOT_RULES.separationDistance) continue;
+        const strength = 2 * (1 - gap / BOT_RULES.separationDistance);
+        const angle = Number(bot.id.slice(4)) * 2.4;
+        directionX += (gap > 0.01 ? gapX / gap : Math.cos(angle)) * strength;
+        directionZ += (gap > 0.01 ? gapZ / gap : Math.sin(angle)) * strength;
+      }
+    }
+    const directionLength = Math.hypot(directionX, directionZ);
     steerCraft(
       bot.craft.body,
-      distance > 0.1
+      directionLength > 0.01
         ? {
-            x: (dx / distance) * speed * traction * speedFactor,
-            y: (dz / distance) * speed * traction * speedFactor,
+            x:
+              (directionX / Math.max(1, directionLength)) *
+              speed *
+              traction *
+              speedFactor,
+            y:
+              (directionZ / Math.max(1, directionLength)) *
+              speed *
+              traction *
+              speedFactor,
           }
         : { x: 0, y: 0 },
       deltaMs / 1000,
@@ -2025,6 +2176,7 @@ export class Match {
       BOT_RULES.attackRange + Math.max(0, bot.craft.collider.radius() - 0.5);
     const events: DamageEvent[] = [];
     if (bot.windupUntil !== null && this.#time + deltaMs >= bot.windupUntil) {
+      bot.lastStrikeAt = this.#time + deltaMs;
       if (visible && target.distance <= attackRange)
         events.push({
           targetId: target.id,
@@ -2058,6 +2210,9 @@ export class Match {
 
   #advanceBots(deltaMs: number): DamageEvent[] {
     const attacks: DamageEvent[] = [];
+    const protectedPlayers = [...this.#players.entries()]
+      .filter(([, player]) => isSelectionProtected(player))
+      .map(([id, player]) => ({ id, point: player.craft.body.translation() }));
     for (const bot of this.#bots.values()) {
       if (
         bot.statuses.some(
@@ -2073,6 +2228,36 @@ export class Match {
         continue;
       }
       const position = bot.craft.body.translation();
+      const selecting = protectedPlayers.find(
+        ({ point }) =>
+          Math.hypot(position.x - point.x, position.z - point.z) <
+          BOT_RULES.selectionClearance,
+      );
+      if (selecting) {
+        const dx = position.x - selecting.point.x;
+        const dz = position.z - selecting.point.z;
+        const distance = Math.hypot(dx, dz);
+        const angle = Number(bot.id.slice(4)) * 2.4;
+        bot.targetId = null;
+        bot.windupUntil = null;
+        this.#steerBot(
+          bot,
+          {
+            x:
+              position.x +
+              (distance > 0.01 ? dx / distance : Math.cos(angle)) *
+                BOT_RULES.selectionClearance,
+            z:
+              position.z +
+              (distance > 0.01 ? dz / distance : Math.sin(angle)) *
+                BOT_RULES.selectionClearance,
+          },
+          `avoid-choice:${selecting.id}`,
+          deltaMs,
+          BOT_RULES.speed,
+        );
+        continue;
+      }
       let target: {
         id: string;
         position: Point;
@@ -2100,12 +2285,11 @@ export class Match {
             position: point,
             distance,
             threat:
-              (bot.role !== 'hunter' &&
-                !(
-                  this.#provoked.get(bot.id)?.ownerId === id &&
-                  (this.#provoked.get(bot.id)?.until ?? 0) > this.#time
-                )) ||
-              (bot.role === 'hunter' && bot.health < bot.maxHealth * 0.3),
+              bot.role !== 'hunter' &&
+              !(
+                this.#provoked.get(bot.id)?.ownerId === id &&
+                (this.#provoked.get(bot.id)?.until ?? 0) > this.#time
+              ),
           };
       }
       for (const other of this.#bots.values()) {
@@ -2165,7 +2349,7 @@ export class Match {
           destination,
           `flee:${target.id}`,
           deltaMs,
-          BOT_RULES.speed,
+          BOT_RULES.speed * BOT_RULES.fleeSpeedFactor,
         );
         continue;
       }
@@ -2190,6 +2374,7 @@ export class Match {
           bot.windupUntil !== null &&
           this.#time + deltaMs >= bot.windupUntil
         ) {
+          bot.lastStrikeAt = this.#time + deltaMs;
           if (visible && target.distance <= BOT_RULES.attackRange)
             attacks.push({
               targetId: target.id,
@@ -2441,6 +2626,18 @@ export class Match {
           },
         });
         if (this.#collections.length > 4096) this.#collections.shift();
+        this.#recordFeedback(
+          {
+            targetId: playerId,
+            position: { ...player.craft.body.translation() },
+            hull: 0,
+            plating: 0,
+            kind: 'salvage',
+            lethal: false,
+            channel: 'salvage',
+          },
+          null,
+        );
         player.matchStats.salvageStages++;
         resource.stage++;
         resource.collectors.clear();
@@ -2735,6 +2932,18 @@ export class Match {
       );
       const next = player.health.level + 1;
       if (!this.levelPlayer(playerId, next)) break;
+      this.#recordFeedback(
+        {
+          targetId: playerId,
+          position: { ...player.craft.body.translation() },
+          hull: 0,
+          plating: 0,
+          kind: 'reward',
+          lethal: false,
+          channel: 'reward',
+        },
+        null,
+      );
       player.progression.progress -= required;
       player.progression.pending.push({
         level: next,
@@ -3322,145 +3531,6 @@ export class Match {
         );
     const first = choices[0];
     if (first) {
-      const describe = (choice: (typeof choices)[number]) => {
-        const effect = choice.effect;
-        if (effect?.kind === 'grant-upgrade')
-          return `Gain Arms and lose 1 speed.`;
-        if (effect?.kind === 'near-obstacle-speed')
-          return `Gain ${effect.bonusPerObstacle * 100}% speed per nearby obstacle, up to ${effect.maxBonus * 100}%. The bonus fades after leaving.`;
-        if (effect?.kind === 'ability-damage')
-          return `Stoner deals ${Math.round((effect.multiplier - 1) * 100)}% more damage.`;
-        if (effect?.kind === 'lateral-dash')
-          return `Scuttle moves sideways and its cooldown is reduced by ${Math.round((1 - effect.cooldownMultiplier) * 100)}%.`;
-        if (effect?.kind === 'ability-feature')
-          return {
-            'jaws-neck-bite':
-              'Jaws deals half damage; Jaws kills yield twice the salvage.',
-            'jaws-stalker': 'Jaws deals 50% more damage at night.',
-            'beak-sharp': 'Beak penetrates plating.',
-            'beak-long':
-              'Beak closes unoccupied shelters and releases salvage.',
-            'stoner-training':
-              'Stoner kills permanently grant 0.5 physical and ability.',
-            'stoner-signal':
-              'Stoner marks enemies for allies; charmed allies deal 50% more damage to marked targets.',
-            'projectile-tongue-sticky':
-              'Tongue pulls targets according to relative mass.',
-            'projectile-tongue-whiplash':
-              'Tongue travels faster and scales with salvage speed.',
-            'leech-anaesthetic': 'Leech does not provoke its target.',
-            'leech-vasodilators': 'Leech healing scales with salvage speed.',
-            'spur-marking':
-              'Spur tracks targets and doubles their charm chance.',
-            'spur-primal': 'Spur gains 1% damage per saved currency.',
-            'leap-bouncy': 'Leap a second time before the cooldown.',
-            'leap-heavy': 'Leap damages nearby enemies on landing.',
-            'cheek-pouch-provider':
-              'Consumed salvage can charm nearby enemies and heal allied bots.',
-            'cheek-pouch-storage': 'Stoner carries four additional stones.',
-            'scales-basking':
-              'On sand during the day, gain progress every eight seconds based on heat adaptation.',
-            'scales-hard':
-              'Contact hits stun the attacker, with duration based on active plating.',
-            'fur-snow-dive':
-              'Dashes on snow can spawn salvage. Leap doubles the chance.',
-            'fur-wool': 'Cold adaptation also grants heat adaptation.',
-            'spines-poisonous':
-              'Contact attackers receive corrosion based on your ability.',
-            'spines-detachable': 'Spines also retaliate when you dodge.',
-            'turtle-down-reinforced': 'Stuns you inflict last twice as long.',
-            'turtle-down-spiked': 'Spines deal double damage while guarding.',
-            'fungoid-cordyceps': 'Poison ticks can charm animals.',
-            'fungoid-ejection': 'Taking damage hastens firmware generation.',
-            'virulent-neurotoxin': 'Poison ticks 50% faster.',
-            'virulent-metabolisation': 'Poison ticks advance regeneration.',
-            'pedal-glands-thick': 'Slime trails cover a wider area.',
-            'pedal-glands-nemertide': 'Slime trails inflict corrosion.',
-            'spinnerets-trap': 'The center of each web stuns enemies.',
-            'spinnerets-egg-sac': 'Webs hatch an ally after expiring.',
-            'snout-whiskers': 'At night, gain 10% speed for every 30 senses.',
-            'snout-toxic-sequestration':
-              'Each poisonous firmware consumed adds 10% poison damage.',
-          }[effect.feature];
-        if (effect?.kind === 'healing-growth')
-          return `Gain ${effect.healthPerThreshold} maximum hull per ${effect.healingRequired} hull actually repaired.`;
-        if (effect?.kind === 'shelter-progress')
-          return `Gain ${effect.progressPerSecond} progress per second in shelter.`;
-        if (effect?.kind === 'shelter-entry-progress')
-          return `Gain ${effect.progress} progress when entering shelter.`;
-        if (effect?.kind === 'periodic-strike')
-          return `Every ${effect.intervalMs / 1000} seconds, hit a visible target within ${effect.range} units for ${effect.damage} damage.`;
-        if (effect?.kind === 'full-repair-growth')
-          return `Gain ${effect.healthPerPickup} maximum hull when collecting repair salvage at full hull.`;
-        if (effect?.kind === 'shelter-exit-boost')
-          return `After leaving shelter, damage is multiplied by ${effect.damageMultiplier} for ${effect.durationMs / 1000} seconds.`;
-        if (effect?.kind === 'plating-hit')
-          return `Hits deal extra damage equal to ${effect.factor * 100}% of current plating.`;
-        if (effect?.kind === 'contact-reflection')
-          return `Return ${effect.fraction * 100}% of contact damage to the attacker.`;
-        if (effect?.kind === 'hit-self-damage')
-          return `Manual hits${effect.abilityId ? ` from ${effect.abilityId}` : ''} cause up to ${effect.amount} self-damage, capped at ${effect.maxHealthFraction * 100}% of maximum hull.`;
-        if (effect?.kind === 'hit-repair')
-          return `Repair hull equal to ${effect.fraction * 100}% of damage dealt by ${effect.abilityId ? `${effect.abilityId} attacks` : 'manual attacks'}.`;
-        if (effect?.kind === 'hit-charm')
-          return `Manual hits${effect.abilityId ? ` from ${effect.abilityId}` : ''} have a ${effect.chance * 100}% chance to charm their target.`;
-        if (effect?.kind === 'hit-mark')
-          return `${effect.abilityId} hits mark the target for ${effect.durationMs / 1000} seconds. Allies deal ${effect.allyMultiplier} times damage to it.`;
-        if (effect?.kind === 'stunned-hit-bonus')
-          return `Manual hits${effect.abilityId ? ` from ${effect.abilityId}` : ''} deal ${effect.multiplier} times damage to stunned targets.`;
-        if (effect?.kind === 'hit-cooldown')
-          return `Manual hits reduce ${effect.targetAbilityId} cooldown by ${effect.reductionMs / 1000} seconds.`;
-        if (effect?.kind === 'hit-status')
-          return `Manual hits${effect.abilityId ? ` from ${effect.abilityId}` : ''} apply ${effect.status} for ${effect.durationMs / 1000} seconds.`;
-        if (effect?.kind === 'attack-followup')
-          return `A manual attack that reaches a surviving target triggers a ${effect.damage} damage follow-up${effect.damagePerCurrency ? ` plus ${effect.damagePerCurrency} per saved currency` : ''}. Cooldown ${effect.cooldownMs / 1000} seconds.`;
-        if (effect?.kind === 'charm-aura')
-          return `Attempt to charm a nearby enemy ${effect.trigger === 'hurt' ? 'after taking damage' : effect.trigger === 'attack' ? 'after a successful attack' : 'periodically'}, within ${effect.range} units.`;
-        if (effect?.kind === 'hurt-status-aura')
-          return `After taking damage, apply ${effect.status} to nearby enemies for ${effect.durationMs / 1000} seconds.`;
-        if (effect?.kind === 'periodic-resource')
-          return `Generate ${effect.repair ? 'repair' : 'vegetation'} salvage every ${effect.intervalMs / 1000} seconds.`;
-        if (effect?.kind === 'unharmed-progress')
-          return `Gain ${effect.progressPerAffinitySecond} progress per second per Prey affinity; pauses for ${effect.pauseMs / 1000} seconds after a hit.`;
-        if (effect?.kind === 'ally-damage')
-          return `Gain ${effect.perCharmedAlly * 100}% attack damage per charmed ally for ${effect.ownerBonus && effect.allyBonus ? 'you and your allies' : effect.ownerBonus ? 'your attacks' : 'allied attacks'}.`;
-        if (effect?.kind === 'ally-resistance')
-          return `Gain ${effect.perCharmedAlly} damage resistance per charmed ally${effect.finaleOnly ? ' during the finale' : ''}.`;
-        if (effect?.kind === 'ally-flat-damage')
-          return `Allied attacks deal ${effect.multiplier} times damage${effect.finaleOnly ? ' during the finale' : ''}.`;
-        if (effect?.kind === 'size-health')
-          return `Gain ${effect.healthPer100Size} maximum hull per 100 size.`;
-        if (effect?.kind === 'finale-stat')
-          return `Gain ${effect.add} ${effect.stat} during the finale.`;
-        if (effect?.kind === 'decoy-on-hurt')
-          return `After damage or a dodge, deploy a decoy for ${effect.durationMs / 1000} seconds. Cooldown ${effect.cooldownMs / 1000} seconds.`;
-        if (effect?.kind === 'discovery-progress')
-          return `Gain ${effect.progress} progress for each new discovery.`;
-        if (effect?.kind === 'progress-storage')
-          return `Store ${effect.fraction * 100}% of collected progress, up to ${effect.capacity}, and consume ${effect.progressPerSecond} per second while active.`;
-        if (effect?.kind === 'discovery-bonus')
-          return `Each new discovery grants ${effect.amount} to a random stat${effect.vegetation ? ' and generates vegetation salvage' : ''}.`;
-        if (effect?.kind === 'deferred-damage')
-          return `Delay ${effect.fraction * 100}% of incoming damage for ${effect.delayMs / 1000} seconds.`;
-        if (effect?.kind === 'hurt-boost')
-          return `After taking a hit, gain ${effect.physical} physical and ${effect.ability} ability for ${effect.durationMs / 1000} seconds.`;
-        if (effect?.kind === 'slowing-trail')
-          return `Leave a slowing trail ${effect.trigger === 'pursuit' ? 'while pursued' : 'while moving'} (${effect.slowPercent}% slow).`;
-        if (effect?.kind === 'kill-growth')
-          return `Gain ${effect.perKill} ${effect.stat} for each credited elimination.`;
-        return effect?.kind === 'stats'
-          ? effect.changes
-              .map(({ stat, add, multiplier }) => {
-                const name = stat.replace(/([A-Z])/g, ' $1').toLowerCase();
-                const parts = [
-                  ...(add === 0 ? [] : [`${add > 0 ? '+' : ''}${add} ${name}`]),
-                  ...(multiplier === 1 ? [] : [`${multiplier}× ${name}`]),
-                ];
-                return parts.join(', ');
-              })
-              .join('; ')
-          : undefined;
-      };
       player.selection.enqueue(
         {
           kind: 'specialization',
@@ -3471,16 +3541,16 @@ export class Match {
             {
               id: first.id,
               label: first.carcinisationBonus
-                ? `${first.name} (+${first.carcinisationBonus} Carcinisation)`
+                ? `${first.name} (+${first.carcinisationBonus} Overload)`
                 : first.name,
-              description: describe(first),
+              description: this.#specializationDescription(first),
             },
             ...choices.slice(1).map((choice) => ({
               id: choice.id,
               label: choice.carcinisationBonus
-                ? `${choice.name} (+${choice.carcinisationBonus} Carcinisation)`
+                ? `${choice.name} (+${choice.carcinisationBonus} Overload)`
                 : choice.name,
-              description: describe(choice),
+              description: this.#specializationDescription(choice),
             })),
             { id: 'skip', label: 'Skip specialization (+10 currency)' },
           ],
@@ -3490,6 +3560,154 @@ export class Match {
     }
     this.grantProgress(playerId, 0);
     return true;
+  }
+
+  #specializationDescription(
+    choice: NonNullable<ContentDefinition['specializationChoices']>[number],
+  ): string | undefined {
+    const effect = choice.effect;
+    const abilityName = (id: string) =>
+      this.#content.definition(id)?.name ?? 'this module';
+    if (effect?.kind === 'grant-upgrade')
+      return `Gain ${abilityName(effect.id)} and lose 1 speed.`;
+    if (effect?.kind === 'near-obstacle-speed')
+      return `Gain ${formatUpgradeNumber(effect.bonusPerObstacle * 100)}% speed per nearby obstacle, up to ${formatUpgradeNumber(effect.maxBonus * 100)}%. The bonus fades after leaving.`;
+    if (effect?.kind === 'ability-damage')
+      return `${abilityName(effect.abilityId)} deals ${Math.round((effect.multiplier - 1) * 100)}% more damage.`;
+    if (effect?.kind === 'lateral-dash')
+      return `${abilityName(effect.abilityId)} moves sideways and its cooldown is reduced by ${Math.round((1 - effect.cooldownMultiplier) * 100)}%.`;
+    if (effect?.kind === 'ability-feature')
+      return {
+        'jaws-neck-bite':
+          'The crusher deals half damage. Its eliminations yield twice the salvage.',
+        'jaws-stalker': 'The crusher deals 50% more damage at night.',
+        'beak-sharp': 'Probe attacks penetrate plating.',
+        'beak-long':
+          'Probe attacks close unoccupied shelters and release salvage.',
+        'stoner-training':
+          'Slug eliminations permanently grant 0.5 physical and ability.',
+        'stoner-signal':
+          'Slugs mark enemies for allies. Recruited bots deal 50% more damage to marked targets.',
+        'projectile-tongue-sticky':
+          'The harpoon pulls targets according to relative mass.',
+        'projectile-tongue-whiplash':
+          'The harpoon travels faster and scales with salvage speed.',
+        'leech-anaesthetic': 'The drain probe leaves its target unprovoked.',
+        'leech-vasodilators':
+          'Hull repair from the probe scales with salvage speed.',
+        'spur-marking':
+          'The blade tracks targets and doubles their recruitment chance.',
+        'spur-primal': 'The blade gains 1% damage per saved currency.',
+        'leap-bouncy': 'Leap a second time before the cooldown.',
+        'leap-heavy': 'Leap damages nearby enemies on landing.',
+        'cheek-pouch-provider':
+          'Processing stored salvage can recruit nearby bots and repair allied bots.',
+        'cheek-pouch-storage':
+          'The slug launcher carries four additional rounds.',
+        'scales-basking':
+          'On sand during the day, gain progress every eight seconds based on heat adaptation.',
+        'scales-hard':
+          'Contact hits stun the attacker, with duration based on active plating.',
+        'fur-snow-dive':
+          'Dashes on snow can spawn salvage. Leap doubles the chance.',
+        'fur-wool': 'Cold adaptation also grants heat adaptation.',
+        'spines-poisonous':
+          'Contact attackers receive corrosion based on your ability.',
+        'spines-detachable': 'Reactive studs also retaliate when you dodge.',
+        'turtle-down-reinforced': 'Stuns you inflict last twice as long.',
+        'turtle-down-spiked':
+          'Reactive studs deal double damage while guarding.',
+        'fungoid-cordyceps': 'Corrosion ticks can recruit bots.',
+        'fungoid-ejection': 'Taking damage hastens firmware generation.',
+        'virulent-neurotoxin': 'Corrosion ticks 50% faster.',
+        'virulent-metabolisation': 'Corrosion ticks advance regeneration.',
+        'pedal-glands-thick': 'Foam trails cover a wider area.',
+        'pedal-glands-nemertide': 'Foam trails inflict corrosion.',
+        'spinnerets-trap': 'The center of each snare stuns enemies.',
+        'spinnerets-egg-sac': 'An allied drone deploys when the snare expires.',
+        'snout-whiskers':
+          'At night, gain 10% speed for every 30 points in Sensors.',
+        'snout-toxic-sequestration':
+          'Each corrosion firmware capsule processed adds 10% corrosion damage.',
+      }[effect.feature];
+    if (effect?.kind === 'healing-growth')
+      return `Gain ${effect.healthPerThreshold} maximum hull per ${effect.healingRequired} hull actually repaired.`;
+    if (effect?.kind === 'shelter-progress')
+      return `Gain ${effect.progressPerSecond} progress per second in shelter.`;
+    if (effect?.kind === 'shelter-entry-progress')
+      return `Gain ${effect.progress} progress when entering shelter.`;
+    if (effect?.kind === 'periodic-strike')
+      return `Every ${effect.intervalMs / 1000} seconds, hit a visible target within ${effect.range} units for ${effect.damage} damage.`;
+    if (effect?.kind === 'full-repair-growth')
+      return `Gain ${effect.healthPerPickup} maximum hull when collecting repair salvage at full hull.`;
+    if (effect?.kind === 'shelter-exit-boost')
+      return `After leaving shelter, damage is multiplied by ${effect.damageMultiplier} for ${effect.durationMs / 1000} seconds.`;
+    if (effect?.kind === 'plating-hit')
+      return `Hits deal extra damage equal to ${formatUpgradeNumber(effect.factor * 100)}% of current plating.`;
+    if (effect?.kind === 'contact-reflection')
+      return `Return ${formatUpgradeNumber(effect.fraction * 100)}% of contact damage to the attacker.`;
+    if (effect?.kind === 'hit-self-damage')
+      return `Manual hits${effect.abilityId ? ` from ${abilityName(effect.abilityId)}` : ''} cause up to ${formatUpgradeNumber(effect.amount)} self-damage, capped at ${formatUpgradeNumber(effect.maxHealthFraction * 100)}% of maximum hull.`;
+    if (effect?.kind === 'hit-repair')
+      return `Repair hull equal to ${formatUpgradeNumber(effect.fraction * 100)}% of damage dealt by ${effect.abilityId ? `${abilityName(effect.abilityId)} attacks` : 'manual attacks'}.`;
+    if (effect?.kind === 'hit-charm')
+      return `Manual hits${effect.abilityId ? ` from ${abilityName(effect.abilityId)}` : ''} have a ${formatUpgradeNumber(effect.chance * 100)}% chance to recruit their target.`;
+    if (effect?.kind === 'hit-mark')
+      return `${abilityName(effect.abilityId)} hits mark the target for ${effect.durationMs / 1000} seconds. Allies deal ${effect.allyMultiplier} times damage to it.`;
+    if (effect?.kind === 'stunned-hit-bonus')
+      return `Manual hits${effect.abilityId ? ` from ${abilityName(effect.abilityId)}` : ''} deal ${effect.multiplier} times damage to stunned targets.`;
+    if (effect?.kind === 'hit-cooldown')
+      return `Manual hits reduce ${abilityName(effect.targetAbilityId)} cooldown by ${effect.reductionMs / 1000} seconds.`;
+    if (effect?.kind === 'hit-status')
+      return `Manual hits${effect.abilityId ? ` from ${abilityName(effect.abilityId)}` : ''} apply ${effect.status} for ${effect.durationMs / 1000} seconds.`;
+    if (effect?.kind === 'attack-followup')
+      return `A manual attack that reaches a surviving target triggers a ${effect.damage} damage follow-up${effect.damagePerCurrency ? ` plus ${effect.damagePerCurrency} per saved currency` : ''}. Cooldown ${effect.cooldownMs / 1000} seconds.`;
+    if (effect?.kind === 'charm-aura')
+      return `Attempt to recruit a nearby bot ${effect.trigger === 'hurt' ? 'after taking damage' : effect.trigger === 'attack' ? 'after a successful attack' : 'periodically'}, within ${effect.range} units.`;
+    if (effect?.kind === 'hurt-status-aura')
+      return `After taking damage, apply ${effect.status} to nearby enemies for ${effect.durationMs / 1000} seconds.`;
+    if (effect?.kind === 'periodic-resource')
+      return `Generate ${effect.repair ? 'repair' : 'vegetation'} salvage every ${effect.intervalMs / 1000} seconds.`;
+    if (effect?.kind === 'unharmed-progress')
+      return `Gain ${effect.progressPerAffinitySecond} progress per second per Survival affinity; pauses for ${effect.pauseMs / 1000} seconds after a hit.`;
+    if (effect?.kind === 'ally-damage')
+      return `Gain ${formatUpgradeNumber(effect.perCharmedAlly * 100)}% attack damage per recruited bot for ${effect.ownerBonus && effect.allyBonus ? 'you and your allies' : effect.ownerBonus ? 'your attacks' : 'allied attacks'}.`;
+    if (effect?.kind === 'ally-resistance')
+      return `Gain ${effect.perCharmedAlly} damage resistance per recruited bot${effect.finaleOnly ? ' during the finale' : ''}.`;
+    if (effect?.kind === 'ally-flat-damage')
+      return `Allied attacks deal ${effect.multiplier} times damage${effect.finaleOnly ? ' during the finale' : ''}.`;
+    if (effect?.kind === 'size-health')
+      return `Gain ${effect.healthPer100Size} maximum hull per 100 size.`;
+    if (effect?.kind === 'finale-stat')
+      return `Gain ${effect.add} ${effect.stat} during the finale.`;
+    if (effect?.kind === 'decoy-on-hurt')
+      return `After damage or a dodge, deploy a decoy for ${effect.durationMs / 1000} seconds. Cooldown ${effect.cooldownMs / 1000} seconds.`;
+    if (effect?.kind === 'discovery-progress')
+      return `Gain ${effect.progress} progress for each new discovery.`;
+    if (effect?.kind === 'progress-storage')
+      return `Store ${formatUpgradeNumber(effect.fraction * 100)}% of collected progress, up to ${effect.capacity}, and consume ${effect.progressPerSecond} per second while active.`;
+    if (effect?.kind === 'discovery-bonus')
+      return `Each new discovery grants ${effect.amount} to a random stat${effect.vegetation ? ' and generates vegetation salvage' : ''}.`;
+    if (effect?.kind === 'deferred-damage')
+      return `Delay ${formatUpgradeNumber(effect.fraction * 100)}% of incoming damage for ${effect.delayMs / 1000} seconds.`;
+    if (effect?.kind === 'hurt-boost')
+      return `After taking a hit, gain ${effect.physical} physical and ${effect.ability} ability for ${effect.durationMs / 1000} seconds.`;
+    if (effect?.kind === 'slowing-trail')
+      return `Leave a slowing trail ${effect.trigger === 'pursuit' ? 'while pursued' : 'while moving'} (${formatUpgradeNumber(effect.slowPercent)}% slow).`;
+    if (effect?.kind === 'kill-growth')
+      return `Gain ${effect.perKill} ${effect.stat} for each credited elimination.`;
+    return effect?.kind === 'stats'
+      ? effect.changes
+          .map(({ stat, add, multiplier }) => {
+            const name = stat.replace(/([A-Z])/g, ' $1').toLowerCase();
+            const parts = [
+              ...(add === 0 ? [] : [`${add > 0 ? '+' : ''}${add} ${name}`]),
+              ...(multiplier === 1 ? [] : [`${multiplier}× ${name}`]),
+            ];
+            return parts.join(', ');
+          })
+          .join('; ')
+      : undefined;
   }
 
   terrainMovementFactor(
@@ -3862,6 +4080,83 @@ export class Match {
       });
   }
 
+  #recordFeedback(
+    input: Omit<PresentationFeedback, 'id' | 'at' | 'localAttacker'>,
+    ownerId: string | null,
+  ): void {
+    const audience = new Map<string, string>();
+    const clock = this.#worldClock.view();
+    const weather = regionalWeather(this.#time, clock);
+    for (const [viewerId, viewer] of this.#players) {
+      if (!viewer.connected) continue;
+      const projectionId =
+        viewer.life.kind === 'eliminated' ? viewer.spectating : viewerId;
+      const projection = projectionId && this.#players.get(projectionId);
+      if (!projection || !projectionId) continue;
+      const origin = projection.craft.body.translation();
+      const localWeather = weather.find(
+        (item) => item.biome === terrainAt(this.#arena, origin.x, origin.z),
+      );
+      if (
+        this.#hiddenPlayers.get(projectionId)?.has(input.targetId) &&
+        input.targetId !== viewerId
+      )
+        continue;
+      const target = this.#players.get(input.targetId);
+      if (target?.shelter && input.targetId !== viewerId) continue;
+      if (
+        Math.hypot(input.position.x - origin.x, input.position.z - origin.z) <=
+        sightRange(projection.stats.senses, clock.phase, localWeather)
+      )
+        audience.set(viewerId, projectionId);
+    }
+    this.#feedback.push({
+      value: {
+        ...input,
+        id: ++this.#feedbackId,
+        at: this.#time,
+        localAttacker: false,
+      },
+      ownerId,
+      audience,
+    });
+    while (
+      this.#feedback.length > 256 ||
+      (this.#feedback[0]?.value.at ?? this.#time) < this.#time - 900
+    )
+      this.#feedback.shift();
+  }
+
+  #damageFeedback(
+    event: DamageEvent,
+    result: ReturnType<typeof applyDamage>,
+    position: PresentationFeedback['position'],
+    plating: number,
+    hull: number,
+  ): void {
+    if (result.attempted <= 0) return;
+    this.#recordFeedback(
+      {
+        targetId: event.targetId,
+        position: { ...position },
+        hull: result.hull,
+        plating: result.plating,
+        kind: result.dodged
+          ? 'dodge'
+          : result.plating > 0 && plating <= 0
+            ? 'break'
+            : result.hull > 0
+              ? 'hull'
+              : result.plating > 0
+                ? 'plating'
+                : 'blocked',
+        lethal: hull <= 0,
+        channel: event.channel,
+      },
+      event.ownerId,
+    );
+  }
+
   damageBatch(events: readonly DamageEvent[]) {
     const deaths = new Map<string, string | null>();
     const deferredCredits = new Map<
@@ -3890,6 +4185,21 @@ export class Match {
         throw new Error('Invalid damage amount');
       const attackingPlayer =
         queued.ownerId && this.#players.get(queued.ownerId);
+      const sourceBot = queued.ownerId
+        ? this.#bots.get(queued.ownerId)
+        : undefined;
+      const targetBot = this.#bots.get(queued.targetId);
+      const combatHit =
+        queued.channel === 'direct' ||
+        queued.channel === 'contact' ||
+        queued.channel === 'corrosion';
+      const pveMultiplier = !combatHit
+        ? 1
+        : targetBot?.kind === 'wild' && (attackingPlayer || sourceBot?.ownerId)
+          ? PVE_BALANCE.playerSideDamageToWild
+          : sourceBot?.kind === 'wild' && this.#players.has(queued.targetId)
+            ? PVE_BALANCE.wildDamageToPlayer
+            : 1;
       const bonus =
         attackingPlayer &&
         queued.ownerId !== queued.targetId &&
@@ -3993,6 +4303,7 @@ export class Match {
           ? 1 + this.#trailSlow(queued.targetId, targetPoint) * 0.5
           : 1;
       const event =
+        pveMultiplier !== 1 ||
         bonus ||
         multiplier !== 1 ||
         stunMultiplier !== 1 ||
@@ -4005,7 +4316,8 @@ export class Match {
                 multiplier *
                 stunMultiplier *
                 webMultiplier *
-                poisonMultiplier,
+                poisonMultiplier *
+                pveMultiplier,
             }
           : queued;
       if (
@@ -4092,6 +4404,13 @@ export class Match {
         const actual = hull + result.plating;
         bot.health = health.hull;
         bot.plating = health.plating;
+        this.#damageFeedback(
+          event,
+          result,
+          bot.craft.body.translation(),
+          bot.plating,
+          bot.health,
+        );
         const attacker = event.ownerId && this.#players.get(event.ownerId);
         if (
           actual > 0 &&
@@ -4380,6 +4699,13 @@ export class Match {
         if (owner && credited !== event.targetId)
           owner.matchStats.damageDealt += result.hull + result.plating;
       }
+      this.#damageFeedback(
+        event,
+        result,
+        player.craft.body.translation(),
+        player.health.plating,
+        player.health.hull,
+      );
       this.#damageLedger.push({ event: { ...event }, result: { ...result } });
       if (this.#damageLedger.length > 1024) this.#damageLedger.shift();
       if (event.impulse && result.hull + result.plating > 0) {
@@ -4775,21 +5101,65 @@ export class Match {
     return this.#damageLedger.splice(0);
   }
 
-  #describeAcquisition(player: Player, choice: OfferChoice) {
+  #describeAcquisition(
+    player: Player,
+    choice: OfferChoice,
+  ): UpgradeDetail | undefined {
     const description = this.#content.describe(
       choice.id,
       choice.rarity,
       choice.rank,
     );
     const definition = this.#content.definition(choice.id);
-    const value = definition?.values[choice.rarity]?.[choice.rank - 1];
-    if (
-      !description ||
-      !definition ||
-      value === undefined ||
-      player.equipment.learned.has(choice.id)
-    )
-      return description;
+    if (!description || !definition) return description;
+    const contentName = (id: string) =>
+      this.#content.definition(id)?.name ?? 'Unknown module';
+    const requirementText = (requirement: Requirement): string => {
+      switch (requirement.kind) {
+        case 'none':
+          return 'No prerequisites';
+        case 'rank':
+          return `${contentName(requirement.id)} rank ${requirement.minimum}`;
+        case 'specialization':
+          return `Specialization ${this.#content.specializationName(requirement.id) ?? 'required'}`;
+        case 'world':
+          return requirement.condition.replaceAll('-', ' ');
+        case 'all':
+          return requirement.conditions.map(requirementText).join(' and ');
+        case 'any':
+          return `One of (${requirement.conditions.map(requirementText).join(' or ')})`;
+      }
+    };
+    const currentRank = player.ranks.get(choice.id) ?? 0;
+    const ownedDescription =
+      currentRank > 0
+        ? this.#content.describe(
+            choice.id,
+            player.rarities.get(choice.id) ?? choice.rarity,
+            currentRank,
+          )
+        : undefined;
+    const presentation: UpgradeDetail = {
+      ...description,
+      currentRank,
+      currentDescription: ownedDescription?.description,
+      maxRank: definition.repeatable ? undefined : definition.maxRank,
+      affinities: definition.affinities.map(affinityName),
+      requirements: requirementText(definition.requirement),
+      exclusions: [
+        ...definition.exclusions.map(contentName),
+        ...(definition.rankExclusions ?? []).map(
+          (item) => `${contentName(item.id)} rank ${item.minimum}+`,
+        ),
+        ...(definition.rankBlocks ?? []).map(
+          (item) =>
+            `${contentName(item.id)} rank ${item.minimum}+ blocks ranks ${item.fromRank}–${item.throughRank ?? definition.maxRank}`,
+        ),
+      ],
+    };
+    const value = contentRankValue(definition, choice.rarity, choice.rank);
+    if (value === undefined || player.equipment.learned.has(choice.id))
+      return presentation;
     const details: Record<string, number> = {};
     for (const [name, tables] of Object.entries(
       definition.detailValues ?? {},
@@ -4805,15 +5175,15 @@ export class Match {
       value,
       details,
     )?.ability;
-    if (!ability) return description;
+    if (!ability) return presentation;
     const slot = acquisitionSlot(player.equipment, ability);
     const current = player.equipment.slots[slot];
     const previous = current
-      ? (this.#content.definition(current)?.name ?? current)
+      ? (this.#content.definition(current)?.name ?? 'Unknown ability')
       : null;
     return {
-      ...description,
-      description: `${description.description} Equips in ${slot}${previous ? `, replacing ${previous}` : ''}.`,
+      ...presentation,
+      acquisition: { slot, replaces: previous },
     };
   }
 
@@ -4895,6 +5265,12 @@ export class Match {
       damage: damage * damageMultiplier,
       impulse: Math.min(impulse, 20),
     });
+    player.attackFlash = {
+      kind: 'launch',
+      shape: projectileVisual(abilityId),
+      aim,
+      at: this.#time,
+    };
     if (rootOwner) player.dash = null;
     return true;
   }
@@ -4915,6 +5291,19 @@ export class Match {
         consumedAtFullHealth: false,
       };
     const result = repair(player.health, player.stats, amount, consumeAtFull);
+    if (result.actual > 0)
+      this.#recordFeedback(
+        {
+          targetId: playerId,
+          position: { ...player.craft.body.translation() },
+          hull: result.actual,
+          plating: 0,
+          kind: 'repair',
+          lethal: false,
+          channel: 'repair',
+        },
+        null,
+      );
     this.#applyHealthGrowth(
       playerId,
       player.runtimeEffects.healed(result.actual),
@@ -5363,6 +5752,96 @@ export class Match {
     return this.#discoveries.splice(0);
   }
 
+  #poiUnavailable(
+    playerId: string,
+    point: PointOfInterest,
+    option: PoiOption,
+    upgrade?: OfferChoice,
+  ): string | null {
+    const player = this.#players.get(playerId);
+    if (!player || !player.connected || player.life.kind !== 'alive')
+      return 'Your craft cannot claim rewards.';
+    if (player.shelter) return 'Exit the burrow first.';
+    if (this.#hasActiveStatus(player.statuses, 'stun')) return 'Stunned.';
+    if (
+      poiDistance(point, player.craft.body.translation()) >
+      POI_INTERACTION_RANGE
+    )
+      return 'Move closer to this site.';
+    if (
+      point.kind === 'mud-pond' &&
+      option.id === 'tail' &&
+      !player.ranks.has('tail')
+    )
+      return 'Requires Rear Stabilizer.';
+    if (
+      point.kind === 'lotus-plant' &&
+      option.id === 'cooldown' &&
+      player.stats.size >= 100
+    )
+      return 'Requires size below 100%.';
+    const reward = option.reward;
+    if (reward.kind === 'upgrade') {
+      if (player.wallet.balance < reward.cost) return 'Not enough currency.';
+      if (
+        !upgrade ||
+        !this.#content
+          .eligible(
+            player.ranks,
+            player.specializations,
+            'ordinary',
+            this.#worldConditions,
+          )
+          .includes(upgrade.id) ||
+        (player.ranks.get(upgrade.id) ?? 0) + 1 !== upgrade.rank ||
+        rarityRank(player.rarities.get(upgrade.id) ?? '') >
+          rarityRank(upgrade.rarity)
+      )
+        return 'No eligible upgrade at this rarity.';
+      if (player.wallet.receipts.size >= 4096)
+        return 'Purchase capacity reached.';
+    }
+    if (reward.kind === 'recruit' || reward.kind === 'defend-nest') {
+      const reserved = [...this.#nestDefenses.values()].filter(
+        (item) => item.ownerId === playerId,
+      ).length;
+      if (
+        this.#ownedCount(playerId, 'charmed') + reserved >=
+        this.#charmCapacity(playerId)
+      )
+        return 'Companion capacity is full.';
+      if (
+        this.#bots.size +
+          this.#pendingAllies.length +
+          this.#nestDefenses.size >=
+        ALLY_LIMITS.total
+      )
+        return 'No companion capacity remains in this world.';
+      if (
+        !this.#safeSpawn(
+          reward.kind === 'recruit'
+            ? player.craft.body.translation()
+            : point.position,
+        )
+      )
+        return 'No safe space for this reward.';
+    }
+    if (
+      reward.kind === 'nest-salvage' &&
+      (this.#resources.size >= MAX_RESOURCES ||
+        this.#bots.size >= BOT_RULES.maxCount ||
+        this.#bots.size +
+          this.#pendingAllies.length +
+          this.#nestDefenses.size >=
+          ALLY_LIMITS.total ||
+        [...this.#bots.values()].filter((bot) => bot.elite).length >=
+          BOT_RULES.maxElites ||
+        !this.#arena.eliteSites.some((site) => this.#safeSpawn(site) !== null))
+    )
+      return 'No safe space for the possible salvage encounter.';
+    return null;
+  }
+
   #openPointOfInterest(playerId: string, siteId: string): boolean {
     const player = this.#players.get(playerId);
     const point = this.#pointsOfInterest.find((site) => site.id === siteId);
@@ -5381,18 +5860,6 @@ export class Match {
       { option: PoiOption; upgrade?: OfferChoice }
     >();
     for (const option of poiOptions(point.kind)) {
-      if (
-        point.kind === 'mud-pond' &&
-        option.id === 'tail' &&
-        !player.ranks.has('tail')
-      )
-        continue;
-      if (
-        point.kind === 'lotus-plant' &&
-        option.id === 'cooldown' &&
-        player.stats.size >= 100
-      )
-        continue;
       if (option.reward.kind !== 'upgrade') {
         choices.set(option.id, { option });
         continue;
@@ -5414,7 +5881,10 @@ export class Match {
               rarityRank(rarity),
         );
       const definition = eligible[Math.floor(Math.random() * eligible.length)];
-      if (!definition) continue;
+      if (!definition) {
+        choices.set(option.id, { option });
+        continue;
+      }
       const upgrade = {
         id: definition.id,
         rank: (player.ranks.get(definition.id) ?? 0) + 1,
@@ -5493,6 +5963,8 @@ export class Match {
         choiceId === 'tail' &&
         !player.ranks.has('tail'))
     )
+      return false;
+    if (this.#poiUnavailable(playerId, point, choice.option, choice.upgrade))
       return false;
     const reward = choice.option.reward;
     const source = `poi:${point.id}`;
@@ -5876,7 +6348,8 @@ export class Match {
           choices: current.prompt.options.map((option) => option.id),
         });
         const protectedChoice =
-          current.prompt.kind !== 'poi' || current.prompt.protected;
+          player.connected &&
+          (current.prompt.kind !== 'poi' || current.prompt.protected);
         if (
           player.life.activity !== 'selecting' ||
           player.selectionProtected !== protectedChoice
@@ -6382,7 +6855,7 @@ export class Match {
     if (!this.authorize(intent)) return false;
     if (intent.kind === 'spectate') {
       const player = this.#players.get(intent.playerId);
-      if (player) player.spectating = intent.targetId;
+      if (player) this.#setSpectating(intent.playerId, player, intent.targetId);
       return true;
     }
     if (intent.kind === 'ready') this.setReady(intent.playerId, intent.ready);
@@ -6725,6 +7198,17 @@ export class Match {
     }
   }
 
+  #canFinishSurvivor(playerId: string): boolean {
+    return (
+      this.#phase === 'running' &&
+      this.#players.size > 1 &&
+      this.#players.get(playerId)?.life.kind === 'alive' &&
+      [...this.#players].every(
+        ([id, player]) => id === playerId || player.life.kind === 'eliminated',
+      )
+    );
+  }
+
   #resolveOutcome(finishSurvivor = false): void {
     if (this.#phase !== 'running' || this.#result) return;
     const survivors = [...this.#players].filter(
@@ -6735,6 +7219,20 @@ export class Match {
     const lastGroup = this.#eliminationGroups.at(-1);
     const winnerId =
       survivors[0]?.[0] ?? (lastGroup?.length === 1 ? lastGroup[0] : undefined);
+    const buildIds = new Set<string>();
+    for (const player of this.#players.values()) {
+      for (const id of player.ranks.keys()) buildIds.add(id);
+      for (const id of player.specializations) buildIds.add(id);
+      for (const id of player.equipment.learned.keys()) buildIds.add(id);
+    }
+    const contentNames = Object.fromEntries(
+      [...buildIds].map((id) => [
+        id,
+        this.#content.definition(id)?.name ??
+          this.#content.specializationName(id) ??
+          'Unknown module',
+      ]),
+    );
     this.#result = {
       outcome:
         this.#players.size === 1
@@ -6744,6 +7242,7 @@ export class Match {
             : { kind: 'draw' },
       durationMs: this.#wallTime,
       eliminationGroups: this.#eliminationGroups.map((group) => [...group]),
+      contentNames,
       players: [...this.#players].map(([id, player]) => ({
         id,
         name: player.name,
@@ -6774,6 +7273,11 @@ export class Match {
     const radius = boundaryRadius(this.#wallTime, config);
     const collapsed = this.#wallTime >= config.collapseAtMs;
     const damage: DamageEvent[] = [];
+    const wildLimit = wildPopulationLimit(radius);
+    let wildCount =
+      !collapsed && wildLimit < BOT_RULES.maxCount
+        ? [...this.#bots.values()].filter((bot) => bot.kind === 'wild').length
+        : 0;
     for (const [id, player] of this.#players) {
       if (player.life.kind !== 'alive') continue;
       const position = player.craft.body.translation();
@@ -6806,6 +7310,11 @@ export class Match {
         const distance = Math.hypot(position.x, position.z);
         const limit = Math.max(0, radius - 1);
         if (distance > limit && distance > 0) {
+          if (bot.kind === 'wild' && wildCount > wildLimit) {
+            this.#retireWildBot(bot);
+            wildCount--;
+            continue;
+          }
           const projected = {
             x: (position.x * limit) / distance,
             z: (position.z * limit) / distance,
@@ -7122,8 +7631,12 @@ export class Match {
       if (hit || projectile.remaining <= 0) this.#projectiles.splice(index, 1);
     }
     for (const [id, player] of this.#players) {
-      if (player.control && player.control.expiresAt <= this.#time)
+      if (player.control && player.control.expiresAt <= this.#time) {
         player.control = null;
+        player.interactHeld = false;
+        player.throwCharge = null;
+        player.leapCharge = null;
+      }
       if (
         player.life.kind !== 'alive' ||
         player.life.activity !== 'playing' ||
@@ -7165,6 +7678,12 @@ export class Match {
       const channel = player.channel;
       if (channel && channel.nextAt <= this.#time) {
         channel.nextAt = this.#time + channel.intervalMs;
+        player.attackFlash = {
+          kind: 'pulse',
+          shape: 'wave',
+          radius: channel.radius,
+          at: this.#time,
+        };
         const origin = player.craft.body.translation();
         const targets = [
           ...[...this.#players]
@@ -7349,7 +7868,7 @@ export class Match {
           ) {
             player.attack = {
               abilityId: ability.id,
-              hitAt: this.#time + 200,
+              hitAt: this.#time + STRIKE_WINDUP_MS,
               aim: player.aim,
               bypassPlating:
                 ability.bypassPlating ||
@@ -7660,6 +8179,12 @@ export class Match {
               100,
               (ability.radius * player.stats.effectArea) / 100,
             );
+            player.attackFlash = {
+              kind: 'pulse',
+              shape: 'burst',
+              radius,
+              at: this.#time,
+            };
             const status = {
               kind: ability.status,
               ownerId: id,
@@ -7821,7 +8346,7 @@ export class Match {
       ) {
         player.attack = {
           abilityId: 'bop',
-          hitAt: this.#time + 200,
+          hitAt: this.#time + STRIKE_WINDUP_MS,
           aim: player.aim,
           damage:
             ((SOURCE_ACTIONS.bop.damageRange.x +
@@ -7872,6 +8397,16 @@ export class Match {
         }
       }
       if (player.attack && player.attack.hitAt <= this.#time + deltaMs) {
+        const reach =
+          (player.attack.range ?? 1.5) *
+            Math.min(4, player.stats.attackArea / 100) +
+          player.craft.collider.radius();
+        player.lastStrike = {
+          tool: contactTool(player.attack.abilityId),
+          aim: player.attack.aim,
+          reach,
+          at: this.#time + deltaMs,
+        };
         const origin = player.craft.body.translation();
         const ray = new RAPIER.Ray(origin, {
           x: Math.sin(player.attack.aim),
@@ -7880,9 +8415,7 @@ export class Match {
         });
         const hit = this.#world.castRay(
           ray,
-          (player.attack.range ?? 1.5) *
-            Math.min(4, player.stats.attackArea / 100) +
-            player.craft.collider.radius(),
+          reach,
           true,
           RAPIER.QueryFilterFlags.EXCLUDE_SENSORS,
           undefined,
@@ -7897,12 +8430,7 @@ export class Match {
             x: Math.sin(player.attack.aim),
             z: Math.cos(player.attack.aim),
           };
-          const maximum = Math.min(
-            (player.attack.range ?? 1.5) *
-              Math.min(4, player.stats.attackArea / 100) +
-              player.craft.collider.radius(),
-            hit?.timeOfImpact ?? Infinity,
-          );
+          const maximum = Math.min(reach, hit?.timeOfImpact ?? Infinity);
           const site = this.#arena.shelters
             .map((position, index) => ({
               position,
@@ -8099,8 +8627,6 @@ export class Match {
     }
     for (const [playerId, player] of this.#players) {
       if (player.life.kind !== 'alive') continue;
-      if (player.control && player.control.expiresAt <= this.#time)
-        player.control = null;
       if (player.life.kind === 'alive')
         this.repairPlayer(
           playerId,
@@ -8279,6 +8805,14 @@ export class Match {
     return true;
   }
 
+  get phase(): MatchPhase {
+    return this.#phase;
+  }
+
+  get roundId(): string {
+    return this.#roundId;
+  }
+
   roster(): { id: string; name: string; connected: boolean }[] {
     return [...this.#players].map(([id, player]) => ({
       id,
@@ -8292,15 +8826,69 @@ export class Match {
     this.#world.free();
   }
 
+  #playerActionView(
+    player: Player,
+    visible: boolean,
+  ): Pick<
+    MatchView['players'][number],
+    'attackReach' | 'contact' | 'attackFlash' | 'thrust'
+  > {
+    const attack = player.attack;
+    const attackReach = attack
+      ? (attack.range ?? 1.5) * Math.min(4, player.stats.attackArea / 100) +
+        player.craft.collider.radius()
+      : 0;
+    const { lastStrike, attackFlash, dash } = player;
+    const pose = visible
+      ? strikePose(
+          this.#time,
+          attack?.hitAt ?? null,
+          STRIKE_WINDUP_MS,
+          lastStrike?.at ?? null,
+        )
+      : null;
+    return {
+      attackReach,
+      contact:
+        pose &&
+        (attack
+          ? {
+              ...pose,
+              tool: contactTool(attack.abilityId),
+              aim: attack.aim,
+              reach: attackReach,
+            }
+          : lastStrike && {
+              ...pose,
+              tool: lastStrike.tool,
+              aim: lastStrike.aim,
+              reach: lastStrike.reach,
+            }),
+      attackFlash:
+        visible && attackFlash && this.#time - attackFlash.at < ATTACK_FLASH_MS
+          ? attackFlash
+          : null,
+      thrust:
+        visible && dash && this.#time < dash.until
+          ? {
+              aim: Math.atan2(dash.x, dash.z),
+              kind: dash.charge ? 'charge' : dash.leap ? 'leap' : 'dash',
+            }
+          : null,
+    };
+  }
+
   view(viewerId: string): MatchView | undefined {
     const viewer = this.#players.get(viewerId);
     if (!viewer) return undefined;
+    const running = this.#phase === 'running';
+    const activeViewer = running && viewer.life.kind === 'alive';
     const projectionId =
       viewer.life.kind === 'eliminated' ? viewer.spectating : viewerId;
     const projection = projectionId
       ? this.#players.get(projectionId)
       : undefined;
-    const origin = projection?.craft.body.translation();
+    const origin = running ? projection?.craft.body.translation() : undefined;
     const terrainCenter = origin
       ? {
           x:
@@ -8322,12 +8910,10 @@ export class Match {
       ? sightRange(projection.stats.senses, clock.phase, localWeather)
       : 0;
     const visibleAt = (point: Point) =>
-      !!origin &&
-      (this.#phase !== 'running' ||
-        Math.hypot(point.x - origin.x, point.z - origin.z) <= sight);
+      !!origin && Math.hypot(point.x - origin.x, point.z - origin.z) <= sight;
     const visiblePlayer = (id: string, player: Player) =>
       id === viewerId ||
-      this.#phase !== 'running' ||
+      !running ||
       (!!projectionId &&
         (id === projectionId ||
           (player.life.kind === 'alive' &&
@@ -8376,6 +8962,26 @@ export class Match {
         `${b.kind}:${b.direction}:${b.distance}`,
       ),
     );
+    const ownedDefinitions = [...viewer.ranks.keys()].flatMap((id) => {
+      const definition = this.#content.definition(id);
+      return definition ? [definition] : [];
+    });
+    const specializationChoices = ownedDefinitions.flatMap(
+      (definition) => definition.specializationChoices ?? [],
+    );
+    const modifierName = (source: string): string => {
+      if (source.startsWith('poi:')) return 'Claimed site';
+      if (source.startsWith('firmware:')) return 'Consumed firmware';
+      const specialization = specializationChoices.find((choice) =>
+        source.includes(choice.id),
+      );
+      if (specialization) return specialization.name;
+      const upgrade = ownedDefinitions.find(
+        (definition) =>
+          source === definition.id || source === `upgrade:${definition.id}`,
+      );
+      return upgrade?.name ?? 'Build effect';
+    };
     return {
       id: this.#id,
       roundId: this.#roundId,
@@ -8403,13 +9009,14 @@ export class Match {
       },
       worldClock: clock,
       weather,
-      thermal: projection ? { ...projection.thermal } : null,
+      thermal: activeViewer ? { ...viewer.thermal } : null,
       radar: uniqueRadar,
       time: this.#time,
       spectating: viewer.life.kind === 'eliminated' ? viewer.spectating : null,
       survivors: [...this.#players.values()].filter(
         (player) => player.life.kind === 'alive',
       ).length,
+      canFinishSurvivor: this.#canFinishSurvivor(viewerId),
       boundary: {
         radius: boundaryRadius(this.#wallTime, this.#finale),
         elapsedMs: this.#wallTime,
@@ -8435,16 +9042,89 @@ export class Match {
         : [],
       loadingError: this.#loadingError,
       loadingRevision: this.#loadingRevision,
+      build: {
+        specializations: [...viewer.specializations].map((id) => {
+          const choice = specializationChoices.find(
+            (choice) => choice.id === id,
+          );
+          return {
+            id,
+            name: choice?.name ?? 'Specialization',
+            description: choice
+              ? (this.#specializationDescription(choice) ??
+                `Adds ${choice.carcinisationBonus} Overload.`)
+              : 'Active for this run.',
+          };
+        }),
+        modifiers: [
+          ...viewer.modifiers.map((modifier) => ({
+            source: modifierName(modifier.id),
+            stat: modifier.stat,
+            add: modifier.add,
+            multiplier: modifier.multiplier,
+            active: true,
+          })),
+          ...[...viewer.phaseModifiers.values()].flatMap((entry) =>
+            entry.modifiers.map((modifier) => ({
+              source: modifierName(modifier.id),
+              stat: modifier.stat,
+              add: modifier.add,
+              multiplier: modifier.multiplier,
+              active: entry.phase === clock.phase,
+            })),
+          ),
+          ...[
+            ...viewer.runtimeEffects.temporaryModifiers(this.#time),
+            ...viewer.runtimeEffects.finaleModifiers(
+              this.#wallTime >= this.#finale.shrinkStartMs,
+            ),
+            ...viewer.runtimeEffects.sizeHealthModifiers(viewer.stats.size),
+          ].map((modifier) => ({
+            source: modifierName(modifier.id),
+            stat: modifier.stat,
+            add: modifier.add,
+            multiplier: modifier.multiplier,
+            active: true,
+          })),
+        ],
+        temporary: [
+          ...[...viewer.temporaryPoi.values()].map((effect) => ({
+            label: `Combat damage reduction ${Math.round((1 - effect.factor) * 100)}%`,
+            until: effect.until,
+          })),
+          ...[
+            { label: 'Firmware repair', until: viewer.firmwareHealUntil },
+            { label: 'Firmware speed boost', until: viewer.firmwareSpeedUntil },
+            {
+              label: 'Firmware distortion',
+              until: viewer.firmwareDistortionUntil,
+            },
+            { label: 'Firmware deafness', until: viewer.firmwareDeafUntil },
+          ].filter((effect) => effect.until > this.#time),
+        ],
+      },
       equipment: {
         basicReadyAt: viewer.equipment.readyAt.get('bop') ?? 0,
         slots: { ...viewer.equipment.slots },
         learned: [...viewer.equipment.learned.values()].map((ability) => {
+          const definition = this.#content.definition(ability.id);
+          const rank = viewer.ranks.get(ability.id) ?? 0;
+          const rarity = viewer.rarities.get(ability.id) ?? '';
+          const description = this.#content.describe(ability.id, rarity, rank);
           const ammo =
             ability.action === 'projectile' && ability.ammunition
               ? ammunitionView(viewer.equipment, ability, this.#time)
               : null;
           return {
             id: ability.id,
+            name: definition?.name ?? 'Unknown ability',
+            description: description?.description,
+            rarity,
+            rank,
+            icon:
+              definition?.icon ??
+              (ability.slotType === 'movement' ? 'movement' : 'attack'),
+            cooldownMs: ability.cooldown,
             slotType: ability.slotType,
             readyAt: viewer.equipment.readyAt.get(ability.id) ?? 0,
             ...(ammo && ability.action === 'projectile' && ability.ammunition
@@ -8487,7 +9167,11 @@ export class Match {
             }
           : null,
         currency: viewer.wallet.balance,
-        affinities: [...viewer.affinities].map(([id, rank]) => ({ id, rank })),
+        affinities: [...viewer.affinities].map(([id, rank]) => ({
+          id,
+          name: affinityName(id),
+          rank,
+        })),
         upgrades: [...viewer.ranks].flatMap(([id, rank]) => {
           const description = this.#content.describe(
             id,
@@ -8503,6 +9187,30 @@ export class Match {
           viewer.carcinisation * CARCINISATION_RARITY_PER_POINT,
         ),
       },
+      feedback: this.#feedback
+        .filter(
+          (item) =>
+            projectionId &&
+            item.audience.get(viewerId) === projectionId &&
+            item.value.at >= this.#time - 900 &&
+            visibleAt(item.value.position) &&
+            visibleAt(
+              this.#bots.get(item.value.targetId)?.craft.body.translation() ??
+                this.#players
+                  .get(item.value.targetId)
+                  ?.craft.body.translation() ??
+                item.value.position,
+            ) &&
+            !this.#hiddenPlayers.get(projectionId)?.has(item.value.targetId) &&
+            (!this.#players.get(item.value.targetId)?.shelter ||
+              item.value.targetId === viewerId),
+        )
+        .slice(-64)
+        .map((item) => ({
+          ...item.value,
+          position: { ...item.value.position },
+          localAttacker: item.ownerId === viewerId,
+        })),
       bots: [...(projectionId ? this.#bots.values() : [])]
         .filter((bot) => visibleAt(bot.craft.body.translation()))
         .map((bot) => ({
@@ -8511,13 +9219,41 @@ export class Match {
           role: bot.role,
           biome: bot.biome,
           elite: bot.elite,
-          ownerId: bot.ownerId,
+          ownerId:
+            bot.ownerId && visiblePlayerIds.has(bot.ownerId)
+              ? bot.ownerId
+              : null,
           kind: bot.kind,
           radius: bot.craft.collider.radius(),
           position: bot.craft.body.translation(),
           health: bot.health,
           maxHealth: bot.maxHealth,
+          plating: bot.plating,
+          statuses: bot.statuses
+            .filter((status) => this.#statusIsActive(status))
+            .map((status) => ({
+              kind: status.kind,
+              remaining: Math.max(0, status.expiresAt - this.#time),
+            })),
+          aim: (() => {
+            const velocity = bot.craft.body.linvel();
+            const target = bot.targetId
+              ? visiblePlayerIds.has(bot.targetId)
+                ? this.#players.get(bot.targetId)?.craft.body.translation()
+                : this.#bots.get(bot.targetId)?.craft.body.translation()
+              : undefined;
+            const point = bot.craft.body.translation();
+            return target && visibleAt(target)
+              ? Math.atan2(target.x - point.x, target.z - point.z)
+              : Math.atan2(velocity.x, velocity.z);
+          })(),
           attacking: bot.windupUntil !== null,
+          strikePose: strikePose(
+            this.#time,
+            bot.windupUntil,
+            BOT_RULES.windup,
+            bot.lastStrikeAt,
+          ),
           friendshipUntil:
             bot.friendship?.playerId === viewerId ? bot.friendship.until : null,
         })),
@@ -8529,6 +9265,19 @@ export class Match {
             0,
             1 - (this.#shelterDecay.get(`shelter-${index}`) ?? 0),
           ),
+          entryDurationMs: (() => {
+            const tuning = SOURCE_GAMEPLAY.burrow;
+            let decay = this.#shelterDecay.get(`shelter-${index}`) ?? 0;
+            if (decay < tuning.maximumEntryPenaltyDecay)
+              decay = Math.min(1, decay + tuning.entryPenalty);
+            return (
+              ((1 - decay) * tuning.lifetimeMs) /
+              Math.max(
+                0.01,
+                sourceCurve(tuning.sizeContribution, viewer.stats.size / 100),
+              )
+            );
+          })(),
           occupied: [...this.#players.values()].some(
             (player) => player.shelter?.id === `shelter-${index}`,
           ),
@@ -8539,9 +9288,8 @@ export class Match {
         )
         .filter((site) => !!projectionId && visibleAt(site.position)),
       firmwareSensory: {
-        distortion:
-          !!projection && projection.firmwareDistortionUntil > this.#time,
-        deafened: !!projection && projection.firmwareDeafUntil > this.#time,
+        distortion: activeViewer && viewer.firmwareDistortionUntil > this.#time,
+        deafened: activeViewer && viewer.firmwareDeafUntil > this.#time,
       },
       nestDefenses: [...this.#nestDefenses.values()]
         .filter((item) => item.ownerId === viewerId)
@@ -8558,7 +9306,20 @@ export class Match {
         .map((module) => {
           const knowledge = viewer.firmwareKnowledge.get(module.appearance);
           return {
-            ...module,
+            id: module.id,
+            appearance: module.appearance,
+            position: module.position,
+            stage: module.stage,
+            stages: SOURCE_GAMEPLAY.mushroom.bites,
+            consumption: this.#firmwareConsumers.has(module.id)
+              ? this.#firmwareConsumers.get(module.id)?.playerId === viewerId
+                ? 'yours'
+                : 'other'
+              : 'idle',
+            scanChance: identificationChance(
+              viewer.stats.senses,
+              viewer.stats.firmwareIdentification,
+            ),
             knowledge:
               knowledge?.kind === 'identified'
                 ? { kind: 'identified' as const, effect: knowledge.effect }
@@ -8572,9 +9333,34 @@ export class Match {
         .map((point) => ({
           id: point.id,
           kind: point.kind,
+          name: poiName(point.kind),
           position: { ...point.position },
           status: point.claim.kind,
-          discovered: !!projectionId && point.discoveredBy.has(projectionId),
+          discovered: point.discoveredBy.has(viewerId),
+          claim:
+            point.claim.kind === 'reserved'
+              ? {
+                  kind: 'reserved',
+                  yours: point.claim.playerId === viewerId,
+                  expiresAt: point.claim.expiresAt,
+                }
+              : point.claim.kind === 'claimed'
+                ? { kind: 'claimed', yours: point.claim.playerId === viewerId }
+                : {
+                    kind: 'available',
+                    protectionMs: remainingProtection(point, viewerId),
+                    unavailableReason:
+                      viewer.life.kind !== 'alive'
+                        ? 'Your craft is eliminated.'
+                        : viewer.shelter
+                          ? 'Exit the shelter first.'
+                          : viewer.life.activity !== 'playing' ||
+                              viewer.selection.state.kind !== 'idle'
+                            ? 'Finish the current decision first.'
+                            : this.#hasActiveStatus(viewer.statuses, 'stun')
+                              ? 'Stunned.'
+                              : null,
+                  },
         })),
       resources: [...(projectionId ? this.#resources.values() : [])]
         .filter(
@@ -8585,20 +9371,30 @@ export class Match {
           id: resource.id,
           position: { ...resource.position },
           source: resource.source,
-          rarity: resource.rarity,
+          rarity: resource.claimantRarities.get(viewerId) ?? resource.rarity,
           stage: resource.stage,
-          repair: healingFood(
-            resource,
-            resource.rarity,
-            viewer.stats.repairFoodChance,
-          ),
+          repair:
+            resource.claimantRepair.get(viewerId) ??
+            healingFood(
+              resource,
+              resource.claimantRarities.get(viewerId) ?? resource.rarity,
+              viewer.stats.repairFoodChance,
+            ),
         })),
       projectiles: this.#projectiles
         .filter(
-          ({ ownerId }) => !!projectionId && visiblePlayerIds.has(ownerId),
+          ({ ownerId }) =>
+            !!projectionId &&
+            visiblePlayerIds.has(ownerId) &&
+            this.canUseOwnedOffense(ownerId),
         )
         .filter((projectile) => visibleAt(projectile.position))
-        .map(({ id, position }) => ({ id, position: { ...position } })),
+        .map(({ id, position, velocity, abilityId }) => ({
+          id,
+          position: { ...position },
+          heading: Math.atan2(velocity.x, velocity.z),
+          shape: projectileVisual(abilityId),
+        })),
       trails: this.#trails
         .filter(
           (trail) =>
@@ -8607,15 +9403,16 @@ export class Match {
             visibleAt(trail.position) &&
             this.canUseOwnedOffense(trail.ownerId),
         )
-        .map(({ id, position, radius }) => ({
+        .map(({ id, position, radius, kind }) => ({
           id,
           position: { ...position },
           radius,
+          kind: kind ?? 'pedal',
         })),
       countdown:
         this.#phase === 'countdown' ? Math.max(0, this.#countdown) : null,
       offer: (() => {
-        const offer = this.#offers.get(viewerId);
+        const offer = running && this.#offers.get(viewerId);
         if (!offer) return null;
         const state = viewer.selection.state;
         const details =
@@ -8640,6 +9437,16 @@ export class Match {
                 deadline: state.deadline,
                 details,
                 kind: state.prompt.kind,
+                pool: viewer.activeReward?.pool,
+                queued:
+                  state.pending.length + viewer.progression.pending.length,
+                ...(state.prompt.kind === 'specialization'
+                  ? {
+                      parentName:
+                        this.#content.definition(state.prompt.parentId)?.name ??
+                        'Build',
+                    }
+                  : {}),
                 ...(state.prompt.kind === 'upgrade'
                   ? {
                       rerollCost:
@@ -8659,8 +9466,55 @@ export class Match {
                           : null,
                     }
                   : {}),
-                protected:
-                  state.prompt.kind !== 'poi' || state.prompt.protected,
+                protected: isSelectionProtected(viewer),
+                ...(state.prompt.kind === 'poi'
+                  ? (() => {
+                      const siteId = state.prompt.siteId;
+                      const point = this.#pointsOfInterest.find(
+                        (site) => site.id === siteId,
+                      );
+                      if (!point) return {};
+                      return {
+                        site: {
+                          id: point.id,
+                          name: poiName(point.kind),
+                          discovered: point.discoveredBy.has(viewerId),
+                          expiresAt:
+                            point.claim.kind === 'reserved'
+                              ? point.claim.expiresAt
+                              : this.#time,
+                        },
+                        poiOptions: state.prompt.options.map((option) => {
+                          const choice = viewer.poiChoices.get(option.id);
+                          return {
+                            id: option.id,
+                            cost:
+                              choice?.option.reward.kind === 'upgrade'
+                                ? choice.option.reward.cost
+                                : 0,
+                            consequence: poiConsequence(
+                              choice?.option.reward ?? { kind: 'cancel' },
+                            ),
+                            unavailableReason:
+                              option.id === 'cancel'
+                                ? null
+                                : point.claim.kind !== 'reserved' ||
+                                    point.claim.playerId !== viewerId ||
+                                    this.#time >= point.claim.expiresAt
+                                  ? 'Reservation expired or lost.'
+                                  : choice
+                                    ? this.#poiUnavailable(
+                                        viewerId,
+                                        point,
+                                        choice.option,
+                                        choice.upgrade,
+                                      )
+                                    : 'Reward unavailable.',
+                          };
+                        }),
+                      };
+                    })()
+                  : {}),
                 labels: [...state.prompt.options],
               }
             : {}),
@@ -8682,18 +9536,70 @@ export class Match {
             kind: status.kind,
             remaining: Math.max(0, status.expiresAt - this.#time),
           })),
-          position: player.craft.body.translation(),
+          position: running
+            ? player.craft.body.translation()
+            : { x: 0, y: 0, z: 0 },
           radius: player.craft.collider.radius(),
           aim: player.aim,
-          attacking: player.attack !== null,
-          attackReach: player.attack
-            ? (player.attack.range ?? 1.5) *
-                Math.min(4, player.stats.attackArea / 100) +
-              player.craft.collider.radius()
-            : 0,
+          attacking:
+            player.attack !== null ||
+            (player.lastManualAttackAt > 0 &&
+              this.#time - player.lastManualAttackAt < 160),
+          ...this.#playerActionView(
+            player,
+            running && this.canUseOwnedOffense(id),
+          ),
           hit: player.hitCueUntil > this.#time,
           guarding: (player.guard?.until ?? 0) > this.#time,
           modules: [
+            ...(
+              ['shield', 'command', 'jet', 'cannon', 'pincer', 'blade'] as const
+            ).flatMap((kind) => {
+              const sources = {
+                shield: ['carapace', 'shell', 'plated', 'exoskeleton'],
+                command: ['alpha', 'pack'],
+                jet: [
+                  'jet',
+                  'basic-dash',
+                  'slide',
+                  'sprint',
+                  'leap',
+                  'scuttle',
+                ],
+                cannon: ['spit', 'stoner', 'projectile-tongue'],
+                pincer: [
+                  'pincer',
+                  'jaws',
+                  'beak',
+                  'leech',
+                  'toe-beans',
+                  'trunk',
+                  'claws',
+                  'stinger',
+                  'neck-bite',
+                ],
+                blade: ['horns', 'spur', 'charge'],
+              }[kind];
+              const equipped = Object.values(player.equipment.slots);
+              const active = sources.filter((source) =>
+                kind === 'shield' || kind === 'command'
+                  ? player.ranks.has(source)
+                  : equipped.includes(source),
+              );
+              return active.length
+                ? [
+                    {
+                      kind,
+                      rank: Math.max(
+                        1,
+                        ...active.map(
+                          (source) => player.ranks.get(source) ?? 1,
+                        ),
+                      ),
+                    },
+                  ]
+                : [];
+            }),
             ...(['more-eyes', 'antennae', 'snout', 'fungoid'] as const)
               .filter((kind) => player.ranks.has(kind))
               .map((kind) => ({ kind, rank: player.ranks.get(kind) ?? 1 })),
@@ -8791,7 +9697,10 @@ export class Match {
             }),
           ],
           life: { ...player.life },
-          shelter: player.shelter ? { ...player.shelter } : null,
+          shelter:
+            id === viewerId && player.shelter && running
+              ? { ...player.shelter }
+              : null,
         })),
     };
   }

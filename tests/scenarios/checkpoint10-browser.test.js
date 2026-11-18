@@ -123,7 +123,7 @@ test(
       );
       assert.ok(Object.values(states[0].equipment.slots).includes('spit'));
       await page.getByText('Your upgrades', { exact: true }).click();
-      await page.getByText('Spit', { exact: false }).first().waitFor();
+      await page.getByText('Plasma Shot', { exact: false }).first().waitFor();
       await page.screenshot({
         path: 'test-results/checkpoint10/saliva-spit.png',
       });

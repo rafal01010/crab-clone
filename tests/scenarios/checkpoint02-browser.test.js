@@ -13,7 +13,7 @@ await RAPIER.init();
 
 test(
   'integrated movement, aiming, focus loss and timed choice',
-  { timeout: 45000, skip: !process.env.YCCE_FIXTURE_URL },
+  { timeout: 55000, skip: !process.env.YCCE_FIXTURE_URL },
   async () => {
     const match = new Match('course', new RAPIER.World({ x: 0, y: 0, z: 0 }));
     match.accept({ kind: 'join', playerId: 'pilot' });
@@ -407,7 +407,7 @@ test(
       const otherBefore = match
         .view('pilot')
         .players.find((player) => player.id === 'other').position.z;
-      await dialog.waitFor({ state: 'detached', timeout: 14000 });
+      await dialog.waitFor({ state: 'detached', timeout: 24000 });
       const end = await state();
       const otherAfter = match
         .view('pilot')

@@ -1,4 +1,5 @@
 import {
+  SELECTION_WINDOW_MS,
   SelectionWindow,
   selectionPermissions,
 } from '../server/match/selection-window.ts';
@@ -61,31 +62,42 @@ for (const interval of [1000, 2000, 3000]) {
       { id: 'five', label: 'Fifth' },
       { id: 'six', label: 'Sixth' },
     ],
-    9000,
+    SELECTION_WINDOW_MS - 1000,
   );
-  record(9000, 'reroll during displayed window');
-  const staleAccepted = selection.choose('upgrade-a', 0, 'one', 9500);
-  record(9500, `stale choice accepted: ${staleAccepted}`);
-  selection.setConnected(false, 9600);
-  record(9600, 'disconnect');
-  selection.advance(10000);
+  selection.markDisplayed('upgrade-a', 1);
+  record(SELECTION_WINDOW_MS - 1000, 'reroll during displayed window');
+  const staleAt = SELECTION_WINDOW_MS - 500;
+  const staleAccepted = selection.choose('upgrade-a', 0, 'one', staleAt);
+  record(staleAt, `stale choice accepted: ${staleAccepted}`);
+  selection.setConnected(false, SELECTION_WINDOW_MS - 400);
+  record(SELECTION_WINDOW_MS - 400, 'disconnect');
+  selection.advance(SELECTION_WINDOW_MS);
   exercise();
-  record(10000, 'deadline while disconnected and exposed actions attempted');
-  selection.enqueue(prompt('upgrade', 'passive-xp'), 10000 + interval / 2);
-  record(10000 + interval / 2, 'passive reward during exposure');
-  selection.advance(30000 + interval);
-  record(30000 + interval, 'still disconnected after exposure');
-  const reconnect = 30000 + interval;
+  record(
+    SELECTION_WINDOW_MS,
+    'deadline while disconnected and exposed actions attempted',
+  );
+  const passiveRewardAt = SELECTION_WINDOW_MS + interval / 2;
+  selection.enqueue(prompt('upgrade', 'passive-xp'), passiveRewardAt);
+  record(passiveRewardAt, 'passive reward during exposure');
+  const reconnect = SELECTION_WINDOW_MS + 20000 + interval;
+  selection.advance(reconnect);
+  record(reconnect, 'still disconnected after exposure');
   selection.setConnected(true, reconnect);
   record(reconnect, 'reconnected and first queued prompt displayed');
   selection.choose('upgrade-b', 0, 'one', reconnect + 500);
+  selection.markDisplayed('branch', 0);
   record(reconnect + 500, 'follow-up displayed with remaining time');
-  selection.advance(reconnect + 10000);
-  record(reconnect + 10000, 'specialization expiry');
-  selection.advance(reconnect + 10000 + interval);
-  record(reconnect + 10000 + interval, 'equipment displayed');
-  selection.advance(reconnect + 20000 + interval);
-  record(reconnect + 20000 + interval, 'equipment expiry');
+  const branchDeadline = reconnect + SELECTION_WINDOW_MS;
+  selection.advance(branchDeadline);
+  record(branchDeadline, 'specialization expiry');
+  const equipmentOpens = branchDeadline + interval;
+  selection.advance(equipmentOpens);
+  selection.markDisplayed('equipment', 0);
+  record(equipmentOpens, 'equipment displayed');
+  const equipmentDeadline = equipmentOpens + SELECTION_WINDOW_MS;
+  selection.advance(equipmentDeadline);
+  record(equipmentDeadline, 'equipment expiry');
   results.push({ interval, trace, simulated });
 }
 console.log(

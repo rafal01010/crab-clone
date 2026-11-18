@@ -4,6 +4,26 @@ import { Match } from '../../build-host/server/match/match.js';
 
 await RAPIER.init();
 
+export function stunVisibleWildBots(match, playerIds) {
+  const bots = new Set(
+    playerIds.flatMap((id) =>
+      match
+        .view(id)
+        .bots.filter((bot) => bot.kind === 'wild')
+        .map((bot) => bot.id),
+    ),
+  );
+  for (const id of bots)
+    assert.ok(
+      match.applyStatus(id, {
+        kind: 'stun',
+        ownerId: null,
+        magnitude: 1,
+        duration: 1500,
+      }),
+    );
+}
+
 // Explicitly opt in within a scenario; the returned function restores health
 // after each simulation step. It does not alter progression or enemy behavior.
 export function enableQaSurvival(match, playerId) {

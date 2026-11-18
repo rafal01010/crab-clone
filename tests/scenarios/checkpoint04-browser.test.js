@@ -8,7 +8,7 @@ import { chromium } from 'playwright-core';
 const url = 'http://127.0.0.1:3219';
 test(
   'four clients earn a choice, observe its real deadline, finish and return to a clean lobby',
-  { timeout: 90000 },
+  { timeout: 100000 },
   async () => {
     await mkdir('test-results/checkpoint04', { recursive: true });
     const host = fork('build-host/server/index.js', [], {
@@ -156,10 +156,10 @@ test(
         0,
       );
       await page.screenshot({ path: 'test-results/checkpoint04/choice.png' });
-      await dialog.waitFor({ state: 'hidden', timeout: 14000 });
+      await dialog.waitFor({ state: 'hidden', timeout: 24000 });
       const observedMs = performance.now() - start;
       assert.ok(
-        observedMs > 7500 && observedMs < 11500,
+        observedMs > 17500 && observedMs < 21500,
         `choice elapsed ${observedMs}ms`,
       );
       await page

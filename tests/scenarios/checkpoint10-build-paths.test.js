@@ -286,7 +286,7 @@ function generatedRoute(first, second) {
     }
     let sequence = 0;
     let firstChosen = false;
-    for (let i = 0; i < 1000; i++) {
+    for (let i = 0; i < 2000; i++) {
       const state = match.view('a');
       const owned = state.progression.upgrades.map((upgrade) => upgrade.id);
       if (owned.includes(second)) {

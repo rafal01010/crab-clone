@@ -2,8 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Match } from '../../build-host/server/match/match.js';
+import { levelRequirement } from '../../build-host/server/match/economy.js';
 import { createStarterRegistry } from '../../build-host/server/content/starter.js';
 import { arenaPointClear, createArena } from '../../build-host/shared/arena.js';
+import { stunVisibleWildBots } from './checkpoint08-ability-fixture.js';
 
 await RAPIER.init();
 const ids = ['a', 'b', 'c', 'd'];
@@ -28,8 +30,11 @@ function step(match, ms) {
   for (let n = 0; n < ms; n += 1000 / 60)
     match.advance(Math.min(1000 / 60, ms - n));
 }
-function stepAndChoose(match, ms) {
-  for (let n = 0; n < ms; n += 1000 / 60) {
+function stepAndChoose(match, ms, isolateResources = false) {
+  const tick = 1000 / 60;
+  for (let frame = 0; frame * tick < ms; frame++) {
+    const n = frame * tick;
+    if (isolateResources && frame % 30 === 0) stunVisibleWildBots(match, ids);
     const offer = match.view('a').offer;
     if (offer)
       assert.ok(
@@ -43,7 +48,7 @@ function stepAndChoose(match, ms) {
           choiceId: offer.choices[0],
         }),
       );
-    match.advance(Math.min(1000 / 60, ms - n));
+    match.advance(Math.min(tick, ms - n));
   }
 }
 function player(match, id) {
@@ -208,6 +213,8 @@ test('salvage stages, wallet idempotency and XP overflow preserve outcomes', () 
     assert.equal(m.walletTransaction('a', 'spend', 'spend', 7).balance, 3);
     assert.equal(m.walletTransaction('a', 'spend', 'spend', 6), null);
     assert.equal(m.walletTransaction('a', 'over', 'spend', 4).accepted, false);
+    const before = m.view('a').progression;
+    const requirementModifier = player(m, 'a').stats.progressRequirement;
     assert.ok(m.grantProgress('a', 2000));
     const progression = m.view('a').progression;
     const rewards = [];
@@ -220,12 +227,67 @@ test('salvage stages, wallet idempotency and XP overflow preserve outcomes', () 
       progression.level - 1,
     );
     const spent = Array.from(
-      { length: progression.level - 1 },
-      (_, i) => 10 + i * 5,
+      { length: progression.level - before.level },
+      (_, i) => levelRequirement(before.level + i, requirementModifier),
     ).reduce((a, b) => a + b, 0);
-    assert.equal(progression.progress, 2030 - spent);
+    assert.ok(
+      Math.abs(progression.progress - (before.progress + 2000 - spent)) < 1e-8,
+    );
   } finally {
     m.dispose();
+  }
+});
+
+test('salvage pays no offline bites and resumes the same resource on reconnect', () => {
+  const match = setup();
+  try {
+    const { x, z } = player(match, 'a').position;
+    const resource = match.spawnResource({
+      position: { x, z },
+      source: 'vegetation',
+      rarity: 'common',
+      killerId: null,
+      ownerId: null,
+      killerKind: null,
+      repair: false,
+    });
+    assert.ok(resource);
+    step(match, 100);
+    assert.deepEqual(
+      match
+        .takeCollections()
+        .filter((event) => event.resourceId === resource)
+        .map((event) => event.stage),
+      [1],
+    );
+    const progress = match.view('a').progression;
+    assert.ok(match.accept({ kind: 'disconnect', playerId: 'a' }));
+    step(match, 1800);
+    assert.equal(
+      match.view('a').progression.storedSalvage,
+      progress.storedSalvage,
+    );
+    assert.equal(match.view('a').progression.progress, progress.progress);
+    assert.equal(
+      match.view('a').resources.find((item) => item.id === resource)?.stage,
+      1,
+    );
+    assert.equal(
+      match.takeCollections().filter((event) => event.resourceId === resource)
+        .length,
+      0,
+    );
+    assert.ok(match.accept({ kind: 'connect', playerId: 'a' }));
+    step(match, 800);
+    const resumed = match
+      .takeCollections()
+      .filter((event) => event.resourceId === resource);
+    assert.deepEqual(
+      resumed.map(({ playerId, stage }) => ({ playerId, stage })),
+      [{ playerId: 'a', stage: 2 }],
+    );
+  } finally {
+    match.dispose();
   }
 });
 
@@ -657,16 +719,21 @@ test('Stomach shortens the actual interval between salvage stages', () => {
     };
     const slowId = spawn(slow),
       fastId = spawn(fast);
-    step(slow, 850);
-    step(fast, 850);
-    assert.equal(
-      slow.takeCollections().filter((e) => e.resourceId === slowId).length,
-      1,
-    );
-    assert.equal(
-      fast.takeCollections().filter((e) => e.resourceId === fastId).length,
-      2,
-    );
+    function secondBiteTime(match, resourceId) {
+      for (let elapsed = 20; elapsed <= 2000; elapsed += 20) {
+        step(match, 20);
+        if (
+          match
+            .takeCollections()
+            .some(
+              (event) => event.resourceId === resourceId && event.stage === 2,
+            )
+        )
+          return elapsed;
+      }
+      assert.fail('The craft took a second bite');
+    }
+    assert.ok(secondBiteTime(fast, fastId) < secondBiteTime(slow, slowId));
   } finally {
     slow.dispose();
     fast.dispose();
@@ -1082,7 +1149,6 @@ test('damage channels apply mitigation, plating bypass, vulnerability and protec
 test('resource killer and source provenance survive each partial stage', () => {
   const m = setup();
   try {
-    const p = player(m, 'a').position;
     const kinds = [
       ['vegetation', null, null, null, 'none'],
       ['meat', 'a', 'a', 'player', 'own-kill'],
@@ -1091,7 +1157,7 @@ test('resource killer and source provenance survive each partial stage', () => {
     ];
     for (const [source, killerId, ownerId, killerKind, provenance] of kinds) {
       const id = m.spawnResource({
-        position: { x: p.x, z: p.z },
+        position: player(m, 'a').position,
         source,
         rarity: 'common',
         killerId,
@@ -1099,7 +1165,7 @@ test('resource killer and source provenance survive each partial stage', () => {
         killerKind,
         repair: false,
       });
-      stepAndChoose(m, 6000);
+      stepAndChoose(m, 6000, true);
       const events = m.takeCollections().filter((e) => e.resourceId === id);
       assert.deepEqual(
         events.map((e) => e.stage),

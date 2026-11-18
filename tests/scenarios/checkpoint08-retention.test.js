@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createAbilityMatch } from './checkpoint08-ability-fixture.js';
+import {
+  createAbilityMatch,
+  stunVisibleWildBots,
+} from './checkpoint08-ability-fixture.js';
 import {
   createArena,
   terrainAt,
@@ -89,8 +92,10 @@ test('Fin preserves normal heat and cold exposure during weather', () => {
         body.setLinvel({ x: 0, y: 0, z: 0 }, true);
       }
       assert.ok(match.grantUpgrade('a', 'fin', 'rare', 1));
-      for (let time = 0; time < 60000; time += 100)
+      for (let time = 0; time < 60000; time += 100) {
+        if (time % 500 === 0) stunVisibleWildBots(match, ['a', 'b']);
         assert.ok(match.advance(100));
+      }
       const a = match.view('a').thermal[kind],
         b = match.view('b').thermal[kind];
       assert.ok(a > 0 && b > 0, `${terrain}: ${a}, ${b}`);

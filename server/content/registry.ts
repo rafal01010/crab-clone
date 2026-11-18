@@ -1,4 +1,5 @@
 import { BASE_STATS, type Stat } from '../match/stats.js';
+import type { UpgradeIcon } from '../../shared/match.js';
 import {
   validRuntimeEffect,
   type RuntimeEffectDefinition,
@@ -70,8 +71,7 @@ export interface ContentDefinition {
   disposition: 'implemented' | 'blocked' | 'omitted';
   selectable: boolean;
   name: string;
-  icon?:
-    'power' | 'salvage' | 'plating' | 'attack' | 'arms' | 'movement' | 'wings';
+  icon?: UpgradeIcon;
   description: string;
   rankDescription?: string;
   pool: 'ordinary' | 'branching' | 'starting' | 'finale';
@@ -180,6 +180,10 @@ export function contentRankValue(
         Math.max(0, rank - values.length) * (values.at(-1) ?? 0),
     );
   return values[rank - 1];
+}
+
+export function formatUpgradeNumber(value: number): string {
+  return String(Number(value.toFixed(2)));
 }
 
 export type BuildStep = {
@@ -470,6 +474,10 @@ export function createRegistry(
       const entry = byId.get(aliases.get(id.toLowerCase()) ?? id);
       return entry ? structuredClone(entry) : undefined;
     },
+    specializationName: (id: string) =>
+      byId
+        .get(specializations.get(id) ?? '')
+        ?.specializationChoices?.find((choice) => choice.id === id)?.name,
     describe: (id: string, rarity: string, rank: number) => {
       const entry = byId.get(id);
       if (
@@ -484,12 +492,15 @@ export function createRegistry(
       if (value === undefined) return undefined;
       let description = (entry.rankDescription ?? entry.description).replaceAll(
         '{value}',
-        String(value),
+        formatUpgradeNumber(value),
       );
       for (const [name, tables] of Object.entries(entry.detailValues ?? {})) {
         const detail = tables[rarity]?.[rank - 1];
         if (detail === undefined) return undefined;
-        description = description.replaceAll(`{${name}}`, String(detail));
+        description = description.replaceAll(
+          `{${name}}`,
+          formatUpgradeNumber(detail),
+        );
       }
       return {
         id: entry.id,

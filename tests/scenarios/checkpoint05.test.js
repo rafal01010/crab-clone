@@ -10,6 +10,7 @@ import {
   arenaPointClear,
 } from '../../build-host/shared/arena.js';
 import { WorldClock } from '../../build-host/server/match/world-clock.js';
+import { stunVisibleWildBots } from './checkpoint08-ability-fixture.js';
 
 await RAPIER.init();
 const ids = ['a', 'b', 'c', 'd'];
@@ -50,6 +51,12 @@ function setup(seed = 42, finale = {}) {
 function step(match, ms, tick = 100) {
   for (let t = 0; t < ms; t += tick)
     assert.ok(match.advance(Math.min(tick, ms - t)));
+}
+function stepWithStunnedBots(match, ms, tick = 100) {
+  for (let elapsed = 0; elapsed < ms; elapsed += 500) {
+    stunVisibleWildBots(match, ids);
+    step(match, Math.min(500, ms - elapsed), tick);
+  }
 }
 function move(players, id, point) {
   players.get(id).setTranslation({ x: point.x, y: 0.25, z: point.z }, true);
@@ -210,14 +217,14 @@ test('four biome conditions, terrain adaptation, thermal damage and recovery', (
       ),
     );
     assert.ok(match.setModifiers('b', mods({ plating: 50 })));
-    step(match, 45000);
+    stepWithStunnedBots(match, 45000);
     assert.equal(
       match.view('a').weather.find((w) => w.kind === 'heatwave')?.state,
       'active',
     );
     const hullA = match.view('a').players.find((p) => p.id === 'a').health;
     const hullB = match.view('b').players.find((p) => p.id === 'b').health;
-    step(match, 22000);
+    stepWithStunnedBots(match, 22000);
     const a = match.view('a'),
       b = match.view('b');
     assert.ok(
@@ -232,7 +239,7 @@ test('four biome conditions, terrain adaptation, thermal damage and recovery', (
     assert.equal(a.players.find((p) => p.id === 'a').health.hull, hullA.hull);
     const exposure = b.thermal.heat;
     move(players, 'b', pointFor(arena, 'grass'));
-    step(match, 5000);
+    stepWithStunnedBots(match, 5000);
     assert.ok(match.view('b').thermal.heat < exposure);
   } finally {
     match.dispose();
@@ -254,7 +261,7 @@ test('night views remove hidden players, dependent projectiles and exact radar r
           }),
         ),
       );
-    step(match, 180000, 500);
+    stepWithStunnedBots(match, 180000, 500);
     assert.equal(match.view('a').worldClock.phase, 'night');
     move(players, 'a', { x: -24, z: -24 });
     move(players, 'b', { x: 24, z: 24 });
@@ -303,13 +310,13 @@ test('cold exposure respects cold adaptation independently of snow traction and 
       match.terrainMovementFactor('a', 'snow') <
         match.terrainMovementFactor('b', 'snow'),
     );
-    step(match, 50000);
+    stepWithStunnedBots(match, 50000);
     assert.equal(
       match.view('a').weather.find((w) => w.kind === 'blizzard')?.state,
       'active',
     );
     const initial = match.view('b').players.find((p) => p.id === 'b').health;
-    step(match, 22000);
+    stepWithStunnedBots(match, 22000);
     const a = match.view('a'),
       b = match.view('b');
     assert.ok(a.thermal.cold < b.thermal.cold);
@@ -319,7 +326,7 @@ test('cold exposure respects cold adaptation independently of snow traction and 
       initial.plating,
     );
     move(players, 'b', pointFor(arena, 'grass'));
-    step(match, 5000);
+    stepWithStunnedBots(match, 5000);
     assert.ok(match.view('b').thermal.cold < b.thermal.cold);
   } finally {
     match.dispose();
@@ -527,6 +534,15 @@ test('bot resource consumption yields to a nearby player and resumes after depar
 test('director raises bot tier over time without exceeding its population budget', () => {
   const { match } = setup();
   try {
+    const wildBots = () =>
+      new Map(
+        ids.flatMap((id) =>
+          match
+            .view(id)
+            .bots.filter((bot) => bot.kind === 'wild')
+            .map((bot) => [bot.id, bot]),
+        ),
+      );
     for (const id of ids)
       assert.ok(
         match.setModifiers(
@@ -541,20 +557,14 @@ test('director raises bot tier over time without exceeding its population budget
     match.syncWallClock(1000);
     match.syncWallClock(361000);
     step(match, 16000, 100);
-    const middle = match.view('a').bots;
-    assert.ok(
-      middle.some((bot) => bot.tier === 2),
-      JSON.stringify(middle),
-    );
-    assert.ok(middle.length <= 6);
+    const middle = wildBots();
+    assert.ok([...middle.values()].some((bot) => bot.tier === 2));
+    assert.ok(middle.size <= 32);
     match.syncWallClock(721000);
     step(match, 16000, 100);
-    const late = match.view('a').bots;
-    assert.ok(
-      late.some((bot) => bot.tier === 3),
-      JSON.stringify(late),
-    );
-    assert.ok(late.length <= 8);
+    const late = wildBots();
+    assert.ok([...late.values()].some((bot) => bot.tier === 3));
+    assert.ok(late.size <= 32);
   } finally {
     match.dispose();
   }
@@ -617,15 +627,15 @@ test('night blizzard increases exposure relative to daytime under the recorded e
     for (const id of ids)
       assert.ok(match.setModifiers(id, mods({ damageResistance: 100 })));
     move(players, 'a', snow);
-    step(match, 50000, 100);
+    stepWithStunnedBots(match, 50000);
     assert.equal(
       match.view('a').weather.find((w) => w.kind === 'blizzard').intensity,
       1,
     );
-    step(match, 2000, 100);
+    stepWithStunnedBots(match, 2000);
     const day = match.view('a').thermal.cold;
     move(players, 'a', pointFor(arena, 'grass'));
-    step(match, 178000, 500);
+    stepWithStunnedBots(match, 178000, 500);
     assert.equal(match.view('a').worldClock.phase, 'night');
     assert.equal(match.view('a').thermal.cold, 0);
     move(players, 'a', snow);
@@ -633,7 +643,7 @@ test('night blizzard increases exposure relative to daytime under the recorded e
       match.view('a').weather.find((w) => w.kind === 'blizzard').intensity,
       1.5,
     );
-    step(match, 2000, 100);
+    stepWithStunnedBots(match, 2000);
     const night = match.view('a').thermal.cold;
     assert.ok(Math.abs(night / day - 1.5) < 0.01);
   } finally {

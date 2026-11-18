@@ -67,7 +67,7 @@ export type SelectionState =
     }
   | { kind: 'exposed'; until: number; pending: readonly SelectionPrompt[] };
 
-export const SELECTION_WINDOW_MS = 10_000;
+export const SELECTION_WINDOW_MS = 20_000;
 export const EXPOSED_INTERVAL_MS = 2_000;
 
 export class SelectionWindow {

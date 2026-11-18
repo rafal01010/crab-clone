@@ -9,7 +9,7 @@ You Can Crab Everything is a four-player, free-for-all LAN hovercraft game. Its 
 - WASD moves independently of mouse aim. Left and right mouse buttons attack, Space moves or dashes, Q uses the ultimate, and E interacts. Each player has an independent elevated three-quarter follow camera. Players can travel apart and leave one another’s view.
 - PvP damage is possible immediately. Each player has one life, with no respawn or XP death penalty. Dead players enter restricted spectator mode.
 - The last human alive wins after simultaneous damage is resolved. If no human survives that resolution, the match is a draw. There is no score victory.
-- A disconnected craft remains vulnerable. Reconnection returns the player to that craft; death and deadlines still apply. There is no host migration or mid-match save recovery.
+- A disconnected craft remains vulnerable. Disconnecting releases site claims and ends burrow shelter. A pending upgrade choice keeps its deadline. Reconnection returns the player to the same craft or spectator view. A host restart requires a fresh room.
 - Gameplay access is equal each match. Only local presentation and control preferences persist.
 
 ## Progression and world
@@ -25,7 +25,7 @@ You Can Crab Everything is a four-player, free-for-all LAN hovercraft game. Its 
 
 ## Choices and finale
 
-The world continues during an upgrade choice. The choosing craft is stationary and invulnerable, cannot attack or salvage, and cannot deal offensive effects through owned entities. A short fixed window ends with a random displayed upgrade if no selection is made. Queued offers cannot provide continuous immunity.
+The world continues during an upgrade choice. The choosing craft stops and gains combat protection. It cannot attack, salvage, or deal offensive effects through owned entities. The host picks a random displayed upgrade if the 20-second window expires. Queued windows are separated by two seconds of exposure.
 
 There are no bosses. Shrinking territory replaces the final boss. Bots and meteors remain, and meteors land inside the playable area. Boundary pressure defeats shelter and choice protection. The boundary starts shrinking at 18 minutes, reaches a tiny area at 25 minutes, and collapses at 28 minutes. Full collapse leaves continuous, increasing hull damage until death. Solo death ends the run; multiplayer can end voluntarily at one survivor or continue, preserving the winner from elimination order. A multiplayer draw requires a tied final elimination group. The two minutes beyond the original game’s reported 16 minutes are an untested allowance for choices while the multiplayer clock continues. These are project rules, not a claim that the original game uses a shrinking boundary.
 

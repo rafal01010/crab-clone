@@ -1,4 +1,5 @@
 import { CONTROL_BUTTON } from '../../../shared/protocol/index.js';
+import { DEFAULT_BINDINGS, type Bindings, isInput } from './preferences.js';
 
 type Control = { x: number; y: number; aim: number; buttons: number };
 
@@ -9,15 +10,7 @@ export function createControls(
 ) {
   const keys = new Set<string>();
   const mouse = new Set<number>();
-  const relevant = new Set([
-    'KeyW',
-    'KeyA',
-    'KeyS',
-    'KeyD',
-    'Space',
-    'KeyQ',
-    'KeyE',
-  ]);
+  let bindings: Bindings = { ...DEFAULT_BINDINGS };
   let enabled = false;
   let pointer: { x: number; y: number } | null = null;
   let aim = 0;
@@ -34,7 +27,7 @@ export function createControls(
       (active instanceof HTMLElement &&
         active !== canvas &&
         (active.isContentEditable ||
-          active.matches('input, textarea, select, button')))
+          active.matches('input, textarea, select, button, summary, a[href]')))
     );
   };
   function transmit() {
@@ -43,16 +36,22 @@ export function createControls(
       keys.clear();
       mouse.clear();
     }
-    const x = Number(keys.has('KeyD')) - Number(keys.has('KeyA'));
-    const y = Number(keys.has('KeyS')) - Number(keys.has('KeyW'));
+    const held = (action: keyof Bindings) => {
+      const input = bindings[action];
+      return input.startsWith('Mouse')
+        ? mouse.has(Number(input.slice(5)))
+        : keys.has(input);
+    };
+    const x = Number(held('right')) - Number(held('left'));
+    const y = Number(held('down')) - Number(held('up'));
     const length = Math.hypot(x, y) || 1;
     if (pointer) aim = projectAim(pointer.x, pointer.y) ?? aim;
     const buttons =
-      (mouse.has(0) ? CONTROL_BUTTON.primary : 0) |
-      (mouse.has(2) ? CONTROL_BUTTON.secondary : 0) |
-      (keys.has('Space') ? CONTROL_BUTTON.movement : 0) |
-      (keys.has('KeyQ') ? CONTROL_BUTTON.ultimate : 0) |
-      (keys.has('KeyE') ? CONTROL_BUTTON.interact : 0);
+      (held('primary') ? CONTROL_BUTTON.primary : 0) |
+      (held('secondary') ? CONTROL_BUTTON.secondary : 0) |
+      (held('movement') ? CONTROL_BUTTON.movement : 0) |
+      (held('ultimate') ? CONTROL_BUTTON.ultimate : 0) |
+      (held('interact') ? CONTROL_BUTTON.interact : 0);
     send({ x: x / length, y: y / length, aim, buttons });
   }
   function clear() {
@@ -61,7 +60,18 @@ export function createControls(
     transmit();
   }
   function keydown(event: KeyboardEvent) {
-    if (!enabled || captured() || !relevant.has(event.code)) return;
+    if (event.ctrlKey || event.metaKey) {
+      clear();
+      return;
+    }
+    if (
+      !enabled ||
+      captured() ||
+      !isInput(event.code) ||
+      !Object.values(bindings).includes(event.code)
+    )
+      return;
+    if (event.repeat && !keys.has(event.code)) return;
     event.preventDefault();
     keys.add(event.code);
     transmit();
@@ -76,15 +86,14 @@ export function createControls(
     pointer = { x: event.clientX, y: event.clientY };
   }
   function down(event: MouseEvent) {
+    if (!enabled || modalCapture()) return;
+    canvas.focus({ preventScroll: true });
+    pointer = { x: event.clientX, y: event.clientY };
     if (
-      !enabled ||
-      modalCapture() ||
-      (event.button !== 0 && event.button !== 2)
+      !Object.values(bindings).some((input) => input === `Mouse${event.button}`)
     )
       return;
     event.preventDefault();
-    canvas.focus({ preventScroll: true });
-    pointer = { x: event.clientX, y: event.clientY };
     mouse.add(event.button);
     transmit();
   }
@@ -109,8 +118,13 @@ export function createControls(
   canvas.addEventListener('mousemove', move);
   canvas.addEventListener('mousedown', down);
   canvas.addEventListener('contextmenu', contextmenu);
+  canvas.addEventListener('auxclick', contextmenu);
   const timer = window.setInterval(transmit, 50);
   return {
+    setBindings(next: Bindings) {
+      clear();
+      bindings = { ...next };
+    },
     setEnabled(next: boolean) {
       if (!next && enabled) clear();
       enabled = next;
@@ -127,6 +141,7 @@ export function createControls(
       canvas.removeEventListener('mousemove', move);
       canvas.removeEventListener('mousedown', down);
       canvas.removeEventListener('contextmenu', contextmenu);
+      canvas.removeEventListener('auxclick', contextmenu);
     },
   };
 }

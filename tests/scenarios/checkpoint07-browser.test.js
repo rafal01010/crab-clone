@@ -112,7 +112,7 @@ test(
         await delay(250);
       }
       assert.ok(states[0].offer.choices.includes('body-slam'));
-      await dialog.getByRole('button', { name: /Body Slam/ }).click();
+      await dialog.getByRole('button', { name: /Hull Ram/ }).click();
       await page.keyboard.press('Enter');
       await page
         .getByRole('heading', { name: 'Choose a specialization.' })

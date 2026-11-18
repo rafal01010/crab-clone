@@ -80,6 +80,22 @@ test('offers use eligible pools, prerequisites, exclusions, rank limits and reta
   assert.equal(retained?.rarity, 'legendary');
 });
 
+test('upgrade descriptions trim decimal noise and keep meaningful fractions', () => {
+  const registry = createStarterRegistry();
+  assert.equal(
+    registry.describe('omnivore', 'legendary', 1)?.description,
+    '+60% progress from all salvage.',
+  );
+  assert.equal(
+    registry.describe('chonky', 'epic', 3)?.description,
+    '+45% size and +4.5 physical.',
+  );
+  assert.equal(
+    registry.describe('elusive', 'common', 3)?.description,
+    '+25% dodge and -30% size.',
+  );
+});
+
 test('earned choices reject stale transactions and preserve protection through reroll and disconnect', () => {
   const match = setup();
   try {
@@ -159,14 +175,16 @@ test('displayed choice expires without resetting deadline and queued prompts exp
   window.enqueue(prompt('second'), 10);
   window.markDisplayed('first', 0);
   window.setConnected(false, 100);
-  window.setConnected(true, 9000);
-  assert.equal(window.state.deadline, 10000);
-  assert.equal(window.choose('first', 0, 'two', 10000), false);
+  window.setConnected(true, 19000);
+  assert.equal(window.state.deadline, 20000);
+  assert.equal(window.choose('first', 0, 'two', 20000), false);
   assert.equal(window.takeOutcomes()[0].optionId, 'one');
   assert.equal(window.state.kind, 'exposed');
-  window.advance(12000);
+  window.advance(21999);
+  assert.equal(window.state.kind, 'exposed');
+  window.advance(22000);
   assert.equal(window.state.kind, 'protected');
-  assert.equal(window.state.deadline, 22000);
+  assert.equal(window.state.deadline, 42000);
 });
 
 test('dead players remain dead on reconnect and spectator visibility follows survivor', () => {
@@ -484,7 +502,7 @@ test('elimination clears choice and owned status, leaves salvage and rejects int
         duration: 5000,
       }),
     );
-    assert.ok(match.grantProgress('a', 10));
+    assert.ok(match.grantProgress('a', match.view('a').progression.required));
     step(match, 20);
     assert.ok(match.view('a').offer);
     const before = match.view('b').resources.length;
@@ -660,7 +678,7 @@ test('specialization and equipment expiry keep their safe defaults', () => {
     const window = new SelectionWindow(() => 0);
     window.enqueue(prompt, 0);
     window.markDisplayed(prompt.id, 0);
-    window.advance(10000);
+    window.advance(20000);
     assert.equal(window.takeOutcomes()[0].kind, expected);
     assert.equal(window.takeOutcomes().length, 0);
   }

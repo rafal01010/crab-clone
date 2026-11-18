@@ -132,6 +132,68 @@ test('intent queue rejects malformed, duplicated, and unauthorized input', () =>
   assert.equal(queue.drain().length, 1);
 });
 
+test('intent queue bounds pending work per player and preserves accepted sequences on discard', () => {
+  const queue = new IntentQueue();
+  const first = { playerId: 'first', matchId: 'm' };
+  const second = { playerId: 'second', matchId: 'm' };
+  let authorized = 0;
+  function control(session, sequence) {
+    return queue.accept(
+      { ...session, kind: 'control', sequence, x: 0, y: 0, aim: 0, buttons: 0 },
+      session,
+      () => {
+        authorized++;
+        return true;
+      },
+    );
+  }
+  for (let sequence = 1; sequence <= 16; sequence++)
+    assert.equal(control(first, sequence).status, 'queued');
+  assert.equal(control(first, 17).status, 'rejected');
+  assert.equal(authorized, 16);
+  assert.equal(control(second, 1).status, 'queued');
+  queue.discardPlayer(first.playerId);
+  assert.equal(control(first, 16).status, 'rejected');
+  assert.equal(control(first, 17).status, 'queued');
+  assert.deepEqual(
+    queue.drain().map(({ playerId, sequence }) => [playerId, sequence]),
+    [
+      [second.playerId, 1],
+      [first.playerId, 17],
+    ],
+  );
+  assert.equal(control(first, 18).status, 'queued');
+  queue.discardPending();
+  assert.deepEqual(queue.drain(), []);
+  assert.equal(control(first, 18).status, 'rejected');
+  assert.equal(control(first, 19).status, 'queued');
+});
+
+test('intent action budget charges authorization attempts and refills', (t) => {
+  let now = 0;
+  t.mock.method(performance, 'now', () => now);
+  const queue = new IntentQueue();
+  const session = { playerId: 'a', matchId: 'm' };
+  let authorized = 0;
+  function ready(allow) {
+    return queue.accept(
+      { ...session, kind: 'ready', sequence: 1, ready: true },
+      session,
+      () => {
+        authorized++;
+        return allow;
+      },
+    );
+  }
+  for (let i = 0; i < 8; i++) assert.equal(ready(false).status, 'rejected');
+  queue.discardPlayer(session.playerId);
+  assert.equal(ready(true).status, 'rejected');
+  assert.equal(authorized, 8);
+  now += 100;
+  assert.equal(ready(true).status, 'queued');
+  assert.equal(authorized, 9);
+});
+
 test('release gate rejects unfinished selectable content', () => {
   const unfinished = {
     id: 'item',
@@ -162,7 +224,7 @@ test('release gate rejects unfinished selectable content', () => {
 
 test(
   'production host serves the page and authenticates an observation stream',
-  { skip: !process.env.YCCE_TEST_URL },
+  { skip: !process.env.YCCE_TEST_URL, timeout: 10000 },
   async () => {
     const { io } = await import('socket.io-client');
     const url = process.env.YCCE_TEST_URL;
@@ -175,11 +237,16 @@ test(
       timeout: 3000,
     });
     try {
-      const content = new Promise((resolve) => socket.once('content', resolve));
-      const session = await new Promise((resolve, reject) => {
-        socket.once('session', resolve);
-        socket.once('connect_error', reject);
-      });
+      const sessionEvent = new Promise((resolve) =>
+        socket.once('session', resolve),
+      );
+      assert.equal(
+        await socket
+          .timeout(3000)
+          .emitWithAck('join-room', { name: 'Pilot', roomId: null }),
+        null,
+      );
+      const session = await sessionEvent;
       const observation = await new Promise((resolve, reject) => {
         const timeout = setTimeout(
           () => reject(new Error('Observation timeout')),
@@ -190,7 +257,6 @@ test(
           resolve(value);
         });
       });
-      assert.deepEqual(await content, []);
       assert.equal(observation.matchId, session.matchId);
       assert.ok(
         observation.state.players.some(
@@ -204,27 +270,21 @@ test(
         playerId: session.playerId,
         sequence: 1,
       };
-      const send = (value) =>
-        new Promise((resolve) =>
-          socket
-            .timeout(3000)
-            .emit('intent', value, (error, acknowledgment) =>
-              resolve(error ? { status: 'timeout' } : acknowledgment),
-            ),
-        );
+      const send = (value) => socket.timeout(3000).emitWithAck('intent', value);
       const duplicate = io(url, {
-        autoConnect: false,
-        auth: { token: session.token },
         forceNew: true,
         reconnection: false,
         timeout: 3000,
       });
       try {
-        const rejected = new Promise((resolve) =>
-          duplicate.once('session-rejected', resolve),
+        assert.match(
+          await duplicate.timeout(3000).emitWithAck('join-room', {
+            name: 'Pilot',
+            roomId: session.matchId,
+            token: session.token,
+          }),
+          /session is in use/i,
         );
-        duplicate.connect();
-        assert.deepEqual(await rejected, { reason: 'session-in-use' });
       } finally {
         duplicate.disconnect();
       }
@@ -234,6 +294,23 @@ test(
       assert.equal(
         (await send({ ...ready, sequence: 2, damage: 100 })).status,
         'rejected',
+      );
+      assert.deepEqual(
+        await send({
+          kind: 'control',
+          matchId: session.matchId,
+          playerId: session.playerId,
+          sequence: 2,
+          x: 0,
+          y: 0,
+          aim: 0,
+          buttons: 0,
+        }),
+        { sequence: 2, status: 'rejected', reason: 'intent unavailable' },
+      );
+      assert.equal(
+        (await send({ ...ready, sequence: 2, ready: false })).status,
+        'queued',
       );
     } finally {
       socket.disconnect();
@@ -545,7 +622,34 @@ test('rejected intents do not change authoritative state or consume the offer', 
       { ...base, revision: 3 },
       { ...base, playerId: 'someone-else' },
       { ...base, offerId: 'x'.repeat(129) },
-      { ...base, damage: 999 },
+      ...[
+        'position',
+        'hit',
+        'damage',
+        'xp',
+        'currency',
+        'rank',
+        'ownerId',
+        'price',
+        'slot',
+        'revive',
+      ].map((field) => ({ ...base, [field]: null })),
+      {
+        ...session,
+        kind: 'reroll',
+        sequence: 1,
+        offerId: 'offer',
+        revision: 4,
+      },
+      {
+        ...session,
+        kind: 'equipment',
+        sequence: 1,
+        offerId: 'offer',
+        revision: 4,
+        slot: 'movement',
+        contentId: 'unlearned',
+      },
       {
         ...session,
         sequence: 1,

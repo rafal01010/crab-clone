@@ -8,7 +8,7 @@ export const CONTROL_BUTTON = {
   interact: 16,
 } as const;
 
-export type Intent = { matchId: string; playerId: string; sequence: number } & (
+export type IntentAction =
   | { kind: 'control'; x: number; y: number; aim: number; buttons: number }
   | { kind: 'choice'; offerId: string; revision: number; choiceId: string }
   | { kind: 'reroll'; offerId: string; revision: number }
@@ -24,8 +24,12 @@ export type Intent = { matchId: string; playerId: string; sequence: number } & (
   | { kind: 'scan' | 'use-firmware' | 'shelter' | 'charm'; targetId: string }
   | { kind: 'spectate'; targetId: string }
   | { kind: 'ready'; ready: boolean }
-  | { kind: 'resume'; token: string }
-);
+  | { kind: 'resume'; token: string };
+export type Intent = {
+  matchId: string;
+  playerId: string;
+  sequence: number;
+} & IntentAction;
 export type Acknowledgment = {
   sequence: number | null;
   status: 'queued' | 'rejected';

@@ -106,9 +106,9 @@ test('choice windows preserve deadlines and do not consume unseen prompts on dis
   window.enqueue(prompt('first'), 0);
   window.enqueue(prompt('second'), 100);
   window.enqueue(prompt('branch', 'specialization'), 200);
-  assert.equal(window.reroll('first', 0, options, 9000), true);
-  assert.equal(window.state.deadline, 10000);
-  assert.equal(window.choose('first', 0, 'a', 9001), false);
+  assert.equal(window.reroll('first', 0, options, 19000), true);
+  assert.equal(window.state.deadline, 20000);
+  assert.equal(window.choose('first', 0, 'a', 19001), false);
   assert.deepEqual(selectionPermissions(window.state), {
     movement: false,
     salvage: false,
@@ -122,7 +122,7 @@ test('choice windows preserve deadlines and do not consume unseen prompts on dis
     passiveExperience: true,
   });
   window.markDisplayed('first', 1);
-  window.setConnected(false, 9500);
+  window.setConnected(false, 19500);
   window.advance(30000);
   assert.equal(window.state.kind, 'exposed');
   assert.deepEqual(
@@ -133,12 +133,12 @@ test('choice windows preserve deadlines and do not consume unseen prompts on dis
   );
   window.setConnected(true, 30000);
   assert.equal(window.state.prompt.id, 'second');
-  assert.equal(window.state.deadline, 40000);
+  assert.equal(window.state.deadline, 50000);
   assert.equal(window.choose('second', 0, 'a', 31000), true);
   assert.equal(window.state.prompt.id, 'branch');
-  assert.equal(window.state.deadline, 40000);
+  assert.equal(window.state.deadline, 50000);
   window.markDisplayed('branch', 0);
-  window.advance(40000);
+  window.advance(50000);
   assert.equal(window.state.kind, 'exposed');
   assert.deepEqual(
     window.takeOutcomes().map(({ kind }) => kind),

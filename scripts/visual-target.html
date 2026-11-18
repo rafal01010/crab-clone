@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hovercraft visual treatments</title>
+    <style>
+      @font-face {
+        font-family: Inter;
+        src: url('/fonts/InterVariable.woff2');
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        background: #000;
+        color: #fff;
+        font:
+          16px Inter,
+          sans-serif;
+        margin: 24px;
+      }
+      h1 {
+        font-size: 28px;
+        font-weight: 400;
+      }
+      h2 {
+        font-size: 20px;
+        font-weight: 400;
+      }
+      p {
+        color: #bdbdbd;
+        max-width: 1000px;
+      }
+      section {
+        position: relative;
+        width: 1280px;
+        height: 720px;
+        margin-bottom: 48px;
+      }
+      canvas {
+        width: 1280px;
+        height: 720px;
+      }
+      .hud,
+      .offers,
+      .caption {
+        position: absolute;
+        background: #101722ed;
+        padding: 14px;
+        line-height: 1.5;
+      }
+      .hud {
+        top: 18px;
+        left: 18px;
+        width: 230px;
+      }
+      .meter {
+        height: 7px;
+        background: #202837;
+        margin: 8px 0;
+      }
+      .meter i {
+        display: block;
+        width: 78%;
+        height: 100%;
+        background: #76cdb4;
+      }
+      .offers {
+        top: 96px;
+        right: 24px;
+        width: 330px;
+        border-left: 3px solid #b393ff;
+      }
+      .offers strong {
+        display: block;
+        font-size: 20px;
+      }
+      .badge {
+        color: #d1baff;
+        border: 1px double #b393ff;
+        padding: 2px 8px;
+      }
+      .caption {
+        bottom: 18px;
+        left: 18px;
+        font-size: 14px;
+      }
+      button {
+        background: #8052ff;
+        color: white;
+        border: 0;
+        border-radius: 24px;
+        padding: 10px 20px;
+        font: inherit;
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>One scene. Two inexpensive treatments.</h1>
+    <p>
+      Both canvases use the gameplay camera, a 1280 × 720 drawing buffer, the
+      same modular geometry, early and late builds, a hunter and forager,
+      terrain, pickups, a HUD, and an Epic offer. This comparison settles
+      material and lighting direction only.
+    </p>
+    <h2>A. Matte daylight with directional shape</h2>
+    <section>
+      <canvas id="matte"></canvas>
+      <div class="hud">
+        HULL 78 / 100
+        <div class="meter"><i></i></div>
+        PLATING 24 · LEVEL 8<br />Day · 4 survivors
+      </div>
+      <div class="offers">
+        <span class="badge">EPIC · III</span><strong>More eyes</strong>A sensor
+        pair improves your view.<br /><button>Confirm upgrade</button>
+      </div>
+      <div class="caption">
+        Starting hull · equipped late build · hunter · forager · four pickup
+        rarities
+      </div>
+    </section>
+    <h2>B. Flat signal colors without lighting</h2>
+    <section>
+      <canvas id="signal"></canvas>
+      <div class="hud">
+        HULL 78 / 100
+        <div class="meter"><i></i></div>
+        PLATING 24 · LEVEL 8<br />Day · 4 survivors
+      </div>
+      <div class="offers">
+        <span class="badge">EPIC · III</span><strong>More eyes</strong>A sensor
+        pair improves your view.<br /><button>Confirm upgrade</button>
+      </div>
+      <div class="caption">
+        Identical camera, geometry, placement, and interface
+      </div>
+    </section>
+    <script type="module" src="/scripts/visual-target.ts"></script>
+  </body>
+</html>

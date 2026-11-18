@@ -147,7 +147,7 @@ test('expired offers reject purchases without spending or extending protection',
     step(match, 20);
     const current = offer(match);
     match.markSelectionDisplayed('a', current.id, current.revision);
-    step(match, 10000);
+    step(match, current.deadline - match.view('a').time);
     assert.equal(send(match, 'a', 'reroll', current), false);
     assert.equal(send(match, 'a', 'upgrade-rarity', current), false);
     assert.equal(
@@ -316,7 +316,7 @@ test('equipment replacement times out safely across disconnect and reconnect', (
     step(match, 5000);
     assert.ok(match.accept({ kind: 'connect', playerId: 'a' }));
     assert.equal(offer(match).deadline, current.deadline);
-    step(match, 5100);
+    step(match, current.deadline - match.view('a').time);
     assert.equal(match.view('a').equipment.slots.movement, 'basic-dash');
     assert.ok(
       match
@@ -434,10 +434,11 @@ test('module projections respect ownership and do not change collision geometry'
     );
     step(match, 100);
     const radius = self().radius;
+    const initialModules = self().modules;
     assert.equal(radius, 1);
     assert.ok(match.grantUpgrade('a', 'muscular-tissue', 'common', 1));
     step(match, 20);
-    assert.deepEqual(self().modules, []);
+    assert.deepEqual(self().modules, initialModules);
     const specialization = offer(match);
     assert.ok(
       send(match, 'a', 'choice', specialization, { choiceId: 'fixture-fork' }),
@@ -545,7 +546,7 @@ test('displayed specialization times out once without granting another window', 
     step(match, 20);
     const current = offer(match);
     match.markSelectionDisplayed('a', current.id, current.revision);
-    step(match, 10000);
+    step(match, current.deadline - match.view('a').time);
     assert.equal(match.view('a').progression.currency, 10);
     assert.equal(
       send(match, 'a', 'choice', current, { choiceId: 'skip' }),
